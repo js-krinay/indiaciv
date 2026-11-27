@@ -8,9 +8,9 @@ export function compact(n) {
   return String(Math.round(n));
 }
 
-export const money = (n) => (n == null ? "–" : "$" + compact(n));
-export const dollars = (n) => (n == null ? "–" : "$" + Math.round(n).toLocaleString("en-US"));
-export const int = (n) => (n == null ? "–" : Math.round(n).toLocaleString("en-US"));
+export const money = (n) => (n == null ? "–" : "₹" + compact(n));
+export const dollars = (n) => (n == null ? "–" : "₹" + Math.round(n).toLocaleString("en-IN"));
+export const int = (n) => (n == null ? "–" : Math.round(n).toLocaleString("en-IN"));
 export const pct = (x, d = 1) => (x == null ? "–" : (x * 100).toFixed(d) + "%");
 
 export function yieldValue(y, v) {
@@ -20,7 +20,7 @@ export function yieldValue(y, v) {
     if (points < 10) return points.toLocaleString("en-IN", { maximumFractionDigits: 2 });
     return compact(points);
   }
-  return y.unit === "usd" ? money(v) : compact(v);
+  return y.unit === "INR" ? money(v) : compact(v);
 }
 
 export function yieldDetails(y, value, meta) {
@@ -42,3 +42,12 @@ export function popShort(n) {
 
 export const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+// Return escaped markup for a value's observation period, including a separator if requested.
+export function periodLabel(record, prefix = "", { plain = false } = {}) {
+  const period = typeof record === "string" ? record : record?.period;
+  if (!period) return "";
+  if (plain) return prefix + period;
+  const label = esc(prefix + period);
+  return record?.vintage === "older" ? `<span class="muted period-tag">${label}</span>` : label;
+}

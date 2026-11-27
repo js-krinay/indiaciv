@@ -3,17 +3,35 @@
 from fractions import Fraction
 
 from ..india.city_sources import AGE_API_SOURCE, AGE_SOURCE, CLUSTER_REPORTS, LABOUR_PERIOD, LABOUR_SOURCE
+from ..sources.worldpop_age import median_age
 from .city_view import apportion
 
 SECTORS = ("agriculture", "industry", "services")
 MAX_PLAQUES = 5
 
 
+def resident_industries(employed, shares, provenance):
+    if not employed or not shares:
+        return None, {}
+    weights = dict(zip(SECTORS, shares, strict=True))
+    return apportion(employed, weights), {**provenance, "employed": employed, "estimated": True}
+
+
+def quarterly_resident_industries(population, profile, metrics, shares):
+    age_0_14 = profile.get("age_0_14")
+    wpr = metrics.get("wpr", {}).get("value")
+    employed = round(population * (1 - age_0_14 / 100) * wpr) if age_0_14 is not None and wpr is not None else None
+    return resident_industries(employed, shares, {
+        "period": LABOUR_PERIOD, "source": [LABOUR_SOURCE, "tg_projections"], "scope": "Residents age 15+",
+    })
+
+
 def qualitative_plaques(city_id, members):
     return [
         {"kind": "qualitative", "district": district, "icon": icon, "label": label,
          "source": source, "citation": f"{publisher} · {title}", "url": url, "period": period,
-         "evidence": evidence, "estimated": False}
+         "evidence": evidence, "estimated": False,
+         **({"vintage": "2026"} if source == "upeida_lucknow_cluster" else {})}
         for source, (title, publisher, period, url, entries) in CLUSTER_REPORTS.items()
         for cid, district, icon, label, evidence in entries
         if cid == city_id and district in members
@@ -48,8 +66,9 @@ def age_profile(population, ages, source=AGE_SOURCE):
     return {
         "counts": dict(zip(("0_14", "15_59", "60_plus"), counts.values())),
         "median_band": median,
+        "median": median_age(ages),
         "bands": bands,
-        "source": source, "period": "mid-2026", "estimated": True,
+        "source": source, "period": "mid-2026", "vintage": "2026 estimate", "estimated": True,
         "method": "worldpop_api_footprint_to_un" if source == AGE_API_SOURCE else "worldpop_footprint_to_un",
     }
 

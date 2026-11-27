@@ -1,5 +1,5 @@
 // Shared building blocks for the city and state panels (both render into #city-panel).
-import { compact, dollars, esc, int, money, pct, yieldDetails, yieldValue } from "../format.js";
+import { compact, dollars, esc, int, money, pct, periodLabel, yieldDetails, yieldValue } from "../format.js";
 import { icon, glyph } from "./icon.js";
 
 // Industry → a "district" glyph: SVG icons i-<key> from icons.js; these emoji are only the fallback.
@@ -14,21 +14,18 @@ const panelEl = () => document.getElementById("city-panel");
 
 // Yield tiles; `ranks` (optional) adds "#3 of 49" under each.
 export function yieldGrid(nation, yields, ranks = null, rankOf = 0, meta = null) {
-  const tiles = nation.yields
+  return nation.yields
     .map((y) => {
       const v = yields?.[y.key];
       const r = ranks?.[y.key];
       const label = y.key === "gold" ? "GDP" : y.label;
-      const detail = y.scale ? yieldDetails(y, v, meta?.[y.key]) : y.description || "";
-      const tip = esc(`${label} · ${detail}`);
-      return `<button type="button" class="yield-tile" title="${tip}" aria-label="${tip}" aria-expanded="false" aria-controls="panel-yield-detail">
-        <span class="ico" style="color:${esc(y.color)}">${glyph(y, 20)}</span>
-        <span class="val" style="color:${esc(y.color)}">${esc(yieldValue(y, v))}</span>
-        <span class="lbl">${esc(label)}</span>
-        ${r ? `<span class="rank" title="Rank among the ${rankOf} mapped states (1 = largest)">#${r} of ${rankOf}</span>` : ""}</button>`;
+      return `<div class="yield-tile" title="${esc(y.label)}${y.key === "gold" ? " (GDP)" : ""}: ${esc(y.scale ? yieldDetails(y, v, meta?.[y.key]) : y.description || "")}">
+        <div class="ico" style="color:${esc(y.color)}">${glyph(y, 20)}</div>
+        <div class="val" style="color:${esc(y.color)}">${esc(yieldValue(y, v))}</div>
+        <div class="lbl">${esc(label)}</div>
+        ${r ? `<div class="rank" title="Rank among the ${rankOf} mapped states (1 = largest)">#${r} of ${rankOf}</div>` : ""}</div>`;
     })
     .join("");
-  return `${tiles}<p id="panel-yield-detail" class="yield-detail" aria-live="polite" hidden></p>`;
 }
 
 // One "value ▲ US value" row. higherIsGood: true / false / null (neutral).
@@ -44,16 +41,18 @@ export function statRow(ic, fallback, label, v, nv, fmt, higherIsGood) {
   return `<div class="stat-row"><span class="sl">${icon(ic, fallback, { size: 14 })}${esc(label)}</span><span><b>${fmt(v)}</b>${cmp}</span></div>`;
 }
 
-// True when a city or state has any of the amenity figures (the India build has none yet).
+// True when a city or state has a figure for the Amenities and Housing section.
 export const hasAmenities = (o) => ["unemployment", "median_income", "home_value", "median_rent", "rent_burden", "gdp"].some((k) => o[k] != null);
 
 export function amenities(o, n) {
   return `
-    ${statRow("unemployment", "😐", "Unemployment", o.unemployment, n.unemployment, (x) => pct(x), false)}
-    ${statRow("l-income", "💵", "Median household income", o.median_income, n.median_income, dollars, true)}
-    ${statRow("l-home", "🏠", "Median home value", o.home_value, n.home_value, dollars, null)}
-    ${statRow("l-homeownership", "🔑", "Median gross rent / mo", o.median_rent, n.median_rent, dollars, false)}
-    ${statRow(null, "⚖️", "Rent ÷ income", o.rent_burden, n.rent_burden, (x) => pct(x), false)}`;
+    ${o.unemployment != null ? statRow("unemployment", "😐",
+      `${o.metro ? "State urban unemployment benchmark · age 15+" : "Unemployment"}${o.provenance?.unemployment?.period ? ` · ${o.provenance.unemployment.period}` : ""}`,
+      o.unemployment, null, (x) => pct(x), false) : ""}
+    ${o.median_income != null ? statRow("l-income", "💵", "Median household income", o.median_income, n.median_income, dollars, true) : ""}
+    ${o.home_value != null ? statRow("l-home", "🏠", "Median home value", o.home_value, n.home_value, dollars, null) : ""}
+    ${o.median_rent != null ? statRow("l-homeownership", "🔑", "Median gross rent / mo", o.median_rent, n.median_rent, dollars, false) : ""}
+    ${o.rent_burden != null ? statRow(null, "⚖️", "Rent ÷ income", o.rent_burden, n.rent_burden, (x) => pct(x), false) : ""}`;
 }
 
 // Workforce by industry with location quotients vs. the nation ("specialisation"). limit = max rows (0 = all).
@@ -84,26 +83,23 @@ export function industries(o, nation, limit = 0) {
 
 export const gdpRow = (o) =>
   o.gdp != null
-    ? `<div class="stat-row"><span class="sl">${icon("y-gold", "💰", { size: 14 })}GDP${o.gdp_year ? ` (${o.gdp_year})` : ""}</span><span><b>${money(o.gdp)}</b>${
-        o.population ? `<span class="cmp">${money(o.gdp / o.population)} per person</span>` : ""}</span></div>`
+    ? `<div class="stat-row"><span class="sl">${icon("y-gold", "💰", { size: 14 })}GDP${periodLabel(o.yield_meta?.gold, " · ")}${o.yield_meta?.gold?.estimated ? " · IndiaCiv estimate" : ""}</span><span><b>${money(o.gdp)}</b>${
+        o.population && o.provenance?.population?.vintage !== "older" ? `<span class="cmp">${money(o.gdp / o.population)} per person</span>` : ""}</span></div>`
     : "";
 
 // " · ▲ 3.4% since 2021" from growth / growth_years (cities and states), compared with the U.S. in the tooltip.
 // Empty when growth is missing (null means "not measured", never zero).
-export function growthSpan(o, n = null) {
-  if (!Number.isFinite(o?.growth)) return "";
-  const yrs = Array.isArray(o.growth_years) && o.growth_years.length === 2 ? o.growth_years : null;
-  const p = (g) => `${g >= 0 ? "+" : "−"}${Math.abs(g * 100).toFixed(1)}%`;
-  const period = yrs ? `${yrs[0]}–${yrs[1]}` : "the last few years";
-  const us = Number.isFinite(n?.growth) ? ` (U.S. ${p(n.growth)})` : "";
-  const tip = `Population change ${period}, Census population estimates: ${p(o.growth)}${us}`;
-  const cls = o.growth >= 0 ? "good" : "bad";
-  return ` · <span class="growth ${cls}" title="${esc(tip)}">${o.growth >= 0 ? "▲" : "▼"} ${Math.abs(o.growth * 100).toFixed(1)}%${
-    yrs ? ` <span class="since">since ${yrs[0]}</span>` : ""}</span>`;
+export function growthSpan(o) {
+  const growth = o?.growth_period ? o.projected_growth ?? o.growth : o?.profile?.growth_period ? o.profile.growth : null;
+  if (!Number.isFinite(growth) || o.provenance?.population?.vintage === "older" ||
+      o.provenance?.growth?.vintage === "older" || o.provenance?.projected_growth?.vintage === "older") return "";
+  const period = esc(o.growth_period || o.profile.growth_period);
+  const cls = growth >= 0 ? "good" : "bad";
+  return ` · <span class="growth ${cls}">${growth >= 0 ? "▲" : "▼"} ${Math.abs(growth * 100).toFixed(1)}% · ${period}</span>`;
 }
 
 export const popLine = (o, extra = "") =>
-  `<div class="cp-pop">${icon("pop", "👥", { size: 16 })} <b>${int(o.population)}</b> people${o.employed != null ? ` · ${int(o.employed)} employed` : ""}${extra}</div>`;
+  `<div class="cp-pop">${icon("pop", "👥", { size: 16 })} <b>${int(o.population)}</b> people${o.employed != null ? ` · ${int(o.employed)} employed${periodLabel(o.provenance?.employed?.period || "1 Jul – 30 Sep 2026", " · ")} · IndiaCiv estimate` : ""}${extra}</div>`;
 
 /**
  * Fill and show the panel.
@@ -112,46 +108,29 @@ export const popLine = (o, extra = "") =>
 export function showPanel(spec) {
   const panel = panelEl();
   panel.dataset.kind = spec.kind;
-  const label = { state: "State", district: "District", city: "City", wonder: "Wonder", tile: "Tile", resource: "Resource" }[spec.kind] || "City";
-  panel.setAttribute("aria-label", `${label}: ${spec.title}`);
+  panel.setAttribute("aria-label", `${spec.kind === "state" ? "State" : "City"}: ${spec.title}`);
   panel.innerHTML = `
     <div class="sheet-grip" aria-hidden="true"></div>
     <div class="cp-head">
       <div class="stripe" style="background:${spec.stripe}"></div>
       <button class="icon-btn cp-close" aria-label="Close panel (Esc)" title="Close (Esc)">${icon("close", "✕", { size: 13 })}</button>
-      <div class="cp-kind">${label}</div>
+      <div class="cp-kind">${spec.kind === "state" ? "State" : "City"}</div>
       <h2 class="cp-name">${spec.titleHtml ?? esc(spec.title)}</h2>
       ${spec.sub ? `<div class="cp-full">${spec.sub}</div>` : ""}
       ${spec.headExtra || ""}
     </div>
     ${spec.sections.filter(Boolean).map((s) => `<section class="cp-section"><h3>${s.title}</h3>${s.html}</section>`).join("")}
-    <div class="cp-foot">${spec.foot || ""} ${spec.pediaLink?.(spec.pediaRoute, "Almanac ›") || ""}</div>`;
+    <div class="cp-foot">${spec.foot || ""} <a href="#" data-pedia>Almanac ›</a></div>`;
   panel.hidden = false;
   panel.scrollTop = 0;
   panel.classList.remove("dragging-sheet");
   panel.style.transform = "";
   document.body.classList.add("panel-open");
   panel.querySelector(".cp-close").onclick = spec.onClose;
-  for (const link of panel.querySelectorAll("[data-pedia-route]")) {
-    link.onclick = (e) => {
-      if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
-      spec.onPedia?.(link.dataset.pediaRoute);
-    };
-  }
-  const yieldDetail = panel.querySelector("#panel-yield-detail");
-  if (yieldDetail) {
-    const tiles = [...panel.querySelectorAll(".yield-tile")];
-    for (const tile of tiles) {
-      tile.onclick = () => {
-        const expand = tile.getAttribute("aria-expanded") === "false";
-        for (const other of tiles) other.setAttribute("aria-expanded", String(expand && tile === other));
-        yieldDetail.hidden = !expand;
-        yieldDetail.textContent = expand ? tile.title : "";
-        if (expand) yieldDetail.scrollIntoView({ block: "nearest" });
-      };
-    }
-  }
+  panel.querySelector("[data-pedia]").onclick = (e) => {
+    e.preventDefault();
+    spec.onPedia?.();
+  };
   spec.wire?.(panel);
 }
 

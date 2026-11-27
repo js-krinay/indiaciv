@@ -127,6 +127,7 @@ def is_stale(mod: ModuleType) -> bool:
     inputs = [output_path(r) for r in getattr(mod, "REQUIRES", [])]
     if not all(p.exists() for p in inputs):
         return True  # let build() fail with its own clear message
+    inputs += [path for req in getattr(mod, "OPTIONAL_REQUIRES", []) if (path := output_path(req)).exists()]
     inputs += helper_files(Path(mod.__file__))
     return max((p.stat().st_mtime for p in inputs), default=0) >= min(p.stat().st_mtime for p in outs)
 

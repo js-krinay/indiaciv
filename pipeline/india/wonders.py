@@ -30,12 +30,13 @@ CREDITS = [
         ["World Heritage wonder selection"],
     ),
     SourceInfo(
-        "wonders_asi", "India Tourism Statistics 2026, table 4.2.2", "Ministry of Tourism, Government of India",
+        "wonders_asi", "India Tourism Statistics 2026, tables 4.2.2 and 4.2.3", "Ministry of Tourism, Government of India",
         "https://www.tourism.gov.in/static/uploads/2026/09/a1ff37713ad3922f69778dca13aa65ab.pdf",
         "© 2026 Ministry of Tourism. No open licence identified.",
-        "67th edition. FY 2025-26 domestic visits inform site selection. PDF SHA-256 "
+        "67th edition. FY 2025-26 domestic visits inform site selection. IndiaCiv ranks ticketed sites "
+        "with both domestic and foreign figures by the sum of those visits. PDF SHA-256 "
         "5911dac3a48fec71b1136e45fb0ddd3da3628a7c8e4bfe292b05d97d710ec526.",
-        ["Ticketed monument selection"],
+        ["Ticketed monument selection and derived visit ranks"],
     ),
     SourceInfo(
         "wonders_wikidata", "Wikidata coordinates", "Wikidata contributors",

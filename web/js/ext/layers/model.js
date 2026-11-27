@@ -12,7 +12,7 @@
 // nearest free hex one ring out, leaning toward their true point; item.cell stays the true hex and item.drawCell is
 // where the glyph stands (item.nudged = true). Tooltips always describe the true site.
 import { prepareNetwork, prepareRoutes, portTier, airportTier } from "../../render/art/improvements.js";
-import { prepareCellSet, fortKind, isAirfieldName } from "../../render/art/sites.js";
+import { prepareCellSet, prepareProtectedLand, fortKind, isAirfieldName } from "../../render/art/sites.js";
 import { metroSpill } from "../../render/art/city.js";
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -109,7 +109,8 @@ export function createModel(w) {
         minRpx: x.rule === "research_inventory" ? 8 : x.description ? 1.5 : SITE_RULES.wonder.minRpx(),
         pref: 90, variant: hashStr(x.id) % 3, motif: wonderMotif(x),
       }));
-      m.parks = (data?.wonders || []).filter((x) => x.kind === "natural" && Array.isArray(x.cells) && x.cells.length > 1)
+      const protection = prepareProtectedLand(w, data);
+      m.parks = protection ? [protection] : (data?.wonders || []).filter((x) => x.kind === "natural" && Array.isArray(x.cells) && x.cells.length > 1)
         .map((x) => ({ wonder: x, ...prepareCellSet(w, x.cells) }));
     } else if (name === "trade") {
       m.routes = data ? prepareRoutes(w, data) : [];

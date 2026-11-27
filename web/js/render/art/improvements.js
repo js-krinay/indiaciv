@@ -606,6 +606,7 @@ export function routeArc(grid, ca, cb, bow = 0.16) {
  */
 export function prepareRoutes(w, trade) {
   const { grid } = w;
+  if (trade?.literal_paths) return prepareLiteralRoutes(grid, trade.routes);
   const zones = new Map((trade?.zones || []).map((z) => [z.id, z]));
   const list = [...(trade?.routes || [])].sort((p, q) => (q.value_musd || 0) - (p.value_musd || 0));
   const vmax = Math.max(1, ...list.map((r) => r.value_musd || 0));
@@ -629,6 +630,19 @@ export function prepareRoutes(w, trade) {
     });
   }
   return routes;
+}
+
+function prepareLiteralRoutes(grid, routes) {
+  const max = Math.max(1, ...routes.map((route) => route.tons_k || 0));
+  return routes.filter((route) => route.path.length > 1).map((route) => {
+    const pts = Float64Array.from(route.path.flatMap((cell) => [grid.cx(cell), grid.cy(cell)]));
+    const path = new Path2D();
+    path.moveTo(pts[0], pts[1]);
+    for (let i = 2; i < pts.length; i += 2) path.lineTo(pts[i], pts[i + 1]);
+    const rail = route.top_mode === "rail";
+    return { route, pts, path, literal: true, color: rail ? "#ffba64" : "#83e4ef",
+      width: route.schematic ? 1.35 : rail ? 2.7 : 1.4 + 5.6 * Math.sqrt(route.tons_k / max) };
+  });
 }
 
 /** Route line width in css px at a zoom. */
@@ -662,6 +676,29 @@ const MARKER_EVERY_PX = 240; // one medallion per this much route on screen (up 
 export function drawTradeRoutes(ctx, routes, vp, o, opts = {}) {
   if (!routes?.length) return;
   const s = vp.s, Rpx = o.Rpx;
+  if (routes[0].literal) {
+    ctx.save();
+    ctx.lineCap = ctx.lineJoin = "round";
+    for (const rt of routes) {
+      ctx.setLineDash(rt.route.schematic ? [3 / s, 4 / s] : []);
+      if (!rt.route.schematic) {
+        ctx.strokeStyle = "#142d37";
+        ctx.lineWidth = (rt.width + 2) / s;
+        ctx.stroke(rt.path);
+      }
+      ctx.strokeStyle = rt.color;
+      ctx.lineWidth = rt.width / s;
+      ctx.stroke(rt.path);
+      if (rt.route.tons_k != null) {
+        ctx.beginPath();
+        ctx.arc(rt.pts[0], rt.pts[1], Math.max(2.5, rt.width / 2) / s, 0, 2 * Math.PI);
+        ctx.fillStyle = rt.color;
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+    return;
+  }
   const pad = 40 / s;
   const shown = [];
   for (let k = routes.length - 1; k >= 0; k--) {
@@ -742,8 +779,9 @@ export function drawTradeRoutes(ctx, routes, vp, o, opts = {}) {
 export function hitRoute(routes, x, y, Rpx, s) {
   let best = null, bestD = Infinity;
   for (const rt of routes || []) {
-    const tol = (routeWidth(rt, Rpx) * 0.75 + 4) / s;
-    const [x0, y0, x1, y1] = rt.bbox;
+    if (rt.route.schematic) continue;
+    const tol = (rt.literal ? Math.max(6, rt.width / 2) : routeWidth(rt, Rpx) * 0.75 + 4) / s;
+    const [x0, y0, x1, y1] = rt.bbox || [-Infinity, -Infinity, Infinity, Infinity];
     if (x < x0 - tol - 30 / s || x > x1 + tol + 30 / s || y < y0 - tol - 30 / s || y > y1 + tol + 30 / s) continue;
     for (const [mx, my, r] of rt._markers || []) {
       if (Math.hypot(x - mx, y - my) <= (r + 2) / s) return rt;

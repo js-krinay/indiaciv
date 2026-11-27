@@ -55,8 +55,7 @@ svg.icon { display: inline-block; flex: none; }
   font-variant-numeric: tabular-nums;
 }
 .brand { font-family: var(--serif); font-weight: bold; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-bright); white-space: nowrap; display: flex; align-items: center; flex: none; }
-/* IndiaCiv's emblem (as the favicon): a gold hexagon with a green peak. */
-.brand-emblem { display: inline-grid; place-items: center; width: 22px; height: 24px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: #c3ac62; color: #517845; font-size: 12px; line-height: 1; margin-right: 6px; }
+.brand-emblem { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #2a4d8f; border: 1px solid var(--gold); color: #fff; font-size: 13px; margin-right: 6px; box-shadow: 0 0 0 2px rgba(0,0,0,.4); }
 .yields { display: flex; gap: 14px; flex: none; }
 .yield {
   position: relative; display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 14px; white-space: nowrap; cursor: pointer; border-radius: 4px;
@@ -230,8 +229,6 @@ kbd {
   position: fixed; top: 52px; right: calc(12px + var(--dock-right, 0px)); bottom: 12px; width: 370px; z-index: 12;
   overflow-y: auto; padding: 0 0 12px; overscroll-behavior: contain;
 }
-#city-panel[data-kind="wonder"] { bottom: auto; max-height: calc(100dvh - 64px); }
-.wonder-description { color: var(--ink); font-size: 13px; line-height: 1.45; margin: 10px 0 6px; }
 .sheet-grip { display: none; }
 .cp-head { padding: 12px 16px 12px 20px; border-bottom: 1px solid var(--line); position: relative; background: linear-gradient(180deg, rgba(255,235,190,.05), transparent); }
 .cp-head .stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; border-radius: 6px 0 0 0; box-shadow: inset -1px 0 0 rgba(0,0,0,.4); }
@@ -255,11 +252,8 @@ button.chip:hover { background: rgba(201,164,92,.2); }
   text-transform: uppercase; color: var(--gold); display: flex; align-items: center; gap: 8px;
 }
 .cp-section h3::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
-.yield-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.yield-tile { background: rgba(0,0,0,.25); border: 1px solid rgba(201,164,92,.25); border-radius: 5px; padding: 6px 2px; text-align: center; cursor: pointer; font: inherit; }
-.yield-tile .val, .yield-tile .lbl, .yield-tile .rank { display: block; }
-.yield-tile[aria-expanded="true"] { border-color: var(--gold-bright); }
-.yield-detail { grid-column: 1 / -1; margin: 0; padding: 3px 0; font-size: 12px; color: var(--ink-dim); overflow-wrap: anywhere; }
+.yield-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.yield-tile { background: rgba(0,0,0,.25); border: 1px solid rgba(201,164,92,.25); border-radius: 5px; padding: 6px 2px; text-align: center; cursor: help; }
 .yield-tile .ico { display: flex; justify-content: center; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
 .yield-tile .val { font-weight: 700; font-size: 14px; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .yield-tile .lbl { font-size: 10px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .06em; }
@@ -289,13 +283,7 @@ button.chip:hover { background: rgba(201,164,92,.2); }
 .cr-go { color: var(--gold); }
 .cp-section p.muted { font-size: 12px; margin: 4px 0; }
 .cp-foot { padding: 10px 16px 0; font-size: 11px; color: var(--ink-dim); }
-.cp-foot a, .cp-section a[data-protected-site], a[data-pedia-route] { color: var(--gold); cursor: pointer; }
-[data-kind="district"] .cp-full a, .district-sites button { color: var(--gold); }
-.district-fact { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 5px 0; }
-.district-fact small { grid-column: 1 / -1; font-size: 11px; }
-.district-sites { margin: 0; padding-left: 18px; }
-.district-sites button { font: inherit; background: none; border: 0; padding: 3px 0; text-align: left; cursor: pointer; }
-.district-sites button:hover { text-decoration: underline; }
+.cp-foot a { color: var(--gold); cursor: pointer; }
 
 /* ---------- lenses ---------- */
 /* left: 266px keeps the area clear of the 252px-wide minimap; it never overlaps it. */
@@ -307,10 +295,8 @@ button.chip:hover { background: rgba(201,164,92,.2); }
 body.panel-open #lens-area { right: calc(394px + var(--dock-right, 0px)); }
 #lens-area { container-type: inline-size; }
 /* A narrow dock (e.g. beside the open panel) shows icons only for the quick lenses. */
-@media (min-width: 701px) {
-  @container (max-width: 560px) {
-    .lens-quick .lens-btn:not(.active) span, .res-toggle span { display: none; }
-  }
+@container (max-width: 560px) {
+  .lens-quick .lens-btn:not(.active) span, .res-toggle span { display: none; }
 }
 .lens-dock { display: flex; align-items: center; gap: 4px; padding: 5px; max-width: 100%; min-width: 0; }
 .lens-quick { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
@@ -327,19 +313,6 @@ body.panel-open #lens-area { right: calc(394px + var(--dock-right, 0px)); }
 .lens-more[aria-expanded="true"] .caret { display: inline-block; transform: rotate(180deg); }
 .res-toggle { color: var(--ink-dim); margin-right: 4px; }
 .res-toggle.active { color: var(--gold-bright); border-color: var(--gold-bright); }
-.resource-group { color-scheme: dark; max-width: 112px; }
-.resource-group:disabled { opacity: .5; }
-
-.welcome {
-  position: fixed; z-index: 12; top: 66px; left: 12px;
-  width: min(330px, calc(100% - 24px)); padding: 14px 16px;
-  font-size: 13px; line-height: 1.45;
-}
-.welcome h2 { margin: 0 28px 6px 0; font: 700 18px var(--serif); color: var(--gold-bright); }
-.welcome p { margin: 0 0 8px; }
-.welcome ul { margin: 0; padding-left: 18px; }
-.welcome li + li { margin-top: 4px; }
-.welcome-close { position: absolute; top: 7px; right: 7px; width: 32px; height: 32px; font-size: 19px; }
 
 .lens-picker { width: 580px; max-width: 100%; max-height: calc(100vh - 140px); display: flex; flex-direction: column; overflow: hidden; }
 .lp-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 6px 14px; border-bottom: 1px solid var(--line);
@@ -360,13 +333,6 @@ body.panel-open #lens-area { right: calc(394px + var(--dock-right, 0px)); }
 
 .legend { padding: 8px 10px 9px; width: 300px; max-width: 100%; font-size: 11px; }
 .legend.behind { display: none; }
-.terrain-key summary { cursor: pointer; }
-.terrain-key-body { max-height: min(45vh, 330px); max-height: min(45dvh, 330px); overflow-y: auto; }
-.terrain-key-body h4 { color: var(--gold-bright); margin: 8px 0 4px; }
-.terrain-key-body ul { list-style: none; margin: 0; padding: 0; }
-.terrain-key-body li { display: flex; gap: 7px; margin-bottom: 6px; padding-right: 4px; }
-.terrain-key-body i { flex: 0 0 10px; height: 10px; margin-top: 2px; border-radius: 2px; }
-.terrain-key-body p { margin: 1px 0 0; color: var(--ink-dim); line-height: 1.35; }
 .lg-head { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
 .lg-ic { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #1b2838; border: 1px solid var(--gold); color: var(--gold-bright); flex: none; }
 .legend .title { font-family: var(--serif); color: var(--gold-bright); font-size: 15px; letter-spacing: .06em; flex: 1; }
@@ -407,8 +373,6 @@ body.panel-open #lens-area { right: calc(394px + var(--dock-right, 0px)); }
 .ml-row:hover, .ml-row:focus-visible { background: rgba(201,164,92,.1); }
 .ml-row.on { color: var(--ink); }
 .ml-ic { display: inline-grid; place-items: center; width: 18px; flex: none; }
-.protected-swatch { display: inline-block; width: 13px; height: 13px; border-radius: 3px;
-  background: rgba(90,170,90,.28); border: 1px dotted #a6c485; vertical-align: middle; }
 .ml-lbl { flex: 1; }
 .ml-switch { position: relative; width: 28px; height: 16px; border-radius: 8px; background: rgba(0,0,0,.4); border: 1px solid rgba(201,164,92,.4); flex: none; }
 .ml-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--ink-dim); transition: left .12s; }
@@ -436,65 +400,20 @@ body.panel-open #lens-area { right: calc(394px + var(--dock-right, 0px)); }
 
 /* ---------- modals: civilopedia + help ---------- */
 .modal { position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.55); display: grid; place-items: center; }
-#pedia .modal-card {
-  width: min(1110px, 94vw); height: min(800px, 92dvh);
-  display: grid; grid-template-columns: 212px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden; position: relative; background: #172330;
-}
-.pedia-tools {
-  grid-column: 1 / -1; display: grid; grid-template-columns: 196px auto minmax(0, 1fr) auto;
-  align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: #202e3e;
-}
-.pedia-brand { font: 19px var(--serif); color: var(--gold-bright); }
-.pedia-history { display: flex; gap: 5px; }
-#pedia .btn { min-width: 44px; min-height: 44px; justify-content: center; }
-#pedia .btn:disabled { opacity: .35; cursor: default; }
-#pedia-body .btn { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: start; }
-#pedia-search, #pedia-category {
-  min-width: 0; min-height: 44px; padding: 0 12px; color: var(--ink);
-  border: 1px solid var(--line); border-radius: 4px; background: #111c28; font: inherit;
-}
-#pedia :focus-visible { outline: 2px solid var(--gold-bright); outline-offset: 2px; }
-#pedia-nav { border-right: 1px solid var(--line); padding: 12px 8px; background: #131e2a; overflow-y: auto; }
-#pedia-nav a {
-  display: flex; min-height: 44px; align-items: center; padding: 6px 12px; border-left: 2px solid transparent;
-  color: var(--ink); font-size: 14px; text-decoration: none;
-}
-#pedia-nav a[aria-current], #pedia-nav a:hover {
-  border-color: var(--gold); background: rgba(201,164,92,.15); color: var(--gold-bright);
-}
-.pedia-picker { display: none; }
-#pedia-body { padding: 24px 30px; min-width: 0; overflow: auto; font-size: 16px; line-height: 1.55; overflow-wrap: anywhere; }
-#pedia-body h1, #pedia-body h2, #pedia-body h4 { color: var(--gold-bright); font-family: var(--serif); font-weight: normal; line-height: 1.15; }
-#pedia-body h1 { font-size: clamp(30px, 4vw, 48px); margin: 0 0 12px; }
-#pedia-body h2 { font-size: 23px; margin: 22px 0 8px; }
-#pedia-body h4 { font-size: 19px; margin: 20px 0 6px; }
-#pedia-body p { margin: 0 0 12px; }
+.modal-card { width: min(980px, 94vw); height: min(680px, 88vh); display: grid; grid-template-columns: 210px 1fr; position: relative; overflow: hidden; }
+.modal-card .close { position: absolute; top: 10px; right: 12px; z-index: 2; }
+#pedia-nav { border-right: 1px solid var(--line); padding: 16px 0; background: rgba(0,0,0,.2); overflow-y: auto; }
+#pedia-nav .hd { font-family: var(--serif); color: var(--gold-bright); font-size: 18px; letter-spacing: .12em; text-transform: uppercase; padding: 0 16px 12px; }
+#pedia-nav button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 7px 16px; cursor: pointer; font-size: 13px; color: var(--ink); }
+#pedia-nav button.active, #pedia-nav button:hover { background: rgba(201,164,92,.15); color: var(--gold-bright); }
+#pedia-body { padding: 20px 28px; overflow-y: auto; font-size: 14px; line-height: 1.55; }
+#pedia-body h2 { font-family: var(--serif); color: var(--gold-bright); letter-spacing: .08em; margin: 0 0 12px; font-weight: normal; font-size: 24px; display: flex; align-items: center; gap: 10px; }
+#pedia-body h2 svg { color: var(--gold); }
+#pedia-body h3.grp { font-family: var(--serif); font-weight: normal; color: var(--gold); font-size: 13px; letter-spacing: .18em; text-transform: uppercase; margin: 22px 0 4px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+#pedia-body h4 { margin: 18px 0 4px; color: var(--gold); font-family: var(--serif); font-size: 15px; display: flex; align-items: center; gap: 6px; }
 #pedia-body a { color: var(--gold-bright); }
-#pedia-body .muted, #pedia-body small, #pedia-body figcaption { color: var(--ink-dim); font-size: 13px; }
-.pedia-breadcrumb { font-size: 13px; }
-.pedia-kicker { color: var(--gold); text-transform: uppercase; letter-spacing: .09em; font-size: 12px; }
-.pedia-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: center; gap: 18px; }
-.pedia-hero > :only-child { grid-column: 1 / -1; }
-.pedia-map-action { background: #59482e; color: #fff1ce; }
-.pedia-specimen { margin: 0; min-width: 0; text-align: center; }
-.pedia-specimen canvas { display: block; width: 100%; height: 184px; border: 1px solid var(--line); border-radius: 4px; }
-.pedia-specimen figcaption { padding: 4px 6px; }
-.pedia-featured { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.pedia-card { min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 4px; background: #1f2d3b; }
-.pedia-card a { display: flex; align-items: center; min-height: 44px; }
-.pedia-card small { display: block; }
-.pedia-card canvas { height: 88px; }
-.pedia-card figcaption { display: none; }
-.pedia-catalogue { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0 20px; }
-.pedia-catalogue h2 { grid-column: 1 / -1; }
-.pedia-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 18px 0; }
-.pedia-facts > div { padding: 10px; border: 1px solid var(--line); background: #1f2d3b; }
-.pedia-facts dt { color: var(--gold); font-size: 13px; }
-.pedia-facts dd { margin: 4px 0 0; }
-.pedia-files li, .pedia-locations li { margin-bottom: 8px; }
-.pedia-files pre { white-space: pre-wrap; font-size: 12px; }
-#pedia-body table { border-collapse: collapse; width: 100%; font-size: 14px; margin-top: 6px; }
+#pedia-body .muted { color: var(--ink-dim); font-size: 12px; }
+#pedia-body table { border-collapse: collapse; width: 100%; font-size: 12px; margin-top: 6px; }
 #pedia-body td, #pedia-body th { border-bottom: 1px solid rgba(201,164,92,.2); padding: 4px 6px; text-align: left; vertical-align: top; }
 #pedia-body th { color: var(--gold); font-weight: normal; font-family: var(--serif); letter-spacing: .06em; }
 #pedia-body td.ic { width: 34px; vertical-align: middle; }
@@ -549,8 +468,9 @@ body.panel-open #lens-area { right: calc(394px + var(--dock-right, 0px)); }
   body.panel-open #minimap-wrap { display: none; }
   body.panel-open #lens-area { left: calc(12px + var(--dock-left, 0px)); }
 }
-/* Keep search and actions visible when the yields need their own scroll area. */
-@media (max-width: 1000px) {
+/* The yields row gives way first when the bar is short of room (topbar.js marks it .clipped). Phones scroll the
+   whole bar instead. */
+@media (max-width: 1000px) and (min-width: 701px) {
   .yields { flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .yields::-webkit-scrollbar { display: none; }
   .yields.clipped { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 22px), transparent); }
@@ -558,36 +478,40 @@ body.panel-open #lens-area { right: calc(394px + var(--dock-right, 0px)); }
 
 /* ---------- phones ---------- */
 @media (max-width: 700px) {
-  #topbar { gap: 6px; padding: 0 8px; }
+  #topbar { gap: 10px; padding: 0 8px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  #topbar::-webkit-scrollbar { display: none; }
   .brand-text { display: none; }
   .spacer { display: none; }
-  .search { flex: 0 1 112px; min-width: 76px; order: -1; }
+  .search { flex: 0 0 160px; min-width: 160px; order: -1; margin-left: 4px; }
   .brand { order: -2; }
   .search-kbd { display: none; }
-  .yields { flex: 1; gap: 10px; }
-  .yields .yield:first-child { margin-left: 0; }
-  .tb-buttons { gap: 4px; }
+  .yields { gap: 10px; }
+  /* Fades at the ends of the scrolling bar (ui/topbar.js sets .more-l / .more-r). Sticky pseudo-elements stay at
+     the visible edges; the negative margins cancel their width and the 10px flex gap so they add no scroll width. */
+  #topbar::before, #topbar::after {
+    content: ""; position: sticky; flex: none; align-self: stretch; width: 30px; z-index: 1; pointer-events: none;
+    opacity: 0; transition: opacity .15s;
+  }
+  #topbar::before { order: -3; left: 0; margin-right: -40px; background: linear-gradient(90deg, #1b2a3a 20%, rgba(27,42,58,0)); }
+  #topbar::after { order: 99; right: 0; margin-left: -40px; background: linear-gradient(270deg, #1b2a3a 20%, rgba(27,42,58,0)); }
+  #topbar.more-l::before, #topbar.more-r::after { opacity: 1; }
 
   #lens-area { left: 0; right: 0; bottom: 0; gap: 6px; align-items: stretch; z-index: 13; }
   body.panel-open #lens-area { right: 0; }
-  .lens-dock { flex-wrap: wrap; border-radius: 10px 10px 0 0; border-left: none; border-right: none; border-bottom: none; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
-  .lens-quick { order: -1; flex-basis: 100%; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); overflow: visible; }
-  .lens-quick .lens-btn { flex-direction: column; justify-content: center; gap: 3px; min-height: 42px; padding: 3px 1px; }
-  .lens-quick .lens-btn span { display: block; font-size: 10px; line-height: 1.1; text-align: center; white-space: normal; }
-  .res-toggle span { display: none; }
-  .lens-more { margin-left: auto; }
+  .lens-dock { border-radius: 10px 10px 0 0; border-left: none; border-right: none; border-bottom: none; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
+  .lens-quick { flex: 1; }
+  .res-toggle span, .lens-more span:not(.caret) { display: none; }
   .map-layers-pop { margin: 0 8px; width: auto; align-self: stretch; }
   .ml-row { min-height: 42px; }
   .legend { width: auto; margin: 0 8px; }
   .legend .desc { display: none; }
   .lens-picker { width: auto; margin: 0 8px; max-height: 60vh; }
   .lp-body { grid-template-columns: 1fr; }
-  .lp-nm { white-space: normal; overflow-wrap: anywhere; }
 
-  #minimap-wrap { display: none; bottom: calc(130px + env(safe-area-inset-bottom)); left: 8px; }
+  #minimap-wrap { display: none; bottom: 64px; left: 8px; }
   body.minimap-on #minimap-wrap { display: block; }
   .minimap-toggle {
-    display: grid; place-items: center; position: fixed; left: 8px; bottom: calc(130px + env(safe-area-inset-bottom)); z-index: 11; width: 38px; height: 38px; padding: 0;
+    display: grid; place-items: center; position: fixed; left: 8px; bottom: 60px; z-index: 11; width: 38px; height: 38px; padding: 0;
     cursor: pointer; color: var(--gold-bright); border-radius: 50%;
   }
   body.minimap-on .minimap-toggle { bottom: auto; top: 50px; }
@@ -599,7 +523,6 @@ body.panel-open #lens-area { right: calc(394px + var(--dock-right, 0px)); }
     padding-bottom: calc(12px + env(safe-area-inset-bottom)); transition: transform .18s ease-out;
     box-shadow: 0 -8px 30px rgba(0,0,0,.55);
   }
-  #city-panel[data-kind="wonder"] { bottom: 0; height: auto; max-height: 55dvh; }
   #city-panel.dragging-sheet { transition: none; }
   .app-dock {
     top: auto; left: 0; right: 0; bottom: 0; width: auto; max-width: none; height: 55vh; height: 55dvh; z-index: 24;
@@ -613,22 +536,12 @@ body.panel-open #lens-area { right: calc(394px + var(--dock-right, 0px)); }
   .cp-name { font-size: 21px; }
   .yield-tile .val { font-size: 13px; }
 
-  #pedia .modal-card {
-    grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr);
-    width: 100%; height: 100dvh; border-radius: 0; border: 0;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  }
-  .pedia-tools { grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; padding: 8px; }
-  .pedia-brand, #pedia-nav { display: none; }
-  .pedia-picker { display: flex; align-items: center; gap: 8px; padding: 4px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
-  .pedia-picker select { flex: 1; }
-  #pedia-body { padding: 15px 14px; }
-  .pedia-hero { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .pedia-specimen canvas { height: 155px; }
-  .pedia-featured { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pedia-card canvas { height: 76px; }
-  .pedia-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
+  .modal-card { grid-template-columns: 1fr; grid-template-rows: auto 1fr; width: 100vw; height: 100%; height: 100dvh; border-radius: 0; }
+  #pedia-nav { display: flex; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--line); padding: 8px 44px 8px 0; }
+  #pedia-nav .hd { display: none; }
+  .modal-card .close { background: #1c2836; top: 7px; right: 8px; }
+  #pedia-nav button { width: auto; white-space: nowrap; padding: 6px 12px; }
+  #pedia-body { padding: 14px 16px; }
   .help-card { padding: 16px; }
   .toast { top: 50px; }
 
@@ -640,4 +553,5 @@ body.panel-open #lens-area { right: calc(394px + var(--dock-right, 0px)); }
   .yr-total > b { font-size: 30px; }
   .yr-row { padding: 7px 8px; }
 }
-.source-query { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+#pedia-body :is(p, td.nm) { overflow-wrap: anywhere; white-space: normal; }

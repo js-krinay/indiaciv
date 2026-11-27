@@ -1,5 +1,12 @@
 """Transcriptions of the MoPSW March cargo and PIB annual railway tables."""
 
+AAI_JHARSUGUDA = "aai_vejh_20260806"
+OPERATOR_LOCALITIES = "adani_port_addresses_fy25"
+VERIFIED_PORT_LOCALITIES = {
+    "n3732668135": "Muthukur",
+    "r14718755": "Gangavaram",
+}
+
 PERIOD = dict(period_start="2025-04-01", period_end="2026-03-31",
               label="FY 2025-26 (1 Apr 2025 – 31 Mar 2026)")
 

@@ -1,0 +1,175 @@
+IC-60 CSV row,surface,field,prior audit,before status,IC-74 status,moved,IC-74 location,prior evidence
+2,Top bar,name,IC-60,live,live,no,Top bar,National top bar · India · Turn 2026 and vintage caption.
+3,Top bar,population,IC-60,live,live,no,Top bar,1/1 national projection · 1 March 2026.
+4,Top bar,growth,IC-60,live,live,no,Top bar,National report and top-bar button · Technical Group projection · 1 Mar 2025 – 1 Mar 2026. State and city leaderboards carry separate source periods.
+5,Top bar,gdp,IC-60,live,live,no,Top bar,1/1 national nominal GDP from the Gold report · FY 2025-26 (1 Apr 2025 – 31 Mar 2026)
+6,Top bar,vintage,IC-60,live,live,no,Top bar,Turn 2026 exists in the top bar but is layout-dependent; shown on the wide desktop header.
+7,Top bar,y_food,IC-60,live,live,no,Top bar,"1/1 entities · Food · Crop year 2025-26 (1 Jul 2025 – 30 Jun 2026) · foodgrains_fy26, india_terrain"
+8,Top bar,y_production,IC-60,live,live,no,Top bar,"1/1 entities · Production · FY 2025-26 (1 Apr 2025 – 31 Mar 2026) · GEM snapshots (Aug–Sep 2026) · cea_fy26, gem_power, gem_coal, gem_iron"
+9,Top bar,y_gold,IC-60,live,live,no,Top bar,"1/1 entities · Gold · FY 2025-26 (1 Apr 2025 – 31 Mar 2026) · gdp_fy26, gsdp_fy26, gsdp_components, delhi_gsdp_fy26, tg_urban, tg_projections, un_wup_cities, city_footprints, city_population_grid"
+10,Top bar,y_science,IC-60,live,live,no,Top bar,"1/1 entities · Science · 27 Nov 2026 · research_campuses, research_nits, research_aiims, research_csir, research_isro, research_points"
+11,Top bar,y_culture,IC-60,live,live,no,Top bar,"1/1 entities · Culture · FY 2025-26 (1 Apr 2025 – 31 Mar 2026) · 27 Nov 2026 wonders · asi_yield_entries, india_wonders"
+23,City panel,name,IC-60,live,live,no,City panel,181/181 mapped urban agglomerations · UN mid-2026; growth 1 Jul 2025 – 1 Jul 2026; City View limited to its frozen cohort.
+24,City panel,full,IC-60,live,live,no,City panel,181/181 mapped urban agglomerations · UN mid-2026; growth 1 Jul 2025 – 1 Jul 2026; City View limited to its frozen cohort.
+25,City panel,kind,IC-60,live,live,no,City panel,City panel footnote identifies the UN urban agglomeration geography · projected mid-2026 population.
+26,City panel,states,IC-60,live,live,no,City panel,181/181 mapped urban agglomerations · UN mid-2026; growth 1 Jul 2025 – 1 Jul 2026; City View limited to its frozen cohort.
+27,City panel,population,IC-60,live,live,no,City panel,181/181 mapped urban agglomerations · UN mid-2026; growth 1 Jul 2025 – 1 Jul 2026; City View limited to its frozen cohort.
+28,City panel,growth,IC-60,live,live,no,City panel,181/181 mapped urban agglomerations · UN mid-2026; growth 1 Jul 2025 – 1 Jul 2026; City View limited to its frozen cohort.
+29,City panel,employed,IC-76,live,live,no,City panel,181/181. IndiaCiv estimate applies 2025 CWS all-age WPR to 2026 resident population. Existing 2026 quarterly based figures are preserved.
+30,City panel,unemployment,IC-76,live,live,no,City panel,181/181. Annual PLFS 2025 15+ unemployment benchmark with per-observation period and no mixed-period ranks.
+35,City panel,gdp,IC-60,live,live,yes,Explorer · Urban agglomerations · gdp,181/181 mapped UAs with nominal GDP estimate and associated per-resident/rank values · FY 2025-26 (1 Apr 2025 – 31 Mar 2026).
+36,City panel,gdp_pc,IC-60,live,live,yes,Explorer · Urban agglomerations · gdp_per_resident,181/181 mapped UAs with nominal GDP estimate and associated per-resident/rank values · FY 2025-26 (1 Apr 2025 – 31 Mar 2026).
+37,City panel,gdp_by_industry,IC-60,live,live,yes,"Explorer · Urban agglomerations · gsva_agriculture_share, gsva_industry_share, gsva_services_share",181/181 mapped UAs with a primary-state GSVA benchmark · FY 2025-26 (1 Apr 2025 – 31 Mar 2026); city output by sector is in City View Economy.
+38,City panel,jobs,IC-67,live,live,yes,Explorer · Urban agglomerations · workplace_jobs,"City panel Workplace economy. 62 uniquely matched Census 2011 UAs. Other UAs have unmatched components, ambiguous keys or unmatched names. Employment excludes defence-mixed SHRIC 72."
+39,City panel,y_food,IC-60,live,live,no,City panel,"181/181 entities · Food · Crop year 2025-26 (1 Jul 2025 – 30 Jun 2026) · foodgrains_fy26, india_terrain"
+40,City panel,y_production,IC-60,live,live,no,City panel,"181/181 entities · Production · FY 2025-26 (1 Apr 2025 – 31 Mar 2026) · GEM snapshots (Aug–Sep 2026) · cea_fy26, gem_power, gem_coal, gem_iron"
+41,City panel,y_gold,IC-60,live,live,no,City panel,"181/181 entities · Gold · FY 2025-26 (1 Apr 2025 – 31 Mar 2026) · gdp_fy26, gsdp_fy26, gsdp_components, delhi_gsdp_fy26, tg_urban, tg_projections, un_wup_cities, city_footprints, city_population_grid"
+42,City panel,y_science,IC-60,live,live,no,City panel,"181/181 entities · Science · 27 Nov 2026 · research_campuses, research_nits, research_aiims, research_csir, research_isro, research_points"
+43,City panel,y_culture,IC-60,live,live,no,City panel,"181/181 entities · Culture · FY 2025-26 (1 Apr 2025 – 31 Mar 2026) · 27 Nov 2026 wonders · asi_yield_entries, india_wonders"
+44,City panel,ranks.population,IC-60,live,live,yes,Explorer · Urban agglomerations · population_rank,181/181 for each metric · rank and count of mapped urban agglomerations with a value. Population-order tiebreak.
+45,City panel,ranks.gdp,IC-60,live,live,yes,Explorer · Urban agglomerations · atlas_gdp_rank,181/181 mapped UAs with nominal GDP estimate and associated per-resident/rank values · FY 2025-26 (1 Apr 2025 – 31 Mar 2026).
+46,City panel,ranks.gdp_per_capita,IC-60,live,live,yes,Explorer · Urban agglomerations · atlas_gdp_per_capita_rank,181/181 mapped UAs with nominal GDP estimate and associated per-resident/rank values · FY 2025-26 (1 Apr 2025 – 31 Mar 2026).
+47,City panel,ranks.growth,IC-60,live,live,yes,Explorer · Urban agglomerations · atlas_growth_rank,181/181 for each metric · rank and count of mapped urban agglomerations with a value. Population-order tiebreak.
+48,State panel,name,IC-60,live,live,no,State panel,36/36 states/UTs · profile or sourced state panel metric · 2026; GSDP FY 2025-26 and PLFS Jul–Sep 2026.
+49,State panel,population,IC-60,live,live,no,State panel,36/36 states/UTs · profile or sourced state panel metric · 2026; GSDP FY 2025-26 and PLFS Jul–Sep 2026.
+50,State panel,growth,IC-60,live,live,no,State panel,36/36 states/UTs · profile or sourced state panel metric · 2026; GSDP FY 2025-26 and PLFS Jul–Sep 2026.
+51,State panel,employed,IC-76,live,live,no,State panel,36/36. IndiaCiv estimate applies 2025 CWS all-age WPR to 2026 resident population. Existing 2026 quarterly based figures are preserved.
+52,State panel,unemployment,IC-76,live,live,yes,Explorer · States and UTs · unemployment,36/36. Annual PLFS 2025 15+ unemployment benchmark with per-observation period and no mixed-period ranks.
+57,State panel,gdp,IC-60,live,live,yes,Explorer · States and UTs · state_gsdp,36/36 states/UTs with nominal GSDP · FY 2025-26 (1 Apr 2025 – 31 Mar 2026).
+58,State panel,gdp_pc,IC-60,partial,partial,yes,Explorer · States and UTs · gsdp_pc,34/36 states/UTs with GSDP per person · FY 2025-26 (1 Apr 2025 – 31 Mar 2026).
+59,State panel,gdp_by_industry,IC-76,live,live,yes,"Explorer · States and UTs · gsva_agriculture_share, gsva_industry_share, gsva_services_share",34/36. FY 2025-26. Six authoritative nominal GSVA reports for geographies previously blank and 25 restored RBI-bridge estimates. DH and LD do not compile GSVA.
+60,State panel,jobs,IC-67,live,live,yes,Explorer · States and UTs · workplace_jobs,State panel Workplace economy. 34 states and UTs. AP and Telangana require reconstruction across the 2014 boundary transfer. Employment excludes defence-mixed SHRIC 72.
+61,State panel,y_food,IC-60,live,live,no,State panel,"36/36 entities · Food · Crop year 2025-26 (1 Jul 2025 – 30 Jun 2026) · foodgrains_fy26, india_terrain"
+62,State panel,y_production,IC-60,live,live,no,State panel,"36/36 entities · Production · FY 2025-26 (1 Apr 2025 – 31 Mar 2026) · GEM snapshots (Aug–Sep 2026) · cea_fy26, gem_power, gem_coal, gem_iron"
+63,State panel,y_gold,IC-60,live,live,no,State panel,"36/36 entities · Gold · FY 2025-26 (1 Apr 2025 – 31 Mar 2026) · gdp_fy26, gsdp_fy26, gsdp_components, delhi_gsdp_fy26, tg_urban, tg_projections, un_wup_cities, city_footprints, city_population_grid"
+64,State panel,y_science,IC-60,live,live,no,State panel,"36/36 entities · Science · 27 Nov 2026 · research_campuses, research_nits, research_aiims, research_csir, research_isro, research_points"
+65,State panel,y_culture,IC-60,live,live,no,State panel,"36/36 entities · Culture · FY 2025-26 (1 Apr 2025 – 31 Mar 2026) · 27 Nov 2026 wonders · asi_yield_entries, india_wonders"
+66,State panel,land_km2,IC-60,live,live,yes,Explorer · States and UTs · area_km2,36/36 states/UTs with referenced district area in State indicators · current geography.
+67,State panel,forest,IC-66,live-older,live-older,yes,Explorer · States and UTs · land_forest,"Esri 2025 (1 Jan – 31 Dec 2025), share of native classified land samples; 35 of 36 states and UTs. Below 30 valid samples suppressed; n = 30 to 99 flagged sparse. See IC-66/review-state-sparse-1440.png."
+68,State panel,crop,IC-66,live-older,live-older,yes,Explorer · States and UTs · land_crop,"Esri 2025 (1 Jan – 31 Dec 2025), share of native classified land samples; 35 of 36 states and UTs. Below 30 valid samples suppressed; n = 30 to 99 flagged sparse. See IC-66/review-state-sparse-1440.png."
+70,State panel,grass,IC-66,live-older,live-older,yes,Explorer · States and UTs · land_grass,"WorldCover 2021 (1 Jan – 31 Dec 2021), share of native classified land samples; 35 of 36 states and UTs. Below 30 valid samples suppressed; n = 30 to 99 flagged sparse. See IC-66/review-state-sparse-1440.png."
+71,State panel,shrub,IC-66,live-older,live-older,yes,Explorer · States and UTs · land_shrub,"WorldCover 2021 (1 Jan – 31 Dec 2021), share of native classified land samples; 35 of 36 states and UTs. Below 30 valid samples suppressed; n = 30 to 99 flagged sparse. See IC-66/review-state-sparse-1440.png."
+72,State panel,wetland,IC-66,live-older,live-older,yes,Explorer · States and UTs · land_wetland,"WorldCover 2021 (1 Jan – 31 Dec 2021), share of native classified land samples; 35 of 36 states and UTs. Below 30 valid samples suppressed; n = 30 to 99 flagged sparse. See IC-66/review-state-sparse-1440.png."
+73,State panel,developed,IC-66,live-older,live-older,yes,Explorer · States and UTs · land_developed,"Esri 2025 (1 Jan – 31 Dec 2025), share of native classified land samples; 35 of 36 states and UTs. Below 30 valid samples suppressed; n = 30 to 99 flagged sparse. See IC-66/review-state-sparse-1440.png."
+74,State panel,energy_mw,IC-60,partial,partial,yes,Explorer · States and UTs · energy_mw,25/36 states/UTs with GEM mapped operating MW and technology mix · September 2026.
+75,Tile tooltip,name,IC-60,live,live,no,Tile tooltip,181/181 mapped city tooltip names · UN agglomerations.
+76,Tile tooltip,population,IC-60,live,live,no,Tile tooltip,181/181 mapped city tooltips with UN mid-2026 projected population.
+77,Tile tooltip,density,IC-60,partial,partial,no,Tile tooltip,3880/3970 Indian land hexes · Population · 1 Mar 2026 · tg_projections.
+139,Tile tooltip,state,IC-60,live,live,no,Tile tooltip,"Canvas hover path · world terrain, water depth, features and river mask · reference geography; applicable tile classes only."
+140,Tile tooltip,district,IC-60,partial,partial,no,Tile tooltip,3880/3970 Indian land hexes · DataMeet current atlas geography.
+141,Tile tooltip,water,IC-60,live,live,no,Tile tooltip,"Canvas hover path · world terrain, water depth, features and river mask · reference geography; applicable tile classes only."
+142,Tile tooltip,relief,IC-60,live,live,no,Tile tooltip,"Canvas hover path · world terrain, water depth, features and river mask · reference geography; applicable tile classes only."
+143,Tile tooltip,cover,IC-60,live,live,no,Tile tooltip,"Canvas hover path · world terrain, water depth, features and river mask · reference geography; applicable tile classes only."
+144,Tile tooltip,elevation,IC-60,live,live,no,Tile tooltip,"Canvas hover path · world terrain, water depth, features and river mask · reference geography; applicable tile classes only."
+145,Tile tooltip,depth,IC-60,live,live,no,Tile tooltip,"Canvas hover path · world terrain, water depth, features and river mask · reference geography; applicable tile classes only."
+146,Tile tooltip,river,IC-60,live,live,no,Tile tooltip,"Named river edges are exposed through the map’s separate water-name hover handler. World JSON supplies 2,030 directed river edges and current reference linework."
+335,Lens,density,IC-60,partial,partial,no,Lens,3880/3970 Indian land hexes · Population · 1 Mar 2026 · tg_projections.
+339,Lens,age,IC-60,partial,partial,no,Lens,3770/3970 Indian land hexes · Median age · 2026 · tg_projections.
+340,Lens,foreign_born,IC-65,live,live,no,Lens,"Civic lens foreign_born uses Census district values with the period in the legend and tooltip. D-01, Census 2011."
+341,Lens,bachelors,IC-65,live,live,no,Lens,"Civic lens bachelors uses Census district values with the period in the legend and tooltip. C-08, Census 2011."
+343,Lens,commute,IC-65,live,live,no,Lens,"Civic lens commute uses Census district values with the period in the legend and tooltip. B-28, Census 2011."
+344,Lens,homeownership,IC-65,live,live,no,Lens,"Civic lens homeownership uses Census district values with the period in the legend and tooltip. HL-04, Census 2011 Houselisting (2010)."
+346,Lens,forest,IC-66,live-older,live-older,no,Lens,"Esri 2025 (1 Jan – 31 Dec 2025), share of native classified land samples; 35 of 36 states and UTs. Below 30 valid samples suppressed; n = 30 to 99 flagged sparse. See IC-66/review-legend-1440.png."
+347,Lens,farmland,IC-66,live-older,live-older,no,Lens,"Esri 2025 (1 Jan – 31 Dec 2025), share of native classified land samples; 35 of 36 states and UTs. Below 30 valid samples suppressed; n = 30 to 99 flagged sparse. See IC-66/review-legend-1440.png."
+348,Lens,developed,IC-66,live-older,live-older,no,Lens,"Esri 2025 (1 Jan – 31 Dec 2025), share of native classified land samples; 35 of 36 states and UTs. Below 30 valid samples suppressed; n = 30 to 99 flagged sparse. See IC-66/review-legend-1440.png."
+349,Lens,faith,IC-65,live,live,no,Lens,"Civic lens faith uses Census district values with the period in the legend and tooltip. C-01, Census 2011. Individual reported-religion share lenses are also available."
+351,Lens,amenities,IC-60,partial,partial,no,Lens,3968/3970 Indian land hexes · Rural homes with tap water · 18 Jul 2026 · jjm_july.
+352,Lens,disasters,IC-60,partial,partial,no,Lens,15/36 states/UTs with matched incidents in the all-types disaster view · 1 Jan – 27 Nov 2026.
+353,Lens,veterans,IC-60,partial,partial,no,Lens,3868/3970 Indian land hexes · Registered ex-servicemen · 30 Jun 2026 · registered_veterans_ksb.
+354,Resource type,nuclear,IC-60,live,live,no,Resource type,7 mapped nuclear plant records · Sep 2026 · gem_power.
+355,Resource type,hydro,IC-60,live,live,no,Resource type,53 mapped hydroelectric plant records · Sep 2026 · gem_power.
+356,Resource type,coal_mine,IC-60,live,live,no,Resource type,155 mapped coal mine records · Aug 2026 · gem_coal.
+358,Resource type,copper,IC-60,live,live,no,Resource type,2 mapped copper mine records · FY 2025-26 (1 Apr 2025 – 31 Mar 2026) · hcl_mines.
+359,Resource type,iron,IC-60,live,live,no,Resource type,66 mapped iron ore mine records · Sep 2026 · gem_iron.
+360,Resource type,silver,IC-60,partial,partial,no,Resource type,1 named host complex with documented silver by-product · FY 2025-26. Marker is counted once as lead-zinc; silver is visible in Explorer. A comparable dedicated silver site roster is unavailable.
+363,Resource type,lead_zinc,IC-60,live,live,no,Resource type,5 mapped lead-zinc mine records · FY 2025-26 (1 Apr 2025 – 31 Mar 2026) · hzl_mines.
+366,Resource type,coal_plant,IC-60,live,live,no,Resource type,115 mapped coal power plant records · Sep 2026 · gem_power.
+367,Resource type,gas_plant,IC-60,live,live,no,Resource type,18 mapped gas power plant records · Sep 2026 · gem_power.
+369,Resource type,pumped_storage,IC-60,live,live,no,Resource type,8 mapped pumped-storage hydro records · Sep 2026 · gem_power.
+370,Resource type,wind,IC-60,live,live,no,Resource type,58 mapped wind farm records · Sep 2026 · gem_power.
+371,Resource type,solar,IC-60,live,live,no,Resource type,154 mapped solar farm records · Sep 2026 · gem_power.
+372,Resource type,battery,IC-60,partial,partial,no,Resource type,1 mapped battery storage records · Aug 2026 · seci_battery. One verified project and no national census.
+374,Resource type,gas,IC-60,live,live,no,Resource type,3 mapped gas field records · Mar 2026 · gem_oil_gas.
+375,Resource site,name,IC-60,live,live,no,Resource site,694/694 mapped resources with name and marker tooltip · individual 2026 source periods.
+376,Resource site,type,IC-60,live,live,no,Resource site,694/694 mapped resources with a rendered type · individual 2026 source periods.
+377,Resource site,value,IC-60,partial,partial,no,Resource site,656/694 mapped resources with a numeric value · individual 2026 source periods.
+378,Resource site,unit,IC-60,partial,partial,no,Resource site,656/694 resource markers with tagged numeric units · individual 2026 source periods.
+379,Resource site,detail,IC-60,live,live,no,Resource site,694/694 mapped resource records with a detail string · individual 2026 source periods.
+380,Resource site,threshold,IC-60,partial,partial,no,Resource site,667/694 mapped resource records with a type eligibility threshold · individual 2026 source periods.
+381,Resource site,state,IC-60,live,live,no,Resource site,Tooltip names the state or union territory of the mapped tile.
+382,Resource site,local_count,IC-60,live,live,no,Resource site,Tooltip shows counts of mapped records of the same type in the state or UT.
+383,Resource site,summary,IC-60,live,live,no,Resource site,Tooltip shows the national inventory count for that resource type.
+384,Resource site,capacity,IC-60,live,live,no,Resource site,423/423 resource records displaying power capacity in MW · September 2026 GEM inventory.
+385,Wonder rule,national_park,IC-60,live,live,no,Wonder rule,"Five largest parks by the official areas in the pinned WII inventory. Rule, area rank and source appear in map detail and Almanac. November 2026 map inventory."
+386,Wonder rule,park_unit,IC-60,live,live,no,Wonder rule,November 2026 inventory includes wetlands in the Wonders Almanac; Ramsar selection is encoded in wonders.json.
+387,Wonder rule,research_university,IC-60,partial,partial,no,Wonder rule,31 mapped research wonders in current inventory · 27 Nov 2026. Placement uses the curated campus rule and inventory class counts. Comparable research-performance threshold remains unavailable.
+388,Wonder rule,landmark,IC-60,live,live,no,Wonder rule,"Built wonders use project selection, World Heritage and ASI selection; Almanac and map detail."
+389,Wonder,name,IC-60,live,live,no,Map hover and Almanac · About this map · Wonders,117/117 mapped wonders with names and descriptions displayed in map and Almanac · 27 Nov 2026.
+390,Wonder,kind,IC-60,live,live,no,Map hover and Almanac · About this map · Wonders,117/117 mapped wonders with rule or category in map details and Almanac · 27 Nov 2026.
+391,Wonder,rule,IC-60,live,live,no,Map hover and Almanac · About this map · Wonders,117/117 mapped wonders with rule or category in map details and Almanac · 27 Nov 2026.
+392,Wonder,footprint,IC-60,partial,partial,no,Map hover and Almanac · About this map · Wonders,"5/117 wonders carrying a mapped footprint, with remaining entries point symbols · 27 Nov 2026."
+393,Wonder,rank,IC-60,partial,partial,no,Map hover and Almanac · About this map · Wonders,5/117 wonders with comparable area rank · November 2026. Editorial inventory order is distinct from rank.
+397,Wonder,institution_count,IC-60,live,live,no,Map hover and Almanac · About this map · Wonders,"3/3 mapped research classes have visible counts in Culture and Wonder details · 1 IISc, 23 IITs and 7 IISERs · 27 Nov 2026."
+398,Wonder,description,IC-60,live,live,no,Map hover and Almanac · About this map · Wonders,117/117 mapped wonders with names and descriptions displayed in map and Almanac · 27 Nov 2026.
+399,Road layer,0,IC-60,live,live,no,Road layer,4111 rendered hex-edge links · OSM November 2026.
+400,Road layer,1,IC-60,live,live,no,Road layer,4111 rendered hex-edge links · OSM November 2026.
+401,Road layer,class,IC-60,live,live,no,Road layer,Highways overlay uses source class to draw expressways and national highways · OSM November 2026.
+402,Road layer,highway_name,IC-60,partial,partial,no,Road layer,1183/4111 roads links with rendered name · OSM November 2026.
+403,Road layer,network,IC-60,partial,partial,no,Road layer,12/4111 roads links with rendered network · OSM November 2026.
+404,Road layer,geometry,IC-60,live,live,no,Road layer,4111 rendered hex-edge links · OSM November 2026.
+405,Rail layer,0,IC-60,live,live,no,Rail layer,2294 rendered hex-edge links · OSM November 2026.
+406,Rail layer,1,IC-60,live,live,no,Rail layer,2294 rendered hex-edge links · OSM November 2026.
+407,Rail layer,tier,IC-60,live,live,no,Rail layer,Railways layer styles active main and secondary lines · OSM November 2026.
+408,Rail layer,route_name,IC-60,partial,partial,no,Rail layer,713/2294 rail links with rendered name · OSM November 2026.
+409,Rail layer,network,IC-60,partial,partial,no,Rail layer,23/2294 rail links with rendered network · OSM November 2026.
+410,Rail layer,geometry,IC-60,live,live,no,Rail layer,2294 rendered hex-edge links · OSM November 2026.
+412,Port layer,name,IC-60,live,live,no,Port layer,47/47 mapped ports · map hover card · November 2026 inventory; qualifying cargo in FY 2025-26.
+413,Port layer,type,IC-60,live,live,no,Port layer,47/47 mapped ports · map hover card · November 2026 inventory; qualifying cargo in FY 2025-26.
+414,Port layer,rank,IC-60,partial,partial,no,Port layer,12/47 mapped ports with a tooltip value · November 2026 inventory; cargo FY 2025-26 (1 Apr 2025 – 31 Mar 2026).
+416,Port layer,domestic,IC-60,partial,partial,no,Port layer,12/47 mapped ports with a tooltip value · November 2026 inventory; cargo FY 2025-26 (1 Apr 2025 – 31 Mar 2026).
+417,Port layer,foreign,IC-60,partial,partial,no,Port layer,12/47 mapped ports with a tooltip value · November 2026 inventory; cargo FY 2025-26 (1 Apr 2025 – 31 Mar 2026).
+418,Port layer,imports,IC-67,live,live,no,Port layer,Port tooltip: FY 2024-25 overseas unloaded share for 15 matched markers; reflects cargo direction.
+419,Port layer,exports,IC-67,live,live,no,Port layer,Port tooltip: FY 2024-25 overseas loaded share for 15 matched markers; reflects cargo direction.
+420,Port layer,year,IC-60,partial,partial,no,Port layer,12/47 mapped ports with a tooltip value · November 2026 inventory; cargo FY 2025-26 (1 Apr 2025 – 31 Mar 2026).
+421,Port layer,state,IC-60,live,live,no,Port layer,47/47 mapped ports with a tooltip value · November 2026 inventory; cargo FY 2025-26 (1 Apr 2025 – 31 Mar 2026).
+422,Port layer,city,IC-60,partial,partial,no,Port layer,17/47 mapped ports with a tooltip value · November 2026 inventory; cargo FY 2025-26 (1 Apr 2025 – 31 Mar 2026).
+423,Airport layer,id,IC-60,live,live,no,Airport layer,57/57 civilian airports with a visible IATA code in the tooltip · OurAirports November 2026.
+424,Airport layer,name,IC-60,live,live,no,Airport layer,57/57 civilian airport markers with a visible hover value · OurAirports November 2026.
+425,Airport layer,city,IC-60,partial,partial,no,Airport layer,56/57 civilian airport markers with a visible hover value · OurAirports November 2026.
+426,Airport layer,hub,IC-60,live,live,no,Airport layer,57/57 civilian airport markers with a visible hover value · OurAirports November 2026.
+431,Airport layer,state,IC-60,live,live,no,Airport layer,57/57 civilian airport markers with a visible hover value · OurAirports November 2026.
+433,Protected land layer,name,IC-60,live,live,no,Map layers · Wonders · protected point/extent hover,267/267 registered protected points · OSM November 2026 and RSIS October 2026.
+434,Protected land layer,designation,IC-60,live,live,no,Map layers · Wonders · protected point/extent hover,267/267 registered protected points · OSM November 2026 and RSIS October 2026.
+435,Protected land layer,point,IC-60,live,live,no,Map layers · Wonders · protected point/extent hover,267/267 registered protected points · OSM November 2026 and RSIS October 2026.
+436,Protected land layer,extent,IC-60,partial,partial,no,Map layers · Wonders · protected point/extent hover,24/267 registered protected points with a served polygon-to-cell extent · 2026 inventory.
+437,Protected land layer,area,IC-60,live,live,no,Map layers · Wonders · protected point/extent hover,267/267 protected inventory entries with designated area in hover · October/November 2026.
+438,Protected land layer,status,IC-60,live,live,no,Map layers · Wonders · protected point/extent hover,267/267 protected inventory entries with designation status in hover · October/November 2026.
+439,Protected land layer,source,IC-60,live,live,no,Map layers · Wonders · protected point/extent hover,267/267 protected inventory entries with designation authority in hover · October/November 2026.
+801,City panel,open_city_view,IC-60,partial,partial,yes,Map city selection and City View,50/181 mapped urban agglomerations · UN mid-2026; growth 1 Jul 2025 – 1 Jul 2026; City View limited to its frozen cohort.
+802,City panel,footprint_size,IC-60,live,live,yes,"Explorer · Urban agglomerations · area_km2, mapped_footprint_hexes",49/181 with GHSL geometry · clipped area in km² and hex count · GHSL and Survey of India · 2026 snapshot · IndiaCiv estimate.
+803,City panel,top_industry,IC-60,partial,partial,yes,Explorer · Urban agglomerations · industry_plaques,10/181 display dated and cited qualitative clusters. No city industry dominance ranking.
+804,City panel,top_lq,IC-67,live,live,yes,Explorer · Urban agglomerations · workplace_top_lq,City panel Workplace economy displays top industry and LQ where the thresholds are met.
+805,State panel,largest_cities,IC-60,partial,partial,no,State panel,27/36 states/UTs with at least one mapped UA in Biggest cities · UN mid-2026.
+806,State panel,largest_city_population,IC-60,partial,partial,no,State panel,27/36 states/UTs with at least one mapped UA in Biggest cities · UN mid-2026.
+807,State panel,city_count,IC-60,live,live,yes,Explorer · States and UTs · mapped_city_count,"36/36 state panels render their mapped UN UA count, including zero · mid-2026."
+808,State panel,capacity_mix,IC-60,partial,partial,yes,Explorer · States and UTs · resource_*_mw,25/36 states/UTs with GEM mapped operating MW and technology mix · September 2026.
+809,State panel,national_share,IC-60,live,live,yes,"Explorer · States and UTs · state_population_share, state_gdp_share",36/36 states/UTs with both India GDP and projected population shares · FY 2025-26 (1 Apr 2025 – 31 Mar 2026) and 1 Mar 2026.
+812,Road class,interstate,IC-60,live,live,no,Road class,"India analogues are open expressways and national highways · OSM November 2026, visible by style."
+813,Road class,major,IC-60,live,live,no,Road class,"India analogues are open expressways and national highways · OSM November 2026, visible by style."
+814,Rail tier,main,IC-60,live,live,no,Rail tier,Railway layer differentiates both source classes by line style · OSM November 2026.
+815,Rail tier,secondary,IC-60,live,live,no,Rail tier,Railway layer differentiates both source classes by line style · OSM November 2026.
+816,Air hub class,L,IC-60,live,live,no,Air hub class,24 airport markers with a large size label · OurAirports November 2026.
+817,Air hub class,M,IC-60,live,live,no,Air hub class,28 airport markers with a medium size label · OurAirports November 2026.
+818,Air hub class,S,IC-60,live,live,no,Air hub class,5 airport markers with a small size label · OurAirports November 2026.
+827,Tile tooltip,active_lens_value,IC-60,partial,partial,no,Tile tooltip,3880/3970 Indian land hexes · Population · 1 Mar 2026 · tg_projections.
+828,Tile tooltip,resource_name,IC-60,live,live,no,Tile tooltip,694/694 mapped resources with name and marker tooltip · individual 2026 source periods.
+829,Tile tooltip,resource_type,IC-60,live,live,no,Tile tooltip,694/694 mapped resources with a rendered type · individual 2026 source periods.
+830,Tile tooltip,resource_value,IC-60,partial,partial,no,Tile tooltip,656/694 mapped resources with a numeric value · individual 2026 source periods.
+831,Tile tooltip,resource_unit,IC-60,partial,partial,no,Tile tooltip,656/694 resource markers with tagged numeric units · individual 2026 source periods.
+832,Tile tooltip,resource_more_count,IC-60,live,live,no,Tile tooltip,"Resource hover/list path · 685 sites in 370 hexes, 23 hexes with more than four; values and units are in individual marker details."
+,IC-74 coverage,district identity and observations,,live,live,yes,"Explorer · Districts · identity, dated indicators and provenance",IC-74 build output and renderer contract
+,IC-74 coverage,district city/wonder/resource lists,,live,live,yes,"Explorer · Districts · district_cities, district_wonders, district_resources",IC-74 build output and renderer contract
+,IC-74 coverage,coastal cargo,,live,live,yes,"Map layers · Trade · port throughput hover, Apr–Oct 2026",IC-74 build output and renderer contract
+,IC-74 coverage,operating freight corridors,,live,live,yes,Map layers · Trade · actual Eastern and Western DFC paths,IC-74 build output and renderer contract
+,IC-74 coverage,Varanasi grazing share,,live,live,yes,Explorer · Districts · audited IC-75 Census-2011 village land-use observation,IC-74 build output and renderer contract
+,IC-74 coverage,annual labour fallback,,live,live,yes,Explorer · state and city employment/unemployment provenance and dated panel captions,IC-74 build output and renderer contract

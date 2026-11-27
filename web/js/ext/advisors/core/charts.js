@@ -9,6 +9,13 @@
 //   rampLegend / swatchLegend / sizeLegend → HTML strings
 // Every chart calls opts.onHover(item | null) and opts.onClick(item) and returns {setHot(key), el, ...}.
 import { esc, fin, clamp, scale, ticks, logTicks, rampColor } from "./util.js";
+import { periodLabel } from "../../../format.js";
+
+export function chartPeriodLabel(records) {
+  return [...new Set(records.map((record) => [
+    periodLabel(record, "", { plain: true }), record?.scope,
+  ].filter(Boolean).join(" · ")).filter(Boolean))].join(" / ");
+}
 
 /** Delegated hover / focus / click on [data-key] children. */
 function wire(root, find, { onHover, onClick }) {
@@ -62,12 +69,11 @@ export function barList(host, opts) {
     const neg = fin(r.value) && r.value < 0;
     const style = opts.diverging ? `${neg ? "right:50%" : "left:50%"};width:${wv.toFixed(2)}%` : `width:${wv.toFixed(2)}%`;
     const color = r.color ? `background:${esc(r.color)}` : "";
-    const tag = opts.static ? "div" : "button";
-    return `<${tag} ${opts.static ? "" : "type=button "}role="listitem" class="adv-bar${r.key === opts.selected ? " sel" : ""}" data-key="${esc(r.key)}" title="${esc([r.full || r.label, r.sub, r.text].filter(Boolean).join(" · "))}">
+    return `<button type="button" role="listitem" class="adv-bar${r.key === opts.selected ? " sel" : ""}" data-key="${esc(r.key)}" title="${esc([r.full || r.label, r.sub, r.text].filter(Boolean).join(" · "))}">
       ${opts.rank ? `<span class="rk">${i + 1}</span>` : ""}${r.icon ? `<span class="ic" aria-hidden="true">${r.icon}</span>` : ""}
       <span class="lb">${esc(r.label)}${r.sub ? ` <span class="sub">${esc(r.sub)}</span>` : ""}</span>
       <span class="vl${r.tone ? " " + r.tone : ""}">${esc(r.text ?? "")}</span>
-      <span class="tr"><i class="${neg ? "neg" : ""}${r.tone ? " " + r.tone : ""}" style="${style};${color}"></i></span></${tag}>`;
+      <span class="tr"><i class="${neg ? "neg" : ""}${r.tone ? " " + r.tone : ""}" style="${style};${color}"></i></span></button>`;
   }).join("") : `<p class="adv-empty">No data.</p>`;
   host.appendChild(root);
   const byKey = new Map(rows.map((r) => [String(r.key), r]));
@@ -85,6 +91,11 @@ export function barList(host, opts) {
  * rows: [{key, label, sub, parts: {partKey: value}, total, text}]; keys: [{key, label, color}]
  * opts: {normalize, max, onHover({row, part}), onClick({row, part}), sortKey}
  */
+export function stackedRowLabel(row) {
+  return [[row.label, row.text].filter(Boolean).join(": "),
+    chartPeriodLabel([row.observation])].filter(Boolean).join(" · ");
+}
+
 export function stackedBars(host, opts) {
   const rows = opts.rows || [];
   const keys = opts.keys || [];
@@ -101,9 +112,10 @@ export function stackedBars(host, opts) {
       const v = r.parts[k.key];
       if (!fin(v) || v <= 0) return "";
       const wpc = (v / denom) * 100;
-      return `<i data-part="${esc(k.key)}" style="width:${wpc.toFixed(3)}%;background:${esc(k.color)}" title="${esc(`${k.label}: ${opts.fmt ? opts.fmt(v, k) : v}`)}"></i>`;
+      const title = [`${k.label}: ${opts.fmt ? opts.fmt(v, k) : v}`, chartPeriodLabel([r.observation])].filter(Boolean).join(" · ");
+      return `<i data-part="${esc(k.key)}" style="width:${wpc.toFixed(3)}%;background:${esc(k.color)}" title="${esc(title)}"></i>`;
     }).join("");
-    return `<button type="button" role="listitem" class="adv-srow" data-key="${esc(r.key)}" aria-label="${esc(`${r.label}: ${r.text ?? ""}`)}">
+    return `<button type="button" role="listitem" class="adv-srow" data-key="${esc(r.key)}" aria-label="${esc(stackedRowLabel(r))}">
       <span class="lb">${esc(r.label)}${r.sub ? ` <span class="sub">${esc(r.sub)}</span>` : ""}</span>
       <span class="st">${segs}</span><span class="vl">${esc(r.text ?? "")}</span></button>`;
   }).join("") || `<p class="adv-empty">No data.</p>`;

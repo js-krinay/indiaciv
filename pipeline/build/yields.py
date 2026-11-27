@@ -13,7 +13,7 @@ from ..india import CITY_POPULATION_GRID, GHSL_UCDB, WUP_SOURCE
 from ..india.city_economy_sources import state_sector_mix
 from ..india.science_sources import SOURCES as SCIENCE_SOURCES, research_points
 from ..india.yield_sources import ASI_SOURCE, FOODGRAINS, PILGRIMAGE
-from .city_view import footprint_extent, grid_fingerprint
+from .city_view import cohort, footprint_extent, grid_fingerprint
 from .projection import state_population
 from .resources import GEM_SOURCES, TYPES, land_cell, mapped_gem_sites, summarize
 from .science import RULE as SCIENCE_RULE, research_by_state, science_yield
@@ -207,6 +207,38 @@ def economy(values, estimated, components, gold_source=None, footprint=None):
     }
 
 
+def advisor_definitions(yields):
+    fields = []
+    for definition in yields:
+        key = definition["key"]
+        common = {"period": definition["period"], "source": definition["sources"],
+                  "provenance_path": ["yield_meta", key]}
+        fields.extend([
+            {**common, "key": f"yield_{key}", "label": f"{definition['label']} yield",
+             "format": "inr" if definition["unit"] == "INR" else "float", "unit": definition["unit"],
+             "group": "Economy", "description": definition["description"],
+             "paths": {"metros": ["city", "yields", key],
+                       **({"states": ["state", "yields", key]} if key != "gold" else {})}},
+            {**common, "key": f"yield_{key}_rank", "label": f"{definition['label']} yield rank",
+             "format": "int", "unit": "rank among City View cities", "group": "Economy",
+             "paths": {"metros": ["profile", "economy", "ranks", key]}},
+        ])
+        if key != "science":
+            continue
+        for kind in ("points", "IIT", "IISc", "IISER", "NIT", "AIIMS", "AIIMS under development", "CSIR", "ISRO and DoS"):
+            points = kind == "points"
+            path = ["yields", "science"] if points else ["yield_meta", "science", "components", kind]
+            fields.append({
+                **common, "key": f"science_{kind.lower().replace(' ', '_')}",
+                "label": "Science points" if points else kind, "format": "int",
+                "unit": "points" if points else "institutions", "group": "Knowledge",
+                "description": definition["description"],
+                "paths": {"metros": ["city", *path], "states": ["state", *path]},
+                **({"default": 0} if not points else {}),
+            })
+    return fields
+
+
 def regional_economy(row):
     estimated = row["estimated"] + (["gold"] if row["gold_estimated"] else [])
     return economy(row["values"], estimated, row["components"], row["gold_source"])
@@ -236,14 +268,15 @@ def sites_in_footprint(sites, shape, centre_cell):
 
 
 def apply_city_yields(cities, world, data):
-    from .city_economy import city_output_growth, city_sector_output
+    from .city_economy import city_output_growth, city_sector_output, matched_city_output_growth
+    from ..india.city_economy_sources import MATCHED_GSDP
 
     prepared = optional_interim(GHSL_UCDB)
     profiles = (prepared.get("profiles", {}) if prepared
                 and prepared.get("grid_fingerprint") == grid_fingerprint(world) else {})
     crop = cropland_weights(world)
     rows = data["rows"]
-    mixes = {state: state_sector_mix(state, name, FY)
+    mixes = {state: state_sector_mix(state, name, FY, for_city=True)
              for state, name in zip(world["states"], world["state_names"])}
     total_crop = rows["IN"]["cropland"]
     sites = data["sites"]
@@ -258,14 +291,16 @@ def apply_city_yields(cities, world, data):
         research.append({"kind": point["kind"], "x": x, "y": y, "cell": grid.cell_at(x, y)})
     mapped_population = defaultdict(float)
     footprints = {}
+    economy_cohort = set(cohort())
     for city in cities:
         profile = profiles.get(city["id"], {})
         cells = [cell for cell in profile.get("cells", []) if cell["hex_fraction"] is not None]
         fractions = {cell["cell"]: cell["hex_fraction"] for cell in cells}
-        coverage = "Mapped urban footprint" if fractions else "City centre hex proxy"
         shape = None
         if fractions:
             city["mapped_extent"] = footprint_extent(profile, grid)
+        # Existing economic allocations and workforce benchmarks retain their original geography.
+        if fractions and city["id"] in economy_cohort:
             if not profile.get("yield_rings"):
                 raise ValueError("City footprint polygons missing. Re-run the City View preparation in README.md.")
             shape = Shape(profile["yield_rings"])
@@ -277,6 +312,7 @@ def apply_city_yields(cities, world, data):
                       for state, weight in mass.items() if weight > 0}
         for state, value in population.items():
             mapped_population[state] += value
+        coverage = "Mapped urban footprint" if shape is not None else "City centre hex proxy"
         footprints[city["id"]] = (fractions, coverage, area, population, shape)
 
     for city in cities:
@@ -306,6 +342,10 @@ def apply_city_yields(cities, world, data):
         city["state_sector_mix"] = mixes[city["states"][0]]
         city["sector_output"] = city_sector_output(gold_components, mixes)
         city["output_growth"] = city_output_growth(gold_components)
+        if city["output_growth"] is None and gold_components and population.keys() <= MATCHED_GSDP.keys():
+            allocation = {state: allocate(1, residents, max(rows[state]["urban_population"], mapped_population[state]))
+                          for state, residents in population.items()}
+            city["output_growth"] = matched_city_output_growth(allocation)
     return profiles, {city_id: footprint[3] for city_id, footprint in footprints.items()}
 
 

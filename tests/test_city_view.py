@@ -19,6 +19,16 @@ class CityViewTests(unittest.TestCase):
         ranked = sorted(cities, key=lambda city: (-city["population"], int(city["id"])))
         self.assertEqual(city_view.cohort(), [city["id"] for city in ranked[:50]])
 
+    def test_entry_points_include_point_only_agglomerations(self):
+        cities = {"1": {"id": "1"}, "2": {"id": "2"}}
+        self.assertEqual(city_view.entry_points(cities.values()), {"1", "2"})
+
+    def test_ambiguous_new_centre_matches_stay_point_only(self):
+        self.assertEqual(city_view.select_centres("Pune", "MH", [
+            {"id": 1, "name": "Pune", "contains": True, "states": ["MH"]},
+            {"id": 2, "name": "Pune", "contains": True, "states": ["MH"]},
+        ], {}), [])
+
     def test_cross_border_memberships_in_prepared_profiles(self):
         try:
             profiles = load_interim(GHSL_UCDB)["profiles"]

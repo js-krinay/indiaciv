@@ -4,14 +4,24 @@ Each step writes data/interim/<id>.json. LOCAL_SOURCES describes them for the Al
 """
 
 from ..core.source import SourceInfo
+from .city_sources import ANNUAL_LABOUR_INFO, GOVERNMENT_SITE_INFO
 from .advisor_sources import SOURCES as ADVISOR_SOURCES
+from .census_civic_sources import SOURCES as CENSUS_CIVIC_SOURCES
+from .census_work_sources import PCA_SOURCE, SOURCES as CENSUS_WORK_SOURCES
 from .city_economy_sources import SOURCES as GSVA_SOURCES
 from .explorer_sources import SOURCES as EXPLORER_SOURCES
+from .household_cost_sources import SOURCES as HOUSEHOLD_COST_SOURCES
 from .people_sources import SOURCES as PEOPLE_SOURCES
+from .historical_sources import (INPUTS as WORKPLACE_INPUTS, INDEX_URL, PORT_SOURCE as PORT_DIRECTION_SOURCE,
+                                 PORT_URL as PORT_DIRECTION_URL, PORT_SHA256 as PORT_DIRECTION_SHA256,
+                                 WORKPLACE_LICENSE, WORKPLACE_SOURCE, UA_URL, VILLAGE_LAND_INFO)
 from .civic_sources import SOURCES as CIVIC_SOURCES
 from .yield_sources import SOURCES as YIELD_SOURCES
 from .protected_land_catalog import SOURCES as PROTECTED_SOURCES
 from .terrain_assets import ARCHIVES, ELEVATION, REEFS
+
+IFI_SOURCE = "ifi_flood_impacts"
+IFI_CHECKSUM = "ef9ab2cd0db7bf917dcc22c7cb094ec599f5013ef1b96ba525d816f26ff1b108"
 
 # Current spellings for names the sources still carry in an older form (cities and districts).
 DISPLAY_NAMES = {
@@ -107,6 +117,71 @@ AIR_PORTAL = "https://airquality.aqmsat.com/downloads"
 AIR_TERMS = "Free to use with source credit under India Air Quality Portal's download terms."
 
 LOCAL_SOURCES = [
+    GOVERNMENT_SITE_INFO,
+    ANNUAL_LABOUR_INFO,
+    SourceInfo(
+        id=WORKPLACE_SOURCE, title="Sixth Economic Census via SHRUG v2.2 Pakora",
+        publisher="MoSPI and Development Data Lab", homepage=INDEX_URL,
+        license=WORKPLACE_LICENSE,
+        description="January 2013 – April 2014. Compare local and India employment shares over non-farm "
+                    "workplace jobs after excluding defence-mixed groups. "
+                    "The 50-job minimum accommodates small Indian districts. "
+                    "Requiring a 0.5% local share and a 1.25 location quotient as well keeps a small cluster "
+                    "or a common industry from qualifying on job count alone. "
+                    "The derived workplace.json is available under CC BY-NC-SA 4.0 (ShareAlike). "
+                    + " ".join(f"{name} SHA-256 {WORKPLACE_INPUTS[name]}." for name in ("ec13.zip", "keys.zip", "shric.zip")),
+        used_for=["Historical non-farm workplace jobs and civilian specialisation"], download_path="data/workplace.json",
+    ),
+    SourceInfo(
+        id="census_2011_ua_keys", title="Primary Census Abstract, Urban Agglomerations 2011",
+        publisher="Office of the Registrar General & Census Commissioner, India", homepage=UA_URL,
+        license="Census of India publication. Used as a geography crosswalk.",
+        description="Census 2011, PCA11-UA-0000. Towns and outgrowths are matched by location code. "
+                    f"Workbook SHA-256 {WORKPLACE_INPUTS['ua.xlsx']}.",
+        used_for=["Economic Census urban agglomeration matching"],
+    ),
+    SourceInfo(
+        id=PORT_DIRECTION_SOURCE, title="Basic Port Statistics of India 2024–25",
+        publisher="Ministry of Ports, Shipping and Waterways", homepage=PORT_DIRECTION_URL,
+        license="Ministry copyright policy permits credited, accurate reuse of the published port tonnage figures.",
+        description="Divide loaded and unloaded tonnes by total overseas tonnes at the same port or reporting state "
+                    "using tables 2.1.3, 2.2.1, 3.1.3 and 3.1.4. For matched non-major ports, "
+                    "divide coastal tonnes by the sum of coastal and overseas tonnes in Table 2.2.1. "
+                    f"FY 2024-25 (1 Apr 2024 – 31 Mar 2025). PDF SHA-256 {PORT_DIRECTION_SHA256}.",
+        used_for=["Port map tonnage tooltips, Explorer non-major port cargo shares and Commerce overseas cargo direction"],
+    ),
+    SourceInfo(
+        id="esri_land_cover",
+        title="Sentinel-2 10 m Land Use/Land Cover, v003",
+        publisher="Esri, Impact Observatory and Microsoft",
+        homepage="https://livingatlas.arcgis.com/landcoverexplorer/",
+        license="CC BY 4.0",
+        description="1 Jan – 31 Dec 2025. Tally native classified pixels on a 5 km equal-area lattice by mapped "
+                    "state and Census 2011 district, excluding water, clouds and nodata.",
+        used_for=["Historical tree cover, cropland, built-up land and land-cover composition"],
+    ),
+    SourceInfo(
+        id="worldcover_history",
+        title="ESA WorldCover 10 m v200",
+        publisher="ESA WorldCover consortium",
+        homepage="https://doi.org/10.5281/zenodo.7254221",
+        license="CC BY 4.0. © ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) "
+                "processed by ESA WorldCover consortium.",
+        description="1 Jan – 31 Dec 2021. Tally native classified pixels on a 5 km equal-area lattice, excluding "
+                    "permanent water and combining herbaceous wetlands and mangroves.",
+        used_for=["Historical grassland, shrubland and mapped wetlands"],
+    ),
+    SourceInfo(
+        id=IFI_SOURCE,
+        title="India Flood Inventory with Impacts v3",
+        publisher="HydroSense Lab, IIT Delhi (IMD event records)",
+        homepage="https://doi.org/10.5281/zenodo.11275211",
+        license="CC BY 4.0",
+        description="1967–2023. Sum reported deaths and injuries for unambiguous single-district events; "
+                    "retain only unambiguous counts and show a lower bound when one component is missing. "
+                    f"CSV SHA-256 {IFI_CHECKSUM}.",
+        used_for=["City View historical flood impacts"],
+    ),
     *GSVA_SOURCES,
     *PEOPLE_SOURCES,
     *YIELD_SOURCES,
@@ -168,7 +243,7 @@ LOCAL_SOURCES = [
         license="CC BY 4.0 · © European Union",
         description="The reference-epoch urban-centre shapes are matched by UN point, name and state, "
         "then clipped to the Survey of India outline and intersected with the grid and DataMeet districts. "
-        "They serve as a spatial proxy for the 2026 urban areas. No source polygons are shipped. "
+        "The 2025 reference epoch serves as a spatial proxy for the 2026 urban areas. "
         f"Central and Southern Asia archive SHA-256 {GHSL_CHECKSUM}.",
         used_for=["City View urban footprint proxy and district overlap"],
     ),
@@ -181,8 +256,11 @@ LOCAL_SOURCES = [
         description="IndiaCiv estimates use the 2026 WorldPop 30 arc-second population at pixel centres inside "
         "each footprint fragment to weight the allocation of the UN mid-2026 projection. Largest remainders "
         "preserve the UN total. District shares divide WorldPop mass inside the footprint by the district's mass. "
+        "Missing hex densities divide area-weighted mid-2026 WorldPop mass by Indian land area where at least "
+        "80% of that area has valid raster coverage. "
         f"India GeoTIFF SHA-256 {CITY_POPULATION_CHECKSUM}.",
-        used_for=["Mid-2026 city residents per hex", "2026 district population and share inside each urban area"],
+        used_for=["Mid-2026 city residents per hex", "2026 district population and share inside each urban area",
+                  "Mid-2026 density in hexes without district estimates"],
     ),
     SourceInfo(
         id="cpcb_city_aqi",
@@ -191,6 +269,7 @@ LOCAL_SOURCES = [
         homepage=AIR_PORTAL,
         license=AIR_TERMS,
         description="Reported daily city AQI from January through October 2026, transcribed by EnviroCatalysts. "
+        "Madurai shows 1 Jan 2026 – 31 Jan 2026 where 25 of 31 days qualify. The shorter period has no Jan–Oct rank. "
         f"Input snapshot SHA-256 {AIR_WEATHER_PINS['aqi']}.",
         used_for=["City share of reported days with AQI rated Poor or worse"],
     ),
@@ -337,6 +416,11 @@ LOCAL_SOURCES.extend(TERRAIN_SOURCES)
 LOCAL_SOURCES.extend(ADVISOR_SOURCES)
 LOCAL_SOURCES.extend(EXPLORER_SOURCES)
 LOCAL_SOURCES.extend(CIVIC_SOURCES)
+LOCAL_SOURCES.extend(CENSUS_CIVIC_SOURCES)
+LOCAL_SOURCES.extend(CENSUS_WORK_SOURCES)
+LOCAL_SOURCES.append(PCA_SOURCE)
+LOCAL_SOURCES.extend(HOUSEHOLD_COST_SOURCES)
+LOCAL_SOURCES.append(VILLAGE_LAND_INFO)
 
 
 SOI_POLITICAL_MAP = SourceInfo(
@@ -359,6 +443,22 @@ COASTAL_CARGO_URL = ("https://shipmin.gov.in/sites/default/files/"
 DFC_COMPLETION_URL = "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2307800&lang=1&reg=48"
 
 TRANSPORT_SOURCES = [
+    SourceInfo(
+        id="adani_port_addresses_fy25", title="Adani Ports and SEZ FY 2024-25 annual report",
+        publisher="Adani Ports and Special Economic Zone Limited",
+        homepage="https://www.adaniports.com/-/media/Project/Ports/Investor/Investor-Downloads/Annual-Report/FY25.pdf",
+        license="Publisher copyright retained. Uses facility addresses as factual reference.",
+        description="FY 2024-25 annual report, subsidiary locations for the operating Krishnapatnam and Gangavaram ports.",
+        used_for=["Krishnapatnam and Gangavaram localities"],
+    ),
+    SourceInfo(
+        id="aai_vejh_20260806", title="AAI eAIP VEJH (6 August 2026)",
+        publisher="Airports Authority of India",
+        homepage="https://aim-india.aai.aero.in/eAIP_Archive/06-08-2026/eAIP/IN-AD%202.1VEJH-en-GB.html",
+        license="AAI publication used as a reference for a factual civil airport locality.",
+        description="Archived 6 August 2026 edition, VEJH airport name and locality.",
+        used_for=["Jharsuguda civil airport locality"],
+    ),
     SourceInfo(
         id="mopsw_coastal_cargo", title="Cargo handled at Major Ports, October 2026",
         publisher="Ministry of Ports, Shipping and Waterways", homepage=COASTAL_CARGO_URL,
@@ -407,6 +507,7 @@ TRANSPORT_SOURCES = [
         homepage=PORT_CARGO_URL,
         license="Ministry copyright policy permits accurate reproduction with prominent credit, excluding third-party material.",
         description="Table 1 advance estimates in metric tonnes for FY 2025-26 (1 Apr 2025 – 31 Mar 2026). "
+                    "Across all 12 major-port authorities, 23.33% of cargo was coastal and 76.67% was overseas. "
                     "PDF SHA-256 c069102893a29ed6913e8c89461d8c21a8f22e134807969791122f4f31a17b6f.",
         used_for=["Major port cargo ranks, shares and marker sizes"],
     ),

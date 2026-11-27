@@ -19,7 +19,7 @@ class DisasterTests(unittest.TestCase):
         ]
         self.assertEqual(event_summary(events), {
             "count": 2, "by_type": {"Flood": 1, "Heatwave": 1},
-            "last_date": "2026-04-10", "last_report_only": True,
+            "last_date": "2026-04-10", "last_report_only": True, "last_caption": "Reported 2026-04-10",
         })
         self.assertIsNone(event_summary([]))
 

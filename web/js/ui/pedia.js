@@ -1,294 +1,168 @@
+// The Almanac: what every number means and exactly where it comes from.
+import { resolveTables } from "../terrain.js";
 import { esc } from "../format.js";
-import { buildPediaIndex, categories, indexFeatureCells, searchPedia } from "./pediaIndex.js";
-import { paintPedia, specimen } from "./pediaArt.js";
-import { pediaNotes } from "./pediaNotes.js";
-import { articleContent, caption } from "./pediaArticle.js";
+import { parseHex, luminance } from "../color.js";
+import { icon, glyph } from "./icon.js";
+import { formatLensValue, lensPeriodLabels } from "./lenses.js";
 
-const INTRO = {
-  state: "States", wonder: "Wonders", terrain: "Terrain", resource: "Resources",
-  lens: "Lenses", river: "Rivers", rail: "Railways", trade: "Trade", protected: "Protected land", yield: "Yields",
+const COVER_ICON = { forest_deciduous: "l-forest", forest_evergreen: "l-forest", forest_mixed: "l-forest", cropland: "l-farmland", pasture: "l-farmland", urban: "l-developed" };
+// Glyph colour that reads on a resource medallion (dark on light faces such as nuclear yellow or silver).
+const inkOn = (hex) => {
+  try { return /^#[0-9a-f]{6}$/i.test(hex || "") && luminance(parseHex(hex)) > 0.4 ? "#1c1710" : "#f8f0d8"; } catch { return "#f8f0d8"; }
 };
+const CATEGORY = { energy: "Energy", mineral: "Minerals", agri: "Agriculture" };
 
-export function initPedia(data, routing) {
+export function initPedia(data) {
   const modal = document.getElementById("pedia");
   const card = modal.querySelector(".modal-card");
   const nav = document.getElementById("pedia-nav");
   const body = document.getElementById("pedia-body");
-  const search = document.getElementById("pedia-search");
-  const picker = document.getElementById("pedia-category");
-  const back = document.getElementById("pedia-back");
-  const forward = document.getElementById("pedia-forward");
-  let featureCells, index, notes, featured, sorted, loading;
-  const features = () => (featureCells ??= indexFeatureCells(data.world));
-  function prepare() {
-    index = buildPediaIndex(data, features());
-    notes = pediaNotes(data);
-    featured = ["state/UP", "wonder/whc-251", "terrain/relief-hills"].filter((key) => index.has(key));
-    data.homeCell = index.get("terrain/relief-hills")?.cell ?? index.get("state/UP")?.cell
-      ?? data.world.owner.findIndex((owner) => owner >= 0);
-    if (data.homeCell < 0) data.homeCell = null;
-    sorted = [...index.values()].filter((entry) => entry.id !== "index")
-      .sort((a, b) => (a.group || "").localeCompare(b.group || "") || a.title.localeCompare(b.title));
-  }
+  const srcName = (id) => data.sources?.find((s) => s.id === id)?.title || id || "";
+  let restoreFocus = null;
 
-  let current = null;
-  let currentEntryId = null;
-  let opener = null;
-  const inerted = new Set();
-  const locations = new Map();
-  const visibleThumbnails = new IntersectionObserver((entries) => {
-    for (const observed of entries) if (observed.isIntersecting) paintCanvas(observed.target);
-  }, { root: body });
+  const h2 = (ic, fb, text) => `<h2>${icon(ic, fb, { size: 24 })}<span>${esc(text)}</span></h2>`;
 
-  function link(key, label) {
-    const entry = index.get(key);
-    if (!entry) return "";
-    return `<a href="${esc(routing.href(key))}" data-route="${esc(key)}">${esc(label || entry.title)}</a>`;
-  }
+  const link = (url, label) => /^(https?:\/\/|data\/[a-z0-9_-]+\.json$|LICENSE$)/i.test(url || "")
+    ? `<a href="${esc(url)}">${esc(label)}</a>` : "";
+  const row = (x) => `<tr><td class="nm">${x.color ? `<span class="swatch" style="background:${esc(x.color)}"></span>` : ""}${
+    COVER_ICON[x.key] ? icon(COVER_ICON[x.key], "", { size: 15 }) + " " : ""}<b>${esc(x.name)}</b></td>
+    <td>${esc(x.rule || "").replaceAll("\n", "<br>")}${(x.links || []).map(({ url, label }) =>
+      link(url, label)).filter(Boolean).map((ref) => "<br>" + ref).join("")}</td></tr>`;
+  const sections = (name) => Object.entries(data.almanac?.sections?.[name] || {}).map(([heading, rows]) =>
+    `<h4>${esc(heading)}</h4><table>${rows.map(row).join("")}</table>`).join("");
 
-  function sourceLink(id) {
-    const key = `source/${id}`;
-    return link(key, index.get(key)?.shortTitle);
-  }
-
-  function cards(entries, { art = false, group = (entry) => entry.group } = {}) {
-    let previous = null;
-    return entries.map((entry) => {
-      const section = group(entry);
-      const heading = section && section !== previous ? `<h2>${esc(section)}</h2>` : "";
-      previous = section;
-      return `${heading}<div class="pedia-card">${art ? specimen(entry, caption(entry)) : ""}
-        ${link(entry.key)}${entry.location ? `<small>${esc(entry.location)}</small>` : ""}
-        ${entry.kind === "source" && entry.row ? `<small>${esc(entry.row.license || "")}</small>` : ""}</div>`;
-    }).join("");
-  }
-
-  function home() {
-    return `<div class="pedia-hero"><div><p class="pedia-kicker">IndiaCiv Almanac</p>
-      <h1 tabindex="-1">Read the map</h1>
-      <p>Explore India as a strategy-game map. Follow rivers across painted hexes, see where cities and
-      resources cluster, and look up the wonders you find along the way.</p></div>
-      ${specimen(index.get("home/index"), "Painted terrain from the map build")}</div>
-      <h2>From the map</h2><div class="pedia-featured">${cards(featured.map((key) => index.get(key)), { art: true, group: () => "" })}</div>
-      <h2>How to read the map</h2>
-      <p>Terrain, relief and features describe the land. City banners mark urban agglomerations. Resource markers
-      identify mapped sites. Switch lenses to colour the map by one measure at a time. Select a tile or wonder to
-      open its Almanac entry.</p>
-      <h2>The 2026 data promise</h2>
-      <p>Figures describe 2026 and carry their period and estimate or projection label where applicable.
-      Reporting years ending in 2026 carry their exact dates, including FY 2025-26 (1 Apr 2025 – 31 Mar 2026).
-      Missing figures stay blank. Terrain and locations describe the map build. ${link("source/index")} lists
-      the datasets, how we adapted them and their reuse terms.</p>
-      <p>IndiaCiv builds on Andrej Karpathy’s usaciv, released under the MIT licence.
-      ${link("source/usaciv", "Read the full licence")}.</p>
-      ${notes["About this map"]()}`;
-  }
-
-  function categoryPage(entry) {
-    const entries = sorted.filter((row) => row.kind === entry.kind);
-    const method = INTRO[entry.kind] ? notes[INTRO[entry.kind]]() : "";
-    const map = entry.kind === "rail" && data.infrastructure?.rail?.length
-      ? '<button class="btn pedia-map-action" data-map>Show railways on map</button>' : "";
-    const protection = entry.kind === "protected" && entries.length
-      ? '<button class="btn pedia-map-action" data-map>Show protected land on map</button>' : "";
-    const trade = entry.kind === "trade" && entry.target
-      ? '<button class="btn pedia-map-action" data-map>Show trade on map</button>' : "";
-    return `<h1 tabindex="-1">${esc(entry.title)}</h1>${map}${protection}${trade}
-      <div class="pedia-catalogue">${cards(entries)}</div>${method}
-      ${entry.sources.length ? `<h2>Sources</h2><ul>${entry.sources.map((id) => `<li>${sourceLink(id)}</li>`).join("")}</ul>` : ""}
-      ${!entries.length && !method ? '<p class="muted">No entries are available in this map build.</p>' : ""}`;
-  }
-
-  function article(entry) {
-    const { facts, detail, intro } = articleContent(entry, data, index, link);
-    const related = [...new Set(entry.related)].map((key) => index.get(key)).filter(Boolean);
-    const nearby = entry.nearby?.map((key) => index.get(key));
-    const sourceLinks = entry.sources.map(sourceLink);
-    return `<p class="pedia-breadcrumb">${link(`${entry.kind}/index`)} / ${esc(entry.title)}</p>
-      <div class="pedia-hero">
-        <div><p class="pedia-kicker">${esc(entry.group || entry.category)}${entry.location ? ` · ${esc(entry.location)}` : ""}</p>
-        <h1 tabindex="-1">${esc(entry.title)}</h1>${intro ? `<p>${esc(intro)}</p>` : ""}
-        ${entry.target ? `<button class="btn pedia-map-action" data-map>${entry.kind === "lens" ? "Activate on map" : "Show on map"}</button>` : ""}</div>
-        ${entry.kind === "source" ? "" : specimen(entry, caption(entry))}
-      </div>
-      ${facts.length ? `<dl class="pedia-facts">${facts.map(([label, value, period]) =>
-        `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd>${period ? `<dd class="muted">${esc(period)}</dd>` : ""}</div>`).join("")}</dl>` : ""}
-      ${detail}
-      ${related.length ? `<h2>${entry.kind === "source" ? "Used in the Almanac" : "Related entries"}</h2><div class="pedia-catalogue">${cards(related, { group: (row) => row.category })}</div>` : ""}
-      ${nearby?.length ? `<h2>Nearby cities and wonders</h2><p>Within 100 km on the projected map.</p>
-        <div class="pedia-catalogue">${cards(nearby, { group: () => "" })}</div>` : ""}
-      ${sourceLinks.length ? `<h2>Sources</h2><ul>${sourceLinks.map((html) => `<li>${html}</li>`).join("")}</ul>` : ""}`;
-  }
-
-  function render({ focus = true, restore = false } = {}) {
-    visibleThumbnails.disconnect();
-    if (!index) {
-      body.innerHTML = '<h1 tabindex="-1">Almanac</h1><p role="status">Loading the Almanac…</p>';
-      if (focus) body.querySelector("h1").focus({ preventScroll: true });
-      loading ??= Promise.resolve(routing.load?.()).then(() => {
-        prepare();
-        if (current) render({ focus: body.contains(document.activeElement) });
-      });
-      return;
-    }
-    const kind = current.split("/")[0];
-    const entry = index.get(current);
-    if (search.value.trim()) {
-      const matches = searchPedia(index, search.value);
-      body.innerHTML = `<h1 tabindex="-1">Search results</h1><p role="status" data-search-results>${matches.length.toLocaleString("en-IN")}
-        ${matches.length === 1 ? "result" : "results"}</p>
-        ${matches.length ? `<div class="pedia-catalogue">${cards(matches, { group: (row) => row.category, })}</div>`
-          : "<p>No matching entries.</p>"}`;
-    } else if (!entry) {
-      body.innerHTML = `<h1 tabindex="-1">Entry unavailable</h1><p>This entry is unavailable in the current map build.</p>
-        <p>${link(`${kind}/index`)} ${link("home/index")}</p>`;
-    } else {
-      body.innerHTML = current === "home/index" ? home() : entry.id === "index" ? categoryPage(entry) : article(entry);
-    }
-    nav.innerHTML = Object.entries(categories).map(([key, label]) =>
-      `<a href="${esc(routing.href(`${key}/index`))}" data-route="${key}/index"${key === kind ? ' aria-current="page"' : ""}>${esc(label)}</a>`).join("");
-    picker.value = categories[kind] ? kind : "home";
-    const location = restore ? locations.get(currentEntryId) : null;
-    body.scrollTop = location?.scroll || 0;
-    if (focus) {
-      const anchor = location?.focus && [...body.querySelectorAll("[data-route]")]
-        .find((item) => item.dataset.route === location.focus);
-      (anchor || (location?.scroll ? body : body.querySelector("h1")))?.focus({ preventScroll: true });
-    }
-    for (const thumb of body.querySelectorAll(".pedia-card canvas")) visibleThumbnails.observe(thumb);
-    redraw();
-  }
-
-  function paintCanvas(canvas) {
-    paintPedia(canvas, index.get(canvas.dataset.specimen), data);
-  }
-
-  function redraw() {
-    if (modal.hidden) return;
-    const articleBounds = body.getBoundingClientRect();
-    for (const canvas of body.querySelectorAll("[data-specimen]")) {
-      const bounds = canvas.getBoundingClientRect();
-      if (!canvas.closest(".pedia-card") || (bounds.bottom > articleBounds.top && bounds.top < articleBounds.bottom)) paintCanvas(canvas);
-    }
-  }
-
-  const resize = new ResizeObserver(redraw);
-  resize.observe(body);
-  let resolution;
-  function watchResolution() {
-    resolution = matchMedia(`(resolution: ${devicePixelRatio}dppx)`);
-    resolution.addEventListener("change", () => { redraw(); watchResolution(); }, { once: true });
-  }
-  watchResolution();
-
-  function inertBackground() {
-    for (const element of modal.parentElement.children) {
-      if (element === modal || element.inert) continue;
-      element.inert = true;
-      inerted.add(element);
-    }
-  }
-  const background = new MutationObserver(inertBackground);
-
-  function rememberLocation() {
-    if (!current || currentEntryId == null) return;
-    const active = document.activeElement;
-    const focus = body.contains(active) ? active?.dataset.route : null;
-    locations.set(currentEntryId, { scroll: body.scrollTop, focus });
-  }
-
-  function apply(key, { restore = false, mapFocus = false } = {}) {
-    const nextEntryId = routing.entryId();
-    if (key && key === current && restore && nextEntryId === currentEntryId) return;
-    if (!search.value) rememberLocation();
-    if (!key) {
-      if (modal.hidden) return;
-      modal.hidden = true;
-      current = null;
-      background.disconnect();
-      for (const element of inerted) element.inert = false;
-      inerted.clear();
-      const focus = mapFocus ? document.getElementById("map") : opener?.isConnected ? opener : document.getElementById("btn-pedia");
-      focus?.focus({ preventScroll: true });
-      opener = null;
-      return;
-    }
-    if (modal.hidden) {
-      opener = document.activeElement === document.body ? document.getElementById("btn-pedia") : document.activeElement;
-      inertBackground();
-      background.observe(modal.parentElement, { childList: true });
-      modal.hidden = false;
-    }
-    current = key;
-    currentEntryId = nextEntryId;
-    search.value = "";
-    render({ restore });
-  }
-
-  function open(key = "home/index") {
-    routing.navigate(key);
-  }
-
-  function close() {
-    routing.navigate(null);
-  }
-
-  picker.innerHTML = Object.entries(categories).map(([id, label]) => `<option value="${id}">${esc(label)}</option>`).join("");
-  picker.onchange = () => open(`${picker.value}/index`);
-  search.oninput = () => {
-    if (!body.querySelector("[data-search-results]")) rememberLocation();
-    render({ focus: false, restore: !search.value });
+  const pages = {
+    "About this map": () => `
+      ${h2("pedia", "📖", "About this map")}
+      <p>This is India, drawn like a strategy game. The map uses the data listed under <i>Sources</i>.</p>
+      <h4>Controls</h4>
+      <p>Drag or arrow keys / WASD to pan · scroll, +/– or double-click to zoom · click a city or a state to open it ·
+      / or ⌘K to search · L to cycle lenses · R to show or hide resources · ? for all shortcuts · Esc to close.</p>
+      <p>The address bar always holds a link to what you're looking at (lens, selection and view); use <i>Share</i> to copy it
+      or to download a picture.</p>`,
+    Yields: () => `
+      ${h2("y-production", "⚙️", "Yields")}
+      <table>${data.nation.yields.map((y) => `<tr><td class="ic" style="color:${esc(y.color)}">${glyph(y, 26)}</td><td><b style="color:${esc(y.color)}">${esc(y.label)}${y.key === "gold" ? " (GDP)" : ""}</b><br>${esc(y.description)}<br>
+        <span class="muted">${[y.period, y.scale && `${y.scale.toLocaleString("en-IN")} ${y.unit} per point`, ...(y.sources || []).map(srcName)].filter(Boolean).map(esc).join(" · ")}</span></td></tr>`).join("")}</table>`,
+    States: () => `
+      ${h2("terrain", "🗺️", "States")}
+      ${data.states ? "" : `<p class="muted">This data build has no states.json, so state panels show names and cities only.</p>`}`,
+    Terrain: () => {
+      const t = data.w?.tables || resolveTables(data.world.tables);
+      const hasCover = Array.isArray(data.world.cover);
+      return `
+      ${h2("terrain", "🗺️", "Terrain")}
+      <h4>${icon("l-forest", "🌲", { size: 16 })} Land cover</h4>
+      ${hasCover
+        ? `${data.world.base ? "" : `<p>The base colour of each hex is its dominant land-cover group: the largest group among the land samples inside it.
+           Small symbols show the mix: trees scale with the forest share, and fields, reeds, shrubs and grass tufts mark farmland,
+           wetland, scrub and grassland.</p>`}
+           <table>${t.cover.filter((x) => x.id > 0).map(row).join("")}</table>`
+        : `<p class="muted">This data build has no land-cover layer yet; land is coloured by elevation.</p>`}
+      <h4>Relief</h4>
+      <table>${(data.almanac?.terrain_relief || t.relief).map(row).join("")}</table>
+      <h4>${icon("r-hydro", "💧", { size: 16 })} Water</h4>
+      <table>${t.water.filter((x) => x.id > 0).map(row).join("")}</table>
+      <h4>Beyond the borders</h4>
+      <p class="muted">Neighbouring countries are drawn under light fog for context.</p>`;
+    },
+    Lenses: () => `
+      ${h2("layers", "▤", "Lenses")}
+      <p>Lenses recolour the map by one measure. The period and method are listed for each lens.</p>
+      <p>The legend shows how many hexes fall at each value. Hover or drag on it to show only that range on the map.</p>
+      ${(data.lenses.groups || [{ id: null, name: "" }]).map((g) => {
+        const ls = data.lenses.lenses.filter((l) => !g.id || l.group === g.id);
+        if (!ls.length) return "";
+        return `${g.name ? `<h3 class="grp">${icon(`g-${g.id}`, "", { size: 16 })} ${esc(g.name)}</h3>` : ""}${ls.map((l) => `
+          <div class="lens-entry"><div class="le-ic">${glyph(l, 26)}</div><div>
+          <h4>${esc(l.name)}</h4><p>${esc(l.description || "")}<br>
+          ${lensPeriodLabels(l)}${l.estimated ? " · IndiaCiv estimate" : ""}
+          ${[l.note, l.source_line].filter(Boolean).map((note) => "<br>" + esc(note)).join("")}
+          <i class="le-ramp" style="background:linear-gradient(90deg, ${(l.ramp || []).map(esc).join(",")})"></i>
+          <span class="muted">Scale: ${esc(l.scale)}${l.period && l.domain?.every(Number.isFinite)
+            ? " · " + esc(l.format === "category"
+              ? (l.categories || []).map((category) => category.name).join(" · ")
+              : l.domain.map((bound) => formatLensValue(l, bound)).join("–")) : ""}${
+            l.higher_is === "good" ? " · higher is better" : l.higher_is === "bad" ? " · higher is worse" : ""}${[...new Set([l.source, ...(l.sources || [])].filter(Boolean))].map((id) => " · " + esc(srcName(id))).join("")}</span></p></div></div>`).join("")}`;
+      }).join("")}`,
+    Resources: () => {
+      const r = data.resources;
+      if (!r?.types?.length) return `${h2("resources", "⛏️", "Resources")}<p class="muted">This data build has no resources layer.</p>`;
+      const count = new Map();
+      for (const it of r.items || []) count.set(it.type, (count.get(it.type) || 0) + 1);
+      const cats = [...new Set(r.types.map((t) => t.category || "other"))];
+      return `
+      ${h2("resources", "⛏️", "Resources")}
+      <p>Resources mark power plants, mines, fuel fields and representative agricultural sites.
+      Inclusion criteria appear in each type's description. When zoomed out, a hex shows its
+      highest-ranked resource; zoom in to see more. Press <b>R</b> to show or hide them.</p>
+      ${cats.map((c) => `<h4>${esc(CATEGORY[c] || c)}</h4><table class="res-table">
+        <tr><th></th><th>Type</th><th>What counts</th><th>Sites</th></tr>
+        ${r.types.filter((t) => (t.category || "other") === c).map((t) => `<tr>
+          <td class="ic"><span class="res-ic" style="background:${esc(t.color || "#24384f")};color:${inkOn(t.color)}">${glyph(t, 20)}</span></td>
+          <td class="nm"><b>${esc(t.name)}</b>${t.unit ? `<br><span class="muted">value in ${esc(t.unit)}</span>` : ""}</td>
+          <td>${esc(t.description || "")}${t.threshold ? "<br>" + esc(t.threshold) : ""}<br><span class="muted">${[t.period, srcName(t.source)].filter(Boolean).map(esc).join(" · ")}</span></td>
+          <td class="num">${(count.get(t.id) || 0).toLocaleString("en-IN")}</td></tr>`).join("")}</table>`).join("")}`;
+    },
+    Sources: () => `
+      ${h2("pedia", "📖", "Sources")}
+      ${data.sources.map((s) => `
+        <h4>${esc(s.title)}</h4>
+        <p>${esc(s.description)}<br>
+        <span class="muted">${esc(s.publisher)} · ${link(s.license_url, s.license) || esc(s.license)}${s.period || (s.vintage && s.vintage !== "older") ? " · " + esc(s.period || s.vintage) : ""} ·
+        <a href="${esc(s.homepage)}" target="_blank" rel="noopener">homepage</a></span><br>
+        ${(s.used_for || []).map(esc).join(" · ")}
+        ${(s.credit_links || (s.credit_link ? [s.credit_link] : [])).map(({ url, label }) => link(url, label)).join(" · ")}
+        ${link(s.download_path, s.download_label || "Download derived data")}</p>
+        <table>${(s.files || []).map((f) => `<tr><td><code>${esc(f.url)}</code>${f.sha256 ? `<br><code>SHA-256 ${esc(f.sha256)}</code>` : ""}
+          ${f.timestamp ? `<br><code>${esc(f.timestamp)}</code>` : ""}${f.query ? `<br><code>${esc(f.query)}</code>` : ""}</td>
+          <td class="muted" style="white-space:nowrap">${esc((f.retrieved || "").slice(0, 10))}${f.bytes ? `<br>${(f.bytes / 1e6).toFixed(1)} MB` : ""}</td></tr>`).join("")}</table>`).join("")}`,
   };
-  back.onclick = () => routing.travel(-1);
-  forward.onclick = () => routing.travel(1);
 
-  modal.addEventListener("click", (event) => {
-    const anchor = event.target.closest("a[data-route]");
-    if (anchor && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) {
-      event.preventDefault();
-      open(anchor.dataset.route);
-    } else if (event.target === modal || event.target.closest("[data-close]")) close();
-    else if (event.target.closest("[data-site-index]")) {
-      const siteIndex = Number(event.target.closest("[data-site-index]").dataset.siteIndex);
-      const row = index.get(current)?.items?.[siteIndex];
-      if (row) routing.navigate(null, { kind: "resource", row });
-    } else if (event.target.closest("[data-example]")) {
-      routing.navigate(null, { kind: "cell", cell: Number(event.target.closest("[data-example]").dataset.example) });
-    } else if (event.target.closest("[data-map]")) {
-      const target = index.get(current)?.target || { kind: current.split("/")[0] };
-      routing.navigate(null, target);
-    }
-  });
-
-  modal.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      if (search.value) { search.value = ""; render({ focus: false, restore: true }); search.focus(); }
-      else close();
-      return;
-    }
-    if (event.key !== "Tab") return;
-    const items = [...card.querySelectorAll("button, a[href], input, select")].filter((el) => el.offsetParent && !el.disabled);
-    if (event.shiftKey && document.activeElement === items[0]) {
-      event.preventDefault();
-      items.at(-1)?.focus();
-    } else if (!event.shiftKey && document.activeElement === items.at(-1)) {
-      event.preventDefault();
-      items[0]?.focus();
-    }
+  const show = (name) => {
+    if (!pages[name]) name = "About this map";
+    body.innerHTML = pages[name]() + sections(name);
+    body.scrollTop = 0;
+    nav.querySelectorAll("button").forEach((b) => {
+      const on = b.dataset.page === name;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-current", on ? "page" : "false");
+    });
+  };
+  nav.innerHTML = `<div class="hd">Almanac</div>` + Object.keys(pages).map((p) => `<button data-page="${esc(p)}">${esc(p)}</button>`).join("");
+  nav.onclick = (e) => {
+    const b = e.target.closest("button[data-page]");
+    if (b) show(b.dataset.page);
+  };
+  const close = () => {
+    if (modal.hidden) return;
+    modal.hidden = true;
+    if (restoreFocus && document.contains(restoreFocus)) restoreFocus.focus();
+    restoreFocus = null;
+  };
+  modal.onclick = (e) => {
+    if (e.target === modal || e.target.closest("[data-close]")) close();
+  };
+  // Keep Tab inside the dialog.
+  modal.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab") return;
+    const f = [...card.querySelectorAll("button, a[href], [tabindex]:not([tabindex='-1'])")].filter((x) => x.offsetParent);
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   });
 
   return {
-    apply, open, close, has: (key) => index?.has(key) ?? false,
-    featuresAt(cell) {
-      return [...new Set([...(data.world.features?.[cell] || []), ...(features().get(cell) || [])])];
+    open(page = "About this map") {
+      if (modal.hidden) restoreFocus = document.activeElement;
+      show(page);
+      modal.hidden = false;
+      (nav.querySelector("button.active") || card.querySelector("[data-close]"))?.focus();
     },
-    setHistory({ back: canBack, forward: canForward }, id) {
-      back.disabled = !canBack;
-      forward.disabled = !canForward;
-      currentEntryId = id;
+    close,
+    get isOpen() {
+      return !modal.hidden;
     },
-    get route() { return current; },
-    get isOpen() { return !modal.hidden; },
   };
 }

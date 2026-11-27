@@ -1,11 +1,18 @@
 import unittest
 
 from pipeline.build import crop_resources as crops
-from pipeline.build.resources import summarize
+from pipeline.build.resources import TYPES, summarize
 from pipeline.core.hexgrid import HexGrid
+from pipeline.sources.resource_references import SITES
 
 
 class CropResourceTests(unittest.TestCase):
+    def test_hutti_is_a_named_gold_mine_without_a_production_unit(self):
+        gold, = [definition for definition in TYPES if definition["id"] == "gold"]
+        self.assertIsNone(gold["unit"])
+        mine, = [site for site in SITES if site[0] == "gold"]
+        self.assertEqual(mine[1:3], ("Hutti gold mine", "KA"))
+
     def test_field_marker_requires_threshold_and_avoids_city(self):
         grid = HexGrid(radius=10, cols=4, rows=1)
         world = {"owner": [0] * 4, "county": [0, 0, 0, 1],

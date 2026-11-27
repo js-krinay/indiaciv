@@ -90,6 +90,18 @@ def dataset():
 
 
 class CheckTest(unittest.TestCase):
+    def test_current_estimate_caption_requires_dated_older_weights(self):
+        record = {"period": "FY 2025-26 · Mining and utilities use FY 2024-25 weights",
+                  "estimated": True,
+                  "input_weights": {"vintage": "older", "period": "FY 2024-25 (1 Apr 2024 – 31 Mar 2025)"}}
+        for valid in (True, False):
+            with self.subTest(valid=valid):
+                report = check.Report(quiet=True)
+                if not valid:
+                    del record["input_weights"]
+                check.check_periods(report, {"cities.json": [record]})
+                self.assertEqual(report.failed, not valid)
+
     def run_check(self, web, interim):
         with tempfile.TemporaryDirectory() as tmp:
             wd, idir = Path(tmp) / "web", Path(tmp) / "interim"

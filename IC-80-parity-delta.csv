@@ -1,0 +1,100 @@
+surface,field,before,after,coverage,period,mapping
+City View Districts,encampment,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+City View district type,encampment,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+City View industry detail,928110 National security,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Lens,veterans,partial,partial,3868/3970,30 Jun 2026,Existing observation retained. lenses.json → lens registered_veterans · Chrome legend captured [registered_veterans].
+Military layer,installation_name,not shown,not shown,,,"Operational layer slot stays empty. PM decision keeps civic names, categories and counts in State Explorer without map coordinates."
+Military layer,installation_status,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Military layer,component,not shown,not shown,,,"Operational layer slot stays empty. PM decision keeps civic names, categories and counts in State Explorer without map coordinates."
+Military layer,joint,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Military layer,tier,not shown,not shown,,,"Operational layer slot stays empty. PM decision keeps civic names, categories and counts in State Explorer without map coordinates."
+Military layer,curated,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Military layer,area_km2,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Military layer,ranges,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Military layer,range_boundary,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Military layer,installation_count,not shown,not shown,,,"Operational layer slot stays empty. PM decision keeps civic names, categories and counts in State Explorer without map coordinates."
+Military layer,troop_count,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Military layer,encampment,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Military layer,naval,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Military layer,flagships,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Explorer States/UTs,veterans,partial,partial,32/36,30 Jun 2026,Existing observation retained. advisor_tables.json [states.registered_veterans] → Explorer.
+Explorer States/UTs,veterans_pct,partial,partial,32/36,30 Jun 2026 registrations · mid-2026 residents,Existing observation retained. advisor_tables.json [states.veteran_share] → Explorer.
+Explorer States/UTs,armed_forces,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Explorer States/UTs,armed_forces_pct,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Explorer States/UTs,mil_active,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Explorer States/UTs,mil_guard_reserve,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Explorer States/UTs,mil_civilian,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Explorer States/UTs,def_spending,not shown,not shown,,,The published Union allocation and national PSU turnover are distinct aggregates. This upstream breakdown stays empty.
+Explorer States/UTs,def_per_resident,not shown,not shown,,,The published Union allocation and national PSU turnover are distinct aggregates. This upstream breakdown stays empty.
+Explorer States/UTs,def_pct_gdp,not shown,not shown,,,The published Union allocation and national PSU turnover are distinct aggregates. This upstream breakdown stays empty.
+Explorer States/UTs,installations,not shown,not shown,,,State Explorer lists civic board names and counts in dedicated columns. The operational field stays empty.
+Explorer Urban agglomerations,veterans,not shown,not shown,,,There is no compatible observation in this upstream slot. The separate state and Himachal Pradesh district veteran tables remain available.
+Explorer Urban agglomerations,veterans_pct,not shown,not shown,,,There is no compatible observation in this upstream slot. The separate state and Himachal Pradesh district veteran tables remain available.
+Explorer Urban agglomerations,armed_forces,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Explorer Urban agglomerations,armed_forces_pct,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Explorer Urban agglomerations,encampment,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Explorer Urban agglomerations,installations,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Explorer Districts,veterans,partial,partial,12/640,31 Mar 2026,Existing observation retained. advisor_tables.json [counties.registered_veterans] → Explorer.
+Explorer Districts,veterans_pct,partial,partial,12/640,31 Mar 2026 registrations · mid-2026 residents,Existing observation retained. advisor_tables.json [counties.veteran_share] → Explorer.
+Explorer Districts,armed_forces,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Explorer Districts,armed_forces_pct,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,veterans,partial,partial,32/36,30 Jun 2026,Existing observation retained. advisor_tables.json [states.registered_veterans] → advisor-military.
+Advisor Military,veterans_pct,partial,partial,32/36,30 Jun 2026 registrations · mid-2026 residents,Existing observation retained. advisor_tables.json [states.veteran_share] → advisor-military.
+Advisor Military,armed_forces,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,armed_forces_pct,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,mil_active,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,mil_guard_reserve,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,mil_civilian,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,def_spending,live,live,1/1,FY 2025-26 (1 Apr 2025 – 31 Mar 2026),Existing observation retained. Military advisor’s public national Union allocation tile [advisor_statistics.defence_budget].
+Advisor Military,def_per_resident,not shown,not shown,,,The published Union allocation and national PSU turnover are distinct aggregates. This upstream breakdown stays empty.
+Advisor Military,def_pct_gdp,live,live,1/1,FY 2025-26 (1 Apr 2025 – 31 Mar 2026),Existing observation retained. Military advisor’s public national Union allocation tile [advisor_statistics.defence_budget].
+Advisor Military,installations,not shown,not shown,,,Advisor shows the national Cantonment Board count. State Explorer lists civic board names. The operational field stays empty.
+Advisor Military,encampment,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,name,not shown,not shown,,,State Explorer lists civic board names from DGDE. The operational field stays empty.
+Advisor Military,component,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,tier,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,state,not shown,not shown,,,State Explorer groups civic board names and counts by state or UT. The operational field stays empty.
+Advisor Military,area,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,active,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,guard,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,civ,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,contracts,not shown,not shown,,,The published Union allocation and national PSU turnover are distinct aggregates. This upstream breakdown stays empty.
+Advisor Military,payroll,not shown,not shown,,,The published Union allocation and national PSU turnover are distinct aggregates. This upstream breakdown stays empty.
+Advisor Military,grants,not shown,not shown,,,The published Union allocation and national PSU turnover are distinct aggregates. This upstream breakdown stays empty.
+Advisor Military,v,not shown,not shown,,,There is no compatible observation in this upstream slot. The separate state and Himachal Pradesh district veteran tables remain available.
+Advisor Military,af,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,share,not shown,not shown,,,There is no compatible observation in this upstream slot. The separate state and Himachal Pradesh district veteran tables remain available.
+Advisor Military,troops_by_service,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,resident_troops_by_state,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,veterans_by_state,partial,partial,32/36,30 Jun 2026,Existing observation retained. advisor_tables.json [states.registered_veterans] → advisor-military.
+Advisor Military,range_area,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,spending_by_component,not shown,not shown,,,The published Union allocation and national PSU turnover are distinct aggregates. This upstream breakdown stays empty.
+Advisor Military,installation_status,not shown,not shown,,,Operational field stays empty. Civic or education observations do not measure this field.
+Advisor Military,cantonment_boards,absent,live,61 boards,27 Nov 2026,DGDE civic directory.
+Advisor Military,legacy_sainik_schools,absent,live,33 schools,7 May 2026,Ministry of Defence conference release.
+Advisor Military,sainik_schools,absent,live,79 schools,7 May 2026,Ministry of Defence conference release.
+Advisor Military,rashtriya_military_schools,absent,live,5 schools,2026,NTA RMS CET roster.
+Advisor Military,defence_psu_turnover,absent,live,16 companies,FY 2025-26 (1 Apr 2025 – 31 Mar 2026),Ministry of Defence annual performance review.
+Explorer States/UTs,cantonment_board_names,absent,live,61 boards,27 Nov 2026,"DGDE civic directory, grouped by state or UT."
+Explorer States/UTs,rashtriya_military_schools,absent,live,5 schools,2026,NTA roster aggregated to state counts.
+Explorer States/UTs,rashtriya_military_school_towns,absent,live,5 towns,2026,"NTA RMS CET roster, grouped by state."
+Explorer States/UTs,hal_turnover,absent,live,1 company,FY 2025-26 (1 Apr 2025 – 31 Mar 2026),"Hindustan Aeronautics Limited turnover. Headquarters city Bengaluru, KA. Annual Report 2025-26, Board’s Report."
+Explorer States/UTs,beml_revenue,absent,live,1 company,FY 2025-26 (1 Apr 2025 – 31 Mar 2026),"BEML Limited revenue from operations. Headquarters city Bengaluru, KA. 5 Nov 2026 standalone filing, audited year ended 31 Mar 2026."
+Explorer States/UTs,midhani_revenue,absent,live,1 company,FY 2025-26 (1 Apr 2025 – 31 Mar 2026),"MIDHANI revenue from operations. Headquarters city Hyderabad, TS. 30 May 2026 standalone filing, audited year ended 31 Mar 2026."
+Explorer States/UTs,grse_revenue,absent,live,1 company,FY 2025-26 (1 Apr 2025 – 31 Mar 2026),"Garden Reach Shipbuilders & Engineers revenue from operations. Headquarters city Kolkata, WB. FY 2026-27 Quarter 2 company release archive."
+Explorer States/UTs,gsl_turnover,absent,live,1 company,FY 2025-26 (1 Apr 2025 – 31 Mar 2026),"Goa Shipyard Limited turnover (value of production). Headquarters city Vasco da Gama, GA. Annual Report 2025-26, Statement of Profit and Loss."
+Explorer States/UTs,bdl_turnover,absent,live,1 company,FY 2025-26 (1 Apr 2025 – 31 Mar 2026),"Bharat Dynamics Limited net sales turnover. Headquarters city Hyderabad, TS. Annual Report 2025-26, Corporate Overview."
+Explorer States/UTs,mdl_revenue,absent,live,1 company,FY 2025-26 (1 Apr 2025 – 31 Mar 2026),"Mazagon Dock Shipbuilders Limited consolidated revenue from operations. Headquarters city Mumbai, MH. 30 Apr 2026 audited financial results."
+Explorer States/UTs,avnl_revenue,absent,live,1 company,FY 2025-26 (1 Apr 2025 – 31 Mar 2026),"Armoured Vehicles Nigam Limited revenue from operations. Headquarters city Chennai, TN. Annual Report 2025-26, Board’s Report."
+Explorer States/UTs,traditional_sainik_school_roster,absent,live,33 schools,2026,"AISSEE 2026 Information Bulletin, Appendix I-A. Place labels grouped by State or UT."
+Explorer States/UTs,bel_revenue,absent,live,1 company,FY 2025-26 (1 Apr 2025 – 31 Mar 2026),"Bharat Electronics Limited standalone revenue from operations and headquarters city, Bengaluru. Integrated Annual Report 2025-26."
+Explorer States/UTs,cantonment_board_classes,absent,live,61 boards,FY 2022-23 (1 Apr 2022 – 31 Mar 2023),DGDE cantonment administration report Annexure I. Historical classes as published.
+Explorer States/UTs,cantonment_board_population,absent,live,61 boards,Census 2011,"DGDE cantonment administration report Annexure I. All resident counts, grouped by state or UT."
+Explorer States/UTs,partnership_sainik_school_places,absent,live,72 schools,2026,AISSEE Appendix I-B and 24 Oct 2025 Sainik Schools Society supplement. Admissions roster only.
+Explorer States/UTs,hsl_turnover,absent,not shown,,,Hindustan Shipyard Limited: parliamentary table ends at Q3. Found no FY 2025-26 turnover in the company annual-report or MoD publications reviewed.
+Explorer States/UTs,mil_turnover,absent,not shown,,,Munitions India Limited: parliamentary material reports turnover to 31 Jan 2026 and a full-year projection. The company report located covers FY 2024-25.
+Explorer States/UTs,aweil_turnover,absent,not shown,,,"Advanced Weapons & Equipment India Limited: company downloads list FY 2024-25 as the latest annual report. The parliamentary follow-up gives FY 2025-26 provisional profit, a different measure."
+Explorer States/UTs,yil_turnover,absent,not shown,,,Yantra India Limited: FY 2025-26 company message discusses orders and performance. No full-year turnover found in the message or parliamentary follow-up.
+Explorer States/UTs,iol_turnover,absent,not shown,,,India Optel Limited: latest individual full-year turnover verified in the parliamentary follow-up is FY 2024-25. FY 2025-26 individual figures there are provisional profit.
+Explorer States/UTs,tcl_turnover,absent,not shown,,,Troop Comforts Limited: official annual-report index ends at FY 2024-25. FY 2025-26 individual figures in the parliamentary follow-up are provisional profit.
+Explorer States/UTs,gil_turnover,absent,not shown,,,Gliders India Limited: official annual-report index ends at FY 2024-25. FY 2025-26 parliamentary values located are provisional profit and export turnover.

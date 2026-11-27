@@ -1,0 +1,43 @@
+IC-60 CSV row,surface,field,before coverage (IC-77 integrated base),after coverage,new geographies / categories,result
+120,City View Districts,districts,10,11,21318,UPEIDA operating Lucknow Chikankari Cluster. Reviewed Census district 09-157 is a member of UA 21318.
+196,City View painted scene,district_plaque,10,11,21318,UPEIDA operating Lucknow Chikankari Cluster. Reviewed Census district 09-157 is a member of UA 21318.
+198,City View painted scene,resource_marker,8,8,,Existing exact footprint joins retained. No newly verified qualifying GEM site or expanded reviewed footprint in this branch.
+214,City View Districts,badge,42,42,,Current profiles use the existing exact footprint and district gates. No newly verified qualifying badge point.
+215,City View Districts,specialty,10,11,21318,UPEIDA operating Lucknow Chikankari Cluster. Reviewed Census district 09-157 is a member of UA 21318.
+223,City View Districts,district_qualification,42,42,,Current profiles use the existing exact footprint and district gates. No newly verified qualifying badge point.
+315,City View Resources,site_name,8,8,,Existing exact footprint joins retained. No newly verified qualifying GEM site or expanded reviewed footprint in this branch.
+316,City View Resources,type,8,8,,Existing exact footprint joins retained. No newly verified qualifying GEM site or expanded reviewed footprint in this branch.
+317,City View Resources,state,8,8,,Existing exact footprint joins retained. No newly verified qualifying GEM site or expanded reviewed footprint in this branch.
+318,City View Resources,detail,8,8,,Existing exact footprint joins retained. No newly verified qualifying GEM site or expanded reviewed footprint in this branch.
+319,City View Resources,size,8,8,,Existing exact footprint joins retained. No newly verified qualifying GEM site or expanded reviewed footprint in this branch.
+320,City View Resources,unit,8,8,,Existing exact footprint joins retained. No newly verified qualifying GEM site or expanded reviewed footprint in this branch.
+322,City View Resources,mapped_capacity,8,8,,Existing exact footprint joins retained. No newly verified qualifying GEM site or expanded reviewed footprint in this branch.
+323,City View Hazards (India proposal),event_type,5,12,21160; 21179; 21296; 21318; 21336; 21398; 21433,Verified 13 May 2026 thunderstorm joins current City View member districts.
+324,City View Hazards (India proposal),event_date,5,12,21160; 21179; 21296; 21318; 21336; 21398; 21433,Verified 13 May 2026 thunderstorm joins current City View member districts.
+325,City View Hazards (India proposal),count,5,12,21160; 21179; 21296; 21318; 21336; 21398; 21433,Verified 13 May 2026 thunderstorm joins current City View member districts.
+352,Lens,disasters,15,15,,Thunderstorm is a new observation in already-covered Uttar Pradesh. State coverage gain is zero.
+360,Resource type,silver,1,1,,Existing silver by-product retained. Company and refinery totals did not identify an additional producer-level map point.
+372,Resource type,battery,1,1,,"Annexure project rows need exact operating sites. Kavaratti is corroborated on the island by SECI, but its installed footprint was not established."
+377,Resource site,value,656,656,,30 Jun 2026 Ministry of Power ratings held pending exact battery location. Existing approximate SECI marker retained.
+378,Resource site,unit,656,656,,30 Jun 2026 Ministry of Power ratings held pending exact battery location. Existing approximate SECI marker retained.
+392,Wonder,footprint,5,5,,Pinned entries without accepted geometry remain point wonders. No audited exact perimeter for a blank entry.
+402,Road layer,highway_name,1183,1183,,"Audited nine pinned Overpass files. The 20 relation records are port candidates, with no road/rail route relation members to join."
+403,Road layer,network,12,12,,"Audited nine pinned Overpass files. The 20 relation records are port candidates, with no road/rail route relation members to join."
+408,Rail layer,route_name,713,713,,"Audited nine pinned Overpass files. The 20 relation records are port candidates, with no road/rail route relation members to join."
+409,Rail layer,network,23,23,,"Audited nine pinned Overpass files. The 20 relation records are port candidates, with no road/rail route relation members to join."
+416,Port layer,domestic,12,23,dahej; dhamra; hazira; n3732668135; r14718755; r15661798; w1164626902; w1264420665; w369458014; w684512907; w902549545,"MoPSW BPS Table 2.2.1, FY 2024-25. March and September 2026 publications are board-level. Keep unmatched terminals, aggregates and suspect rows blank."
+417,Port layer,foreign,12,23,dahej; dhamra; hazira; n3732668135; r14718755; r15661798; w1164626902; w1264420665; w369458014; w684512907; w902549545,"MoPSW BPS Table 2.2.1, FY 2024-25. March and September 2026 publications are board-level. Keep unmatched terminals, aggregates and suspect rows blank."
+420,Port layer,reporting period (year row),12,23,dahej; dhamra; hazira; n3732668135; r14718755; r15661798; w1164626902; w1264420665; w369458014; w684512907; w902549545,"MoPSW BPS Table 2.2.1, FY 2024-25. March and September 2026 publications are board-level. Keep unmatched terminals, aggregates and suspect rows blank."
+422,Port layer,city,17,19,n3732668135; r14718755,Operator subsidiary addresses: Muthukur and Gangavaram.
+425,Airport layer,city,56,57,JRG,"AAI archived VEJH eAIP, 6 August 2026. Filled Jharsuguda by OurAirports ID and IATA."
+436,Protected land layer,extent,24,24,,Prepared protected inputs have 30 explicitly rejected area comparisons. Existing accepted extents retained. Subhex or unverified geometry remains a marker.
+509,Disaster type,other,5,6,Thunderstorm,One observed Thunderstorm event. State damage report corroborates the districts. No separate lightning or gale event inferred from the same storm.
+591,Explorer Urban agglomerations,energy_mw,8,8,,Existing exact footprint joins retained. No newly verified qualifying GEM site or expanded reviewed footprint in this branch.
+645,Explorer Districts,disasters,21,48,09-135; 09-149; 09-150; 09-152; 09-153; 09-154; 09-155; 09-156; 09-158; 09-163; 09-172; 09-173; 09-174; 09-175; 09-176; 09-178; 09-180; 09-181; 09-182; 09-185; 09-190; 09-193; 09-196; 09-197; 09-198; 09-199; 09-200,"UPSDMA districts within the 13 May 2026 storm, checked against Census 2011 atlas IDs. Sambhal omitted and Varanasi deduplicated."
+651,Explorer Districts,districts,10,11,09-157,UPEIDA operating Lucknow Chikankari Cluster. Reviewed Census district 09-157 is a member of UA 21318.
+722,Advisor Culture,disasters,15,15,,Thunderstorm is a new observation in already-covered Uttar Pradesh. State coverage gain is zero.
+727,Advisor Culture,total,15,15,,Thunderstorm is a new observation in already-covered Uttar Pradesh. State coverage gain is zero.
+729,Advisor Culture,last,15,15,,Thunderstorm is a new observation in already-covered Uttar Pradesh. State coverage gain is zero.
+811,City View Districts,named_cluster,10,11,21318,UPEIDA operating Lucknow Chikankari Cluster. Reviewed Census district 09-157 is a member of UA 21318.
+830,Tile tooltip,resource_value,656,656,,30 Jun 2026 Ministry of Power ratings held pending exact battery location. Existing approximate SECI marker retained.
+831,Tile tooltip,resource_unit,656,656,,30 Jun 2026 Ministry of Power ratings held pending exact battery location. Existing approximate SECI marker retained.

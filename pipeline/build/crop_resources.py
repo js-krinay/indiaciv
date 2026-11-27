@@ -77,6 +77,9 @@ def crop_items(world, grid, project, cities, occupied, elevation):
             continue
         detail = "Fishing landing centre · land-side marker" if coastal else "Operating mine · approximate lease location"
         metadata = {}
+        if kind == "gold":
+            detail = ("Approximate civilian lease location from MoEFCC EAC minutes (December 2023) · "
+                      f"Ministry of Mines annual report corroborates the company as a gold producer for {period}")
         if kind == "battery":
             detail = "Commissioned battery storage · approximate project location"
         if name == "Sindesar Khurd mine":

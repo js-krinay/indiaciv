@@ -6,11 +6,11 @@ share links and an Almanac that cites every source. It is a fork of
 are usaciv's; the data pipeline is rebuilt for India.
 
 **So far.** Terrain, cities, the 36 states and union territories, district, state, health and city lenses, and
-tile resources (press **R**) and wonders (press **W**). The Map menu includes railways, highways, ports and
-airports. Population figures are projected for 2026. City View opens
-for the 50 largest urban agglomerations in the frozen UN cohort. Six yields appear in the top bar and map panels.
+tile resources (press **R**) and wonders (in Map layers). The Map menu includes railways, highways, ports and
+airports. Population figures are projected for 2026. City View opens for every mapped UN urban agglomeration.
+Verified urban footprints add district membership and mapped area. Six yields appear in the top bar and map panels.
 Choose Disasters in the lens picker for documented incident counts by district or state/UT and hazard type.
-The Culture advisor lists the dated source records. City View Conditions shows incidents in member districts.
+The Culture advisor and Explorer list the dated source records.
 The inventory uses selected official event reports and NCS monthly tables for January–October 2026
 at magnitude 5.0 or higher, with selected November notices checked through the 27 November cutoff.
 Open Advisors to see seven India
@@ -42,6 +42,9 @@ uv run --no-project --with pyproj --with pyshp --with 'shapely>=2.1' python -m p
 uv run --no-project --with 'shapely>=2.1' python -m pipeline.india.boundary_chart .cache/ic34-audit --world .cache/ic34-audit/baseline.json
 # ESA WorldCover land-cover samples inside the outline (reads public cloud-optimised GeoTIFFs; about 1.5 minutes)
 uv run --no-project --with rasterio --with pyproj --with 'shapely>=2.1' python -m pipeline.india.terrain
+# Native-pixel historical land cover (only fetch blocks containing lattice points)
+uv run --no-project --with rasterio --with pyproj --with tifffile --with 'shapely>=2.1' python -m pipeline.india.terrain --esri
+uv run --no-project --with rasterio --with pyproj --with tifffile --with 'shapely>=2.1' python -m pipeline.india.terrain --worldcover-history
 # Climate, detailed relief, and terrain features (about 1.8 GB cached; requires bsdtar for GFPLAIN)
 uv run --no-project --with rasterio --with pyproj --with 'shapely>=2.1' python -m pipeline.india.layered_terrain
 # UN World Urbanization Prospects File 22
@@ -50,6 +53,8 @@ uv run --no-project --with pyproj --with xlrd python -m pipeline.india.cities .c
 python3 -m pipeline.india.census .cache/census-a01.xlsx
 # IC-8 research snapshot (save IC-8-wonders.json from the project issue materials in .cache)
 python3 -m pipeline.india.wonders .cache/IC-8-wonders.json
+# ASI visit ranks (save the pinned India Tourism Statistics 2026 PDF as .cache/ic75/asi.pdf)
+uv run python -m pipeline.india.wonder_visitation .cache/ic75/asi.pdf
 # Named OSM river ways and relations, with Natural Earth backup linework
 uv run --no-project --with 'shapely>=2.1' python -m pipeline.india.open_rivers .cache/ne-10m-rivers.geojson .cache
 # HydroLAKES polygons, Natural Earth Krishna distributary and OSM Pulicat Lagoon
@@ -84,9 +89,47 @@ uv run python -m pipeline serve    # http://127.0.0.1:8765
 uv run python -m unittest discover -s tests
 ```
 
+### Historical Census civic measures
+
+With the DataMeet, Census A-01 and City View inputs prepared, fetch the pinned
+ORGI workbooks and rebuild the historical Citizens, Explorer and civic lenses.
+Omit `--fetch` when the workbook cache is already populated.
+
+```sh
+uv run --no-project --with xlrd --with openpyxl python -m pipeline.india.census_civic .cache/census-civic --fetch
+uv run python -m pipeline build states lenses city_view catalog --force
+uv run python -m pipeline check
+```
+
+The build publishes derived shares, reported distance bands and categories from
+Census 2011 and the 2010 Houselisting phase. City figures describe the urban
+residents or households of the member districts of the mapped footprint.
+State values sum District Census counts before dividing. Andhra Pradesh and
+Telangana state comparisons have no value because the 2011 Khammam district
+crosses the modern state line. Ladakh uses Census Leh and Kargil.
+
 `web/data/` is generated and git-ignored: `world.json` is derived from the Survey of India outline, whose terms for
 redistributing derived data are unresolved. No outline geometry is shipped, only each hex's land or water class.
 Publishing is the owner's decision; there is no deploy package.
+
+### Historical resident occupations and industries
+
+With the DataMeet, Census A-01 and City View inputs prepared, run:
+
+```sh
+uv run --no-project --with openpyxl python -m pipeline.india.census_work .cache/census-work --fetch
+uv run python -m pipeline build city_view catalog --force
+uv run python -m pipeline check
+```
+
+Omit `--fetch` when the pinned workbooks are already cached. Citizens and
+Explorer use B-25 A and B, with a matching urban India benchmark. Workforce
+uses B-18. Each share describes the urban residents of all member districts,
+using main and marginal workers, excluding cultivators and agricultural
+labourers and the sensitive or inseparably mixed categories excluded by the
+crosswalk. The two tables have independent denominators.
+The B-18 exclusions follow the [MoSPI NIC 2008 classification](https://www.mospi.gov.in/sites/default/files/main_menu/national_industrial_classification/nic_2008_17apr09.pdf)
+(SHA-256 `bedd891d8ab05305e1fde4cf125fbbc2c42e58395070622a67d6329c56bd6d37`).
 
 ### Protected land
 
@@ -128,6 +171,13 @@ download was unavailable during verification.
 
 ### City View footprints
 
+For historical flood impacts, save [IFI-Impacts v3](https://zenodo.org/records/11275211/files/India_Flood_Inventory_v3.csv)
+as `.cache/ic66-flood-inventory.csv` and prepare the dated district records before building City View.
+
+```sh
+uv run python -m pipeline.india.historical_floods .cache/ic66-flood-inventory.csv
+```
+
 The regular build enables City View with point locations if the optional spatial inputs have not been prepared.
 For the full view, build the atlas once, then save the [GHSL Central and Southern Asia archive](https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_UCDB_GLOBE_R2024A/GHS_UCDB_REGION_R2024A/GHS_UCDB_REGION_CENTRAL_AND_SOUTHERN_ASIA_R2024A/V1-2/GHS_UCDB_REGION_CENTRAL_AND_SOUTHERN_ASIA_R2024A_V1_2.zip)
 as `.cache/ic37-ghsl.zip` and the [WorldPop India GeoTIFF](https://data.worldpop.org/GIS/Population/Global_2015_2030/R2025A/2026/IND/v1/1km_ua/constrained/ind_pop_2026_CN_1km_R2025A_UA_v1.tif)
@@ -138,17 +188,24 @@ uv run python -m pipeline process gem_power gem_coal gem_iron gem_oil_gas
 uv run python -m pipeline build resources
 uv run --no-project --with pyogrio --with rasterio --with pyproj --with 'shapely>=2.1' \
   python -m pipeline.india.city_view .cache/ic37-ghsl.zip .cache/ic37-worldpop.tif
-uv run python -m pipeline build city_view catalog
+uv run python -m pipeline build
 uv run python -m pipeline check
 ```
 
-The preparation verifies both SHA-256 pins and prints the match and district audit. The GHSL urban centres
-provide a spatial proxy for UN agglomerations. The Survey of India outline and the atlas lake mask bound the
+The preparation verifies both SHA-256 pins and prints the match and district audit. A new match requires a unique
+GHSL centre covering the UN point, a matching name and overlap with the primary state. New matches that overlap
+another matched footprint stay point-only. GHSL uses a 2025 reference epoch as a spatial proxy for the UN
+agglomerations. The Survey of India outline and the atlas lake mask bound the
 land intersections. IndiaCiv estimates use WorldPop pixel-centre population mass to distribute the mid-2026 UN
-total across hexes, with largest-remainder rounding. The district table uses WorldPop for both the 2026 district
-total and the share within the footprint. The schematic buildings use the atlas relief, water and cover as their
-setting. City View matches resource sites tagged exact in the processed GEM inputs. For an existing cache,
+total across hexes, with largest-remainder rounding. The member district table uses the 1 March 2026 district projections and mapped densities. Explorer also retains
+the WorldPop district and footprint population crosswalk. The schematic district plaques use workplace concentrations. City View matches resource sites tagged exact in the processed GEM inputs. For an existing cache,
 rerun the GEM process command above with `--offline` and rebuild to refresh resource coordinates and joins.
+
+The same preparation audits empty district assignments using the largest positive-area intersection of
+Indian land with an in-state Census district. Hex density gaps use area-weighted WorldPop population divided by
+Indian land area where valid pixels cover at least 80% of that land. Neither repair replaces populated cells.
+Ladakh's state-level median uses the Census 2011 single-year age counts for Leh and Kargil when WorldPop does
+not cover enough of the mapped UT. Regenerate it with the Census civic preparation above.
 
 ### City View citizens and industry
 
@@ -174,32 +231,45 @@ Districts without populated grid pixels have a blank value.
 uv run python -m pipeline.india.city_labour .cache/ic38-plfs.pdf
 uv run --no-project --with pyogrio --with rasterio --with pyproj --with 'shapely>=2.1' \
   python -m pipeline.india.city_view .cache/ic37-ghsl.zip .cache/ic37-worldpop.tif --age-dir .cache/ic38-age
-uv run python -m pipeline build city_view catalog
+uv run python -m pipeline build
 ```
+
+For gaps in the quarterly labour coverage, save the revised
+[Annual PLFS 2025 report](https://www.mospi.gov.in/uploads/publications_reports/publications_reports1780040415321_0624fb13-fb47-40bc-b470-7c7e9635c3ef_PLFS_2025_F_REV_29052026.pdf)
+as `.cache/ic76-annual-plfs.pdf` and run
+`uv run python -m pipeline.india.annual_labour .cache/ic76-annual-plfs.pdf`. The preparation
+checks the report checksum and reads Appendix A Tables 1 and 31–33 for calendar 2025
+sample sizes, employment rates, unemployment rates and broad industry shares.
 
 For a smaller download, pass `--age-api-cache .cache/ic38-age-api` in place of `--age-dir`. This sends the
 clipped footprints to the public WorldPop v3 service without an account and caches the responses by query
 hash. The service uses its 2026 100 m population grid and administrative-unit age shares. The Almanac
-records which WorldPop method supplied the estimate.
+records which WorldPop method supplied the estimate. Pass both `--age-dir` and `--age-api-cache` to use
+the cached API series for previously reviewed cities and offline rasters for the expanded cohort. For
+the median-age lens, each raster band needs 80% valid land pixel centres. A cached API observation can
+fill that gap if WorldPop reports complete age coverage for its counted population. State medians
+additionally require 80% population raster coverage over the mapped state or UT land.
 
-The Citizens tab shows the state urban unemployment benchmark and IndiaCiv resident workforce estimates
-using the primary state's matching all-age and 15+ urban rates. The age bands use the footprint's
-WorldPop distribution scaled to the UN total. The Districts tab cites dated government evidence for
-workplace clusters. Both tabs are available throughout the frozen City View cohort.
+Citizens uses WorldPop age estimates and dated Census 2011 occupation, education, birthplace and commute shares.
+Workforce shows IndiaCiv resident workforce estimates using PLFS urban rates. Districts uses civilian workplace
+specialisations from the Sixth Economic Census (January 2013 – April 2014) where a checked UA match exists.
 
-The Conditions tab uses the [Air & weather inputs](#air--weather-inputs), City View footprints and
-selected district-linked 2026 reports. The House Price Index uses the provisional Apr–Jun 2026
+The Explorer uses the [Air & weather inputs](#air--weather-inputs), City View footprints and selected
+district-linked 2026 reports. The House Price Index uses the provisional Apr–Jun 2026
 row of the RBI's [DBIE House Price Index table](https://data.rbi.org.in/DBIE/#/dbie/reports/Statistics/Real%20Sector/Prices%20&%20Wages),
 issued with the [24 August release](https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx?prid=63436).
 The builder uses the publisher's market labels and preserves the published index precision.
 
 ### City View economy and gateways
 
-Economy ranks GDP, GDP per resident and six yields within the 50 City View cities. City GDP is the
+Economy shows GDP, GDP per resident and six yields with ranks across the mapped urban agglomerations. City GDP is the
 Gold estimate, which allocates state output by projected urban population and uses footprint population
 for cross-state splits. GDP per resident divides by the UN mid-2026 population. The sector bars use
-published advance estimates of nominal state GSVA for Delhi, Maharashtra and Andhra Pradesh.
-Agriculture includes allied activities and industry includes mining.
+published advance estimates of nominal state GSVA for Delhi, Maharashtra and Andhra Pradesh. The state
+panel also uses published advance estimates for Odisha and Telangana.
+For the compatible RBI series, IndiaCiv estimates apply the national nominal growth rates to each
+historical state sector and recompute sector shares. Agriculture includes allied activities and
+industry includes mining.
 
 After refreshing IC-23 transport, rebuild `city_view` to update its nearest major port, nearest scheduled-service
 airport in each size class and rail gateway distances. Named rail paths qualify when they enter a footprint
@@ -251,10 +321,36 @@ at `.cache/tg-projections-2019.pdf`. The preparation step uses Poppler's `pdftot
 | `wage-schedule` | [Rural jobs guarantee wage schedule, effective 1 July 2026](https://egazette.gov.in/WriteReadData/2026/273958.pdf) |
 | `wage` | [PIB release with the notified national wage average](https://www.pib.gov.in/PressReleaseIframePage.aspx?PRID=2279660&lang=2&reg=48) |
 
+Save the historical household sources in `.cache/ic75/` under the names below. The
+[source registry](pipeline/india/household_cost_sources.py) records the report tables and checksums.
+Install Tesseract for the NFHS-6 pages with raster indicator tables. The preparation step uses
+Poppler's `pdftoppm` for those pages.
+
+| Filename | Release |
+| --- | --- |
+| `hces.pdf` | [MoSPI Household Consumption Expenditure Survey 2023–24, Report 592](https://mospi.gov.in/sites/default/files/publication_reports/Final_Report_HCES_2023-24L.pdf) |
+| `telecom.pdf` | [MoSPI Comprehensive Modular Survey Telecom 2025, Report 593](https://mospi.gov.in/sites/default/files/publication_reports/CMST_report_m.pdf) |
+| `rent.pdf` | [MoSPI NSS 76, Report 584, Statement 24.5](https://mospi.gov.in/sites/default/files/NSS7612dws/Report_584_final.pdf) |
+| `nfhs6.pdf` | [MoHFW and IIPS NFHS-6 state factsheets](https://www.mohfw-dohfw.gov.in/static/uploads/2026/05/111ff4a13ca36b5cabb7f94aec5bb0ce.pdf) |
+| `poverty.html` | [RBI Bulletin Rangarajan-method estimates, Table 3](https://www.rbi.org.in/scripts/BS_ViewBulletin.aspx?Id=23647) |
+| `up.html` | [MoSPI Uttar Pradesh district consumption pilot, PIB Release 2201360](https://www.pib.gov.in/PressReleasePage.aspx?PRID=2201360&lang=1&reg=3) |
+
 ```sh
 uv run python -m pipeline.india.people_metrics .cache/ic25 .cache/tg-projections-2019.pdf
+uv run python -m pipeline.india.household_costs .cache/ic75/hces.pdf .cache/ic75/telecom.pdf \
+  .cache/ic75/rent.pdf .cache/ic75/nfhs6.pdf .cache/ic75/poverty.html .cache/ic75/up.html
 uv run python -m pipeline build --force
 ```
+
+To prepare Census 2011 urban-district cultivation shares, save the
+[PCA SD workbook](https://censusindia.gov.in/nada/index.php/catalog/6191/download/9268/DDW_PCA0000_2011_Indiastatedist.xlsx)
+as `.cache/ic75/pca-district.xlsx` and run
+`uv run --no-project --with openpyxl python -m pipeline.india.census_cultivation .cache/ic75/pca-district.xlsx`.
+
+To add the Varanasi rural grazing share, save the
+[ORGI Village Directory PDF](https://censusindia.gov.in/nada/index.php/catalog/1300/download/4214/DH_2011_0966_PART_A_DCHB_VARANASI.pdf)
+as `.cache/ic75/varanasi.pdf` and run
+`uv run python -m pipeline.india.village_land_use .cache/ic75/varanasi.pdf`.
 
 If a live source has moved to a new revision, use the matching cached edition. The public files
 contain state metrics. Publisher PDFs, tables and historical state output amounts stay in the
@@ -343,9 +439,40 @@ uv run python -m pipeline build --force
 uv run python -m pipeline check
 ```
 
+## Historical workplace specialisation and overseas port cargo
+
+Download the CSV archives for **2013 Economic Census**, **Population Census keys** and **Shric to NIC08**
+from the [SHRUG download index](https://www.devdatalab.org/shrug_download/data). Save them as
+`ec13.zip`, `keys.zip` and `shric.zip` in `.cache/ic67`. In the same folder save the Census 2011
+[Urban Agglomeration workbook](https://censusindia.gov.in/nada/index.php/catalog/45261/download/48987/PCA11-UA-0000.xlsx)
+as `ua.xlsx` and [Basic Port Statistics of India 2024–25](https://shipmin.gov.in/sites/default/files/BPS%202024-25_compressed.pdf)
+as `ports.pdf`. The preparation steps verify pinned checksums. Port extraction uses Poppler's `pdftotext`.
+
+```sh
+uv run python -m pipeline.india.workplace .cache/ic67
+uv run python -m pipeline.india.port_directions .cache/ic67/ports.pdf
+uv run python -m pipeline build workplace infrastructure catalog
+uv run python -m pipeline check
+```
+
+Workplace counts describe the Sixth Economic Census (January 2013 – April 2014). Matched Census 2011 UA
+components are counted once, and UAs with missing or ambiguous components stay blank. State totals use
+whole compatible Census districts. Jobs and LQ use total non-farm employment less the defence-mixed SHRIC 72
+group. Employment in that group is also removed from the publisher's harmonised manufacturing total.
+The source cannot isolate establishment counts where excluded employment is present. The separate
+`workplace.json` adaptation carries SHRUG's CC BY-NC-SA 4.0 licence.
+
+Commerce displays the share of the same reporting port's or state's overseas tonnes loaded and unloaded.
+The FY 2024-25 edition supplies all-commodity port totals in tables 2.1.3 and 2.2.1, and state totals in
+tables 3.1.3 and 3.1.4. Unmatched port rows stay blank.
+The standard build uses the reviewed Table 2.2.1 transcription for 11 non-major
+ports. The map tooltip reports metric tonnes with the reporting period. Explorer
+reports the coastal and overseas shares. The existing port preparation command
+also verifies the transcription against the pinned PDF.
+
 ## Data period rule (owner decisions, 27 Nov 2026)
 
-Every number shown is for 2026: a 2026 measurement, or an estimate or projection for 2026. These also count as 2026,
+The map prefers 2026 measurements, estimates and projections. These also count as 2026,
 and are labelled with their exact start and end dates wherever they are shown:
 
 - **FY 2025-26:** 1 April 2025 – 31 March 2026.
@@ -353,7 +480,8 @@ and are labelled with their exact start and end dates wherever they are shown:
   coffee year 2025-26 (1 October 2025 – 30 September 2026).
 - **IndiaCiv estimates**, computed from real inputs by a method stated in the Almanac and marked as estimates.
 
-Older figures are never shown or relabelled as 2026.
+When no 2026 value or sound 2026 estimate exists, show the newest older official or reputable figure.
+Carry its real period in the data and display it wherever the value appears.
 
 ## How the India data fits usaciv
 

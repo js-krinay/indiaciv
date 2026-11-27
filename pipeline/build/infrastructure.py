@@ -6,18 +6,24 @@ from collections import defaultdict, deque
 
 from .cities import city_state_lookup
 from .resources import land_cell
-from .trade import CARGO_SOURCE, DFC_SOURCE, coastal_network, trade_check
-from .transport_statistics import COASTAL, FEATURED_PORTS, FREIGHT, PERIOD, PORT_CITIES, PORT_TOTAL, PORTS, cargo_split
+from .trade import CARGO_PERIOD, CARGO_SOURCE, DFC_SOURCE, coastal_network, route_document, trade_check
+from .transport_statistics import (
+    AAI_JHARSUGUDA, COASTAL, FEATURED_PORTS, FREIGHT, OPERATOR_LOCALITIES, PERIOD, PORT_CITIES,
+    PORT_TOTAL, PORTS, VERIFIED_PORT_LOCALITIES, cargo_split,
+)
 from ..core.geo import MapProjection, Shape, ShapeIndex
 from ..core.hexgrid import HexGrid
 from ..core.store import load_interim, load_interim_payload, write_web
 from ..india import OSM_TRANSPORT_LICENSE_URL
+from ..india.port_directions import NON_MAJOR_TOTALS, SOURCE as PORT_DIRECTION_SOURCE, non_major_cargo_record
 from ..india.transport import MILITARY_FACILITY, is_civil_airport, public_label
 from ..india.transport_corridors import FREIGHT_CORRIDORS, RAIL_CORRIDORS
 
 REQUIRES = ["_world", "soi_outline", "osm_transport", "ourairports", "datameet"]
-PRODUCES = ["infrastructure.json"]
-SOURCES = ["datameet", "osm_transport", "ourairports", "mopsw_port_cargo", "pib_rail_freight", "cwprs_port_locations",
+OPTIONAL_REQUIRES = [PORT_DIRECTION_SOURCE]
+PRODUCES = ["infrastructure.json", "trade.json"]
+SOURCES = ["datameet", "osm_transport", "ourairports", AAI_JHARSUGUDA, OPERATOR_LOCALITIES,
+           "mopsw_port_cargo", "pib_rail_freight", "cwprs_port_locations",
            "featured_port_locations", "aai_civil_airport_reference", CARGO_SOURCE, DFC_SOURCE]
 
 
@@ -131,6 +137,37 @@ def place(grid, project, owner, lon, lat, rings):
     return None if cell < 0 else dict(x=round(x, 2), y=round(y, 2), cell=cell)
 
 
+def airport_city(airport):
+    city = public_label(airport.get("city"))
+    if city is None and (airport["id"], airport["iata"]) == ("26505", "JRG"):
+        return "Jharsuguda"
+    return city
+
+
+def port_tooltip_fields(port):
+    fields = {"type": "inland" if port.get("id") == "w261074436" else "coastal"}
+    cargo = port["cargo"] or port.get("historical_cargo_split")
+    if cargo:
+        fields.update(period=cargo.get("label") or cargo["period"], source_id=cargo["source_id"],
+                      vintage=cargo.get("vintage", "2026"))
+        if not port["cargo"]:
+            domestic, foreign = cargo["domestic_tonnes"], cargo["foreign_tonnes"]
+            fields.update(domestic=domestic, foreign=foreign, tons=domestic + foreign)
+        if port["cargo"]:
+            fields["year"] = 2026
+    return fields
+
+
+def coastal_port_slots(ports, trade):
+    tonnage = {branch["port_id"]: branch["tonnes"] for branch in trade["branches"]}
+    for port in ports:
+        if port["id"] in tonnage:
+            port["coastal_cargo"] = {
+                "tons": tonnage[port["id"]], "year": 2026, "period": CARGO_PERIOD,
+                "source_id": CARGO_SOURCE, "status": "Advance estimate",
+            }
+
+
 def ports_on_grid(grid, project, owner, candidates):
     ports = []
     for rank, (site_id, name, lon, lat, tonnes) in enumerate(sorted(PORTS, key=lambda row: -row[4]), 1):
@@ -139,7 +176,8 @@ def ports_on_grid(grid, project, owner, candidates):
             raise ValueError(f"Major port {name} has no nearby Indian land")
         ports.append(dict(id=site_id, name=name, category="Major port", tier=port_tier(tonnes), rank=rank,
                           geometry_source_id="cwprs_port_locations",
-                          city=PORT_CITIES[site_id],
+                          city=PORT_CITIES[site_id], tons=tonnes,
+                          domestic=COASTAL[site_id], foreign=tonnes - COASTAL[site_id],
                           cargo=dict(share=round(tonnes / PORT_TOTAL, 8), **cargo_split(COASTAL[site_id], tonnes)), **at))
     # OSM often maps a named port as both a point and an area.
     seen = defaultdict(list)
@@ -177,6 +215,7 @@ def build():
     except FileNotFoundError:
         print("    Transport inputs absent. See the preparation command in README.md.")
         write_web("infrastructure.json", None)
+        write_web("trade.json", None)
         return
     outline = ShapeIndex([Shape([[project.from_projected(x / 1000, y / 1000) for x, y in ring]
                                  for ring in polygon]) for polygon in load_interim("soi_outline")["polygons"]])
@@ -188,15 +227,34 @@ def build():
     rail, roads, facilities, corridors, main_lines = networks(grid, project, owner, osm["data"], snap_border)
     facilities["source_connections"] = osm["data"]["source_connections"]
     ports = ports_on_grid(grid, project, owner, osm["data"]["ports"])
+    try:
+        directions = load_interim(PORT_DIRECTION_SOURCE)
+    except FileNotFoundError:
+        directions = None
+    for port in ports:
+        if not port.get("city") and port["id"] in VERIFIED_PORT_LOCALITIES:
+            port.update(city=VERIFIED_PORT_LOCALITIES[port["id"]],
+                        city_provenance=dict(source_id=OPERATOR_LOCALITIES, period="FY 2024-25 (1 Apr 2024 – 31 Mar 2025)",
+                                             vintage="older"))
+        if directions and port["id"] in directions["ports"]:
+            port["overseas_direction"] = directions["ports"][port["id"]]
+        if port["cargo"] is None and port["id"] in NON_MAJOR_TOTALS:
+            port["historical_cargo_split"] = non_major_cargo_record(*NON_MAJOR_TOTALS[port["id"]])
+        port.update(port_tooltip_fields(port))
     airfields = []
     for airport in airports["data"]["airports"]:
         if not airport.get("civil_verified") or not is_civil_airport(airport):
             continue
         at = place(grid, project, owner, airport["lon"], airport["lat"], 1)
         if at is not None:
-            airfields.append({**{k: airport[k] for k in ("id", "name", "iata", "size")}, **at,
-                              "city": public_label(airport.get("city")),
-                              "scheduled_service": airport.get("scheduled_service", True)})
+            city = airport_city(airport)
+            site = {**{k: airport[k] for k in ("name", "iata", "size")}, **at,
+                    "id": airport["iata"], "ourairports_id": airport["id"],
+                    "city": city, "hub": f"{airport['size'].capitalize()} airport",
+                    "year": 2026, "period": airports["vintage"], "scheduled_service": airport.get("scheduled_service", True)}
+            if city and not public_label(airport.get("city")):
+                site["city_provenance"] = dict(source_id=AAI_JHARSUGUDA, period="6 Aug 2026", vintage="2026")
+            airfields.append(site)
     state_at = city_state_lookup(load_interim("datameet"), project)
     for site in ports + airfields:
         try:
@@ -205,9 +263,14 @@ def build():
             # An offshore port point can be more than 10 km from a state polygon.
             site["state"] = world["state_names"][owner[site["cell"]]]
         site["state_source_id"] = "datameet"
-    write_web("infrastructure.json", dict(version=2, sources=SOURCES, rail=rail, rail_corridors=corridors,
+    historical = {"overseas_direction_by_state": directions["states"]} if directions else {}
+    trade = coastal_network(grid, world, ports)
+    coastal_port_slots(ports, trade)
+    write_web("trade.json", route_document(trade, ports, corridors))
+    write_web("infrastructure.json", dict(version=2, sources=SOURCES + [PORT_DIRECTION_SOURCE],
+                                         rail=rail, rail_corridors=corridors, **historical,
                                          main_lines=main_lines,
-                                         trade=coastal_network(grid, world, ports),
+                                         trade=trade,
                                          roads=roads, ports=ports,
                                          port_split=cargo_split(sum(COASTAL.values()), PORT_TOTAL),
                                          airports=airfields, freight=FREIGHT, rail_facilities=facilities,
@@ -215,7 +278,9 @@ def build():
                                          osm_license=dict(attribution="© OpenStreetMap contributors",
                                                           license="ODbL 1.0", license_url=OSM_TRANSPORT_LICENSE_URL,
                                                           scope="Rail links and corridors, road links and port geometry with geometry_source_id osm_transport"),
-                                         vintage=dict(network=osm["vintage"], airports=airports["vintage"])))
+                                         rules={"ports": "MoPSW advance estimates in metric tonnes for 12 major-port authorities. Domestic denotes coastal cargo. Overseas cargo lacks an import/export split."},
+                                         vintage=dict(network=osm["vintage"], airports=airports["vintage"],
+                                                      ports=PERIOD["label"])))
 
 
 def nearby_rail(grid, graph, cell):
@@ -337,4 +402,15 @@ def check(web_dir):
                    and all(p["rank"] is None and p["tier"] == 3 for p in doc["ports"] if p["cargo"] is None)
                    and doc.get("port_split") == cargo_split(sum(COASTAL.values()), PORT_TOTAL))
     out.append(("PASS" if valid_cargo else "FAIL", f"{len(measured)} major cargo markers ranked for {PERIOD['label']}"))
+    older = {p["id"]: p for p in doc["ports"] if p.get("historical_cargo_split")}
+    valid_older = set(older) == set(NON_MAJOR_TOTALS) and all(
+        p["rank"] is None and p["cargo"] is None
+        and p["historical_cargo_split"] == non_major_cargo_record(*NON_MAJOR_TOTALS[key])
+        and all(p.get(field) == value for field, value in port_tooltip_fields(p).items())
+        for key, p in older.items())
+    out.append(("PASS" if valid_older else "FAIL", f"{len(older)} verified non-major port cargo records"))
+    trade_path = web_dir / "trade.json"
+    trade = json.loads(trade_path.read_text()) if trade_path.exists() else None
+    matches = doc.get("trade") and trade == route_document(doc["trade"], doc["ports"], doc["rail_corridors"])
+    out.append(("PASS" if matches else "FAIL", "Map trade paths preserve transport geometry and observation scope"))
     return out + trade_check(doc, world, grid)

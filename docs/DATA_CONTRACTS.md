@@ -4,6 +4,128 @@ The pipeline (Python) and the browser (web/js) agree on these files in `web/data
 both sides. All coordinates are **map km**: Lambert azimuthal equal-area centred on India, origin top-left, y **down**
 (see `pipeline/core/geo.py`).
 
+**Observation periods.** An older fallback carries `vintage: "older"` and its own `period`, for example
+`"Census 2011"` or `"NFHS-5 (2019-21)"`. Put both fields on the same value record, or together in its
+per-field provenance when the value is stored as a scalar. A lens may carry the pair when all its values
+share that period. For a state lens with mixed periods, carry the pair in each older value's
+`state_details` entry. The legend lists the periods and the tooltip identifies the cell's period.
+City population lenses carry older provenance in `cell_details`, keyed by cell index. Mixed Explorer
+columns name their periods in the header and label each populated cell.
+The fallback does not qualify for 2026 growth or ranks.
+
+State profiles, City View profiles and district lens records can expose
+additional Explorer observations through `advisor_columns`. Each entry uses the
+column key and carries its label, group, format, unit, value, period and source.
+Older entries carry `vintage: "older"`. Sparse observations can also include
+`coverage` for the table caption. `nation.json` and `workplace.json` use
+`advisor_fields` for columns whose values already have stable paths. The
+`advisor_tables` builder resolves those declarations and spatial joins before
+shipping `advisor_tables.json`.
+
+`nation.national_gva` holds provisional national current-price GVA in rupees
+for the Almanac. State Explorer columns retain GSVA shares. Economy's native
+`nation.nation.jobs` and `employed` values use the national age-15+ PLFS
+denominator, and national sector count estimates use the published rounded
+shares. City `jobs` and `employed` use the age-15+ universe where sector counts
+exist. Explorer retains the separate all-ages count.
+
+`disasters.json` uses the upstream Culture advisor's incident tables. Its
+`fema` key is the inherited contract name for the documented India inventory.
+National totals count unique incidents. State totals count the incidents
+affecting each state or UT, so state totals can overlap.
+
+`counties.json` uses the upstream district-table shape. Its `rows` follow the
+`world.json.counties` order and align with `columns` and `fields`. The table uses
+the Census district code as `geoid` and keys per-value `provenance` by district
+code and column key. Each observation carries its own period where applicable.
+`cbsa` is blank when no unambiguous district-to-agglomeration assignment exists.
+
+`military.json` carries public national budget, veteran registration, civic board,
+school and aggregate defence PSU turnover figures. Turnover is in rupees.
+Its `vintage` object labels each observation independently.
+The state and district tables carry registered veteran measurements or estimates
+with their own provenance. The Almanac source entries carry welfare rates and
+public civic board references.
+
+Historical household measures use the existing state metric and lens records. Consumption compares
+mean monthly spending per person with the India mean in the same survey sector. The rental-cost
+index uses mean rent among renter households in the matching sector. Fixed/Wi-Fi and health-financing
+shares use all households as the denominator. NFHS-6 state records carry their own fieldwork dates.
+State poverty indexes keep rural and urban Rangarajan-method estimates separate and use the
+same-sector median of matched reporting states as 100.
+
+Explorer reads the Uttar Pradesh urban consumption index from city records and mapped district
+details. City values require one matching urban member district. Explorer reads the Census 2011
+cultivation share from district details and city profiles. City shares pool workers across urban
+member districts. Both measures carry their own dated provenance.
+
+Explorer city observations include district shares of the modelled city footprint area and
+the share of each district's modelled population inside the footprint. These use different
+denominators. The hazard event column pairs each type with its incident date or a labelled
+report date when the incident date is unavailable.
+
+City View's `districts.json` uses the existing district IDs for verified sites. A site-only
+district has `via: "site"` and dated `sites` entries and omits workplace metrics. A district
+with an existing workplace specialty can also carry those entries. Government Plaza
+requires a sourced building point within a modelled footprint and member district.
+The separate `capital_designation` and `roles` fields supply dated captions alongside
+the workplace badge, including the Diversified classification.
+
+Matched ASI wonder records carry `metrics.visitation` with a fiscal period, source, rank and cohort
+size. The rank compares total domestic and foreign visits across reporting ticketed sites. The
+existing description also shows the cohort and dates. The wonder's selection rank stays separate.
+
+India's City View reads `cities[].gdp_by_industry`. Where detailed industry estimates exist, the
+record uses them and carries the balance as `Other industry`. The sum of the rows equals city GDP.
+The full industry total remains in `sector_output.values.industry` for aggregate comparisons.
+Mining and utilities estimates with older weights carry the dated inputs and method in
+`sector_output.fields` and `provenance.gdp_by_industry.fields`. Published fiscal-pair growth
+has its own `provenance.economic_growth` and keeps the headline GDP series independent.
+
+`workplace.json` carries independently licensed Sixth Economic Census observations under CC BY-NC-SA 4.0.
+It holds `national`, `cities` keyed by UN city ID, `districts` keyed by Census 2011 district code and
+`states` keyed by current atlas abbreviation where the historic districts can be combined. Each record
+has its own older provenance and can carry jobs, industry shares, location quotients, excess jobs and
+harmonised manufacturing share. The workplace and manufacturing totals exclude defence-mixed SHRIC groups.
+Establishment counts are omitted when the exclusion could change them.
+`thresholds` defines the minimum jobs, local share
+and location quotient for a specialisation. Missing or incomplete comparisons are omitted. Workplace
+observations have their own historical comparisons and do not feed the resident workforce or output cohorts.
+
+An Indian port's `overseas_direction`, and each entry of `infrastructure.json.overseas_direction_by_state`,
+carry FY 2024-25 older provenance and the `loaded` and `unloaded` shares of the same reporting geography's
+overseas cargo. Marker sizing and cargo ranks continue to use their own cargo series.
+
+`city_view.json.profiles[id].citizens.census_work` contains separate
+`occupations` (B-25 A/B) and `industries` (B-18) Census 2011 observations.
+Each carries `period`, `vintage`, `source`, `scope` and fractional `values`.
+Occupation `benchmark` fractions describe eligible urban India workers and
+the optional `specialist` names a family at least 1.5 times its benchmark.
+Both observations describe urban member districts and publish derived shares.
+**Historical land cover.** `world.json.historical_land` indexes records by state abbreviation and Census 2011
+district geoid. The same records are available on state and district profile rows. Shares are fractions of
+native classified land pixels on a 5 km equal-area lattice assigned by map hex ownership. Each metric carries its
+source, period and valid sample count. Suppress products with fewer than 30 samples per region. Records with 30
+to 99 samples carry `sparse: true` and display their sample count.
+Esri v003 (2025) supplies tree cover, cropland and built-up share. Its composition includes seven mapped land
+classes and excludes water, clouds and nodata. Other cover sums bare ground, snow or ice, and rangeland.
+WorldCover v200 (2021) supplies grassland, shrubland and mapped wetlands (herbaceous wetland and mangrove).
+Pasture has no separate measure.
+
+**Historical flood impacts.** `city_view.json.profiles[].historical_flood_impacts` lists up to three recent
+IFI-Impacts v3 events with a unique single member district attribution. The `casualties` sum uses reported
+deaths and injuries. Tentative or unconfirmed counts are excluded. `lower_bound: true` indicates a missing
+component. Each event carries its own period.
+
+`states.json[].census_civic`, `lenses.json.places.counties[geoid].census_civic`
+and `city_view.json.profiles[id].citizens.census_civic` carry ORGI derived
+series. Each series has `vintage: "older"`, `period`, `source`, `scope`
+and `values`. Numeric values are fractions. The median commute band is a
+category label. Civic lenses use the
+assigned census district for each land cell and attach period metadata at the
+lens level. City series use the complete set of urban member districts and
+keep their geography with their period.
+
 **India build.** `world.json` has states and union territories, districts (in `counties`) and ESA WorldCover land
 cover. The grid uses an 18 km radius and carries `projection` (the `MapProjection` parameters) for
 checking geographic ownership. City IDs are UN agglomeration codes. City states are assigned from DataMeet at
@@ -28,7 +150,7 @@ the workforce and cluster records. Multi-state workforce estimates weight PLFS u
 fragments and require published rates for each. City View `district_badges` identify checked civilian points
 within the footprint and a member district. `citizens.age.bands.midlife` uses WorldPop ages 35–64 and
 overlaps the headline age bins.
-The shared historical `growth` and `growth_years` fields stay null. For health values in `profile`, the
+The City View growth fields carry the same 2025–2026 UN projection interval as `projected_growth`. For health values in `profile`, the
 `health` metadata carries `period: "2026"` and `estimated: true`. Health lenses carry the same metadata.
 City lenses report values
 only on city footprints. City, state and national yield values are described below.
@@ -94,14 +216,30 @@ for the Himachal Pradesh pilot.
 `world.json.tables.named_boundary_places` lists any hex retained for an Indian locality
 by the political-map rule. Each record has a `cell` index, `names` and four `shares`
 in km², ordered Indian land, foreign land, water and uncharted area.
-The frozen top 50 carry `city_view: true`. Their City View shapes live in `city_view.json` under
-`profiles[UN id]`; the regular city and lens footprints remain available through `cities.json`.
+The upstream City View opens through the city records in `cities.json`. Each mapped UN agglomeration carries
+`city_view: true`. City View reads `footprint`, `counties`, `gdp`, `growth`, `pop_series`, `jobs` and their
+provenance directly on each city record. City footprints contain the visible land intersections and the
+city anchor. The single `pop_series` point uses the numeric year key `"2026"` for the UN midyear projection.
+The district-density array is available in the initial lens catalogue. City View computes estimated residents
+per hex from that density and the hex area. Advisor spatial inputs remain under
+`city_view.json.profiles[UN id]`.
+
+`citizens.json` supplies `groups`, `figures` and `cities`. Each city row has `shares`, allocated `figures`
+and dated provenance. `total` and `counts` are optional and appear for the WorldPop age estimates. The
+historic occupation benchmark is urban India from the same Census table. `districts.json` provides the
+upstream `catalog`, `industries` and city `districts`, `badge` and `top` fields using the civilian Sixth
+Economic Census workplace classification. The derived export carries the same CC BY-NC-SA 4.0 licence
+and period as `workplace.json`. There is no military data file. `counties.json` uses the upstream columnar
+shape with DataMeet district IDs. Population and density share the 1 March 2026 period and source metadata
+from the district lens. Resource items use `cbsa` for unique City View placement. A site may carry `aggregate_mw` only when every counted MW site for that UA shares a period. Each site retains its own period.
+
+See [the City View field mapping](IC-69-fields.md) for data coverage and the omitted fields.
 The prepared interim and web file carry a grid fingerprint with grid dimensions, hex radius, projected origin
 and a SHA-256 of the owner and water arrays. Reprepare the spatial inputs when this fingerprint changes.
 A `ghsl` profile includes the pinned GHSL IDs, intersected state abbreviations, and `cells` with a map index,
-fraction of that hex covered and share of the whole footprint (summing to one). `built_share` describes the
-whole hex's WorldCover sample mix as visual context. `scene_anchor` is an interior map-km point in the clipped
-fragment. Integer cell populations are mid-2026 IndiaCiv estimates using WorldPop weights and the UN total.
+fraction of that hex covered and share of the whole footprint (summing to one). Integer cell populations are mid-2026 IndiaCiv estimates using WorldPop weights and the UN total.
+The GHSL proxy uses the 2025 reference epoch. GHSL centre IDs are exclusive and newly matched footprints
+must have no positive-area overlap with other matches. Ambiguous matches remain point profiles.
 `districts` can repeat across UA profiles. Each row uses a canonical DataMeet `id` and carries a share of the
 footprint area plus a 2026 WorldPop district population and the fraction of that district's WorldPop mass inside
 the footprint. Small DataMeet boundary gaps or overlaps may affect aggregate district area coverage.
@@ -112,7 +250,8 @@ waterfront landmark can attach within 1.5 km in the city's state. A `point` prof
 the UN total, null area fractions and empty memberships and site lists.
 Every City View profile also has `citizens` and `industry_plaques`, keyed by the same UN ID for Explorer.
 `citizens.age` is null or an IndiaCiv mid-2026 estimate with `counts` (people, keys `0_14`, `15_59`,
-`60_plus`) and `median_band` (inclusive lower and upper years, with null upper bound for an open band).
+`60_plus`), `median_band` (inclusive lower and upper years, with null upper bound for an open band), and
+`median` interpolated within that band. The existing `citizens.json` age row also carries `median`.
 Its denominator is the full UN city population. The age profile uses the 2026 WorldPop age/sex grid within
 the clipped footprint and requires a prepared spatial profile. The optional API preparation uses the
 WorldPop 100 m population grid and administrative-unit age shares for the same footprint, identified by
@@ -133,7 +272,7 @@ Workforce benchmark and share fields retain their state geography and published 
 It can be empty. Qualitative plaques provide documented workplace cluster evidence.
 Each profile's `economy` contains `gdp` (nominal INR, equal to Gold), `gdp_per_resident` (INR per
 UN mid-2026 resident), `period`, `source` IDs and `estimated: true`. `ranks` place GDP, GDP per resident
-and the six yields among the frozen City View cohort, with shared ranks for equal values and null ranks
+and the six yields among the original 50 City View profiles, with shared ranks for equal values and null ranks
 for missing values. Yield values, per-yield periods and estimate flags are in `cities.json`.
 `sector_mix` is null or holds the primary state's advance nominal GSVA shares by sector as fractions
 plus the state, release status and source ID. Shares can differ slightly from one due to publisher rounding.
@@ -170,7 +309,7 @@ PM₂.₅ uses the same district sample and small-district area weighting as pop
 `monsoon_band` stores ordinal values from −2 (large deficit) to 2 (large excess), with 0 for near-normal rainfall.
 The lenses carry `source_line` for the period and `share_credit` for attribution on exported images.
 
-The Explorer uses `lenses.json.places.counties`, keyed by the canonical district `geoid` in
+`lenses.json.places.counties` provides district inputs to the Explorer build, keyed by the canonical district `geoid` in
 `world.json.counties`. Each record has `state` (the current state/UT abbreviation, or null),
 `area_km2` (area calculated from its DataMeet rings in the equal-area projection),
 `population` (the district's census count scaled by its state's projected change to 1 March 2026),
@@ -206,10 +345,12 @@ intersection of the union of available extents with the DataMeet unit by its pro
 Point-only locations contribute no area. Null means no eligible coverage calculation. Empty site
 lists signal a build without the optional inputs.
 
-Explorer fields are registered in `web/js/ext/advisors/core/data.js`. State metric definitions
-are read from their lenses, resource columns from the served type catalog, and city profiles
-from `city_view.json.profiles`, keyed by UN ID. Site counts describe the served inventories.
-The urban agglomeration columns read air and housing metadata directly from those profiles.
+`advisor_tables.json` uses the upstream district table's `columns`, `fields` and `rows` format
+for each level. The first column identifies rows by state abbreviation, UN city ID or Census
+district code. Optional `provenance` is keyed by row ID and then field key. It overrides field
+defaults for observation periods, sources and estimates. The `advisor_tables` build reads state
+metrics from their lenses, resource columns from the type catalog, and air and housing observations
+from City View profiles. Site counts describe the served inventories.
 The documented hazards column cites the matched reports and their incident or report dates.
 Rail and highway counts use unique rendered links with at least one endpoint in the place.
 An urban agglomeration needs a modelled footprint for these counts. Resource and wonder
@@ -218,13 +359,20 @@ Cargo is displayed in Commerce on the reporting port authority's row, using its 
 period, source and publisher status. Geographic counts of map markers carry no cargo.
 City and state population records and district population and density records may carry
 `provenance[field]` with a period label, source ID or IDs, and optional IndiaCiv estimate
-flag. The Explorer reads growth and health periods from their lens definitions.
+flag. The build carries the growth and health periods from their lens definitions into the tables.
 
 The US contract below is kept as the reference for the files India does not build yet.
 Per-cell arrays have length `grid.cols * grid.rows`, with index `row * cols + col` (pointy-top, odd-r layout, see
 `pipeline/core/hexgrid.py` ⇄ `web/js/hex.js`). `null` always means "no data". Never write `0` as a stand-in for "unknown".
 
 ### India transport (`infrastructure.json`, version 2)
+
+Port tooltip fields `tons`, `domestic`, and `foreign` are absolute metric tonnes.
+`period` provides the full reporting label. `overseas_direction` holds the separately
+dated loaded and unloaded shares. Explorer reads shares and provenance from
+`historical_cargo_split` for the non-major ports, outside the major-port rank cohort.
+Airport `id` uses the IATA code, `ourairports_id` retains the source identity,
+and `hub` and `period` carry the size class and pinned inventory date.
 
 The build writes JSON null when transport inputs are unavailable. Otherwise the document has
 `version`, `sources`, `vintage`, `rail`, `rail_corridors`, `main_lines`, `rail_facilities`, `roads`, `ports`, `airports`, `freight`,
@@ -897,6 +1045,15 @@ and `faa_airports` (both in `pipeline/sources/transport_hubs.py`). About 200 kB.
 
 ### trade.json (eager)
 
+India uses the `routes[].path` and `top_mode` fields for map art. The builder writes
+`literal_paths: true` and an empty `zones` list. The schematic sea backbone has
+`schematic: true`. Coastal branches carry `name`, `tons_k` in thousand metric
+tonnes handled by that port, `period`, its exact start and end, `status`, and
+`source`. The rail records carry the operating corridor names, snapshot date,
+and source. The map draws each cell in order. Commerce omits the upstream
+origin–destination tables for this edition.
+
+
 Freight "trade routes" between FAF5 zones (`faf5`), domestic flows only (`trade_type` 1), newest FAF year. Built by
 `pipeline/build/trade.py` (after infrastructure, whose road links the drawn paths follow). About 70 kB.
 
@@ -1131,6 +1288,16 @@ the counties.json column and this file, so the three always agree.
 A list of `{id, title, publisher, homepage, license, description, used_for, vintage, files: [{file, url, retrieved, sha256, bytes}]}`.
 `files` lists only files the latest `process()` used (`_files`), or every manifest entry if the source didn't say. A file
 saved by `download_prefix()` has a `partial` note in the manifest, and its `sha256`/`bytes` describe the saved part.
+
+## almanac.json
+
+India's additional `sections` for the existing Almanac pages, grouped by page title and table heading.
+Rows use the terrain table's `name`, `rule` and optional `color` fields.
+`facts` carry the value, formatted value, period, and any
+source ID, vintage, estimate flag or scope. Row `sources` join to `sources.json` and `links` credit
+the relevant references. The Almanac reads the usual terrain, yield, lens, resource and source
+catalogues for their standard tables. `terrain_relief` attaches the ETOPO credits and mapped examples
+to the standard relief classes. `cell_features` joins the sampled and footprint feature labels by hex.
 
 ## Browser module boundaries (web/js)
 

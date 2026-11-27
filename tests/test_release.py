@@ -12,6 +12,7 @@ from threading import Thread
 
 from pipeline.release import release
 from pipeline.release_graph import dependency_graph, javascript_imports
+from pipeline.check import Report, check_military
 from pipeline.build.air_weather import monsoon_band
 from pipeline.build.catalog import release_credits
 from pipeline.build.yields import culture, production
@@ -117,7 +118,14 @@ class ReleaseTests(unittest.TestCase):
             release(out)
             self.assertTrue((out / "js/ui/wonderFacts.js").is_file())
             self.assertFalse((out / "dev").exists())
-            self.assertFalse((out / "js/ext/cityView/screen.js").exists())
+            self.assertTrue((out / "js/ext/cityView/screen.js").is_file())
+            self.assertFalse((out / "js/ext/cityView/indiaScreen.js").exists())
+            for name in ("citizens", "counties", "districts"):
+                self.assertTrue((out / f"data/{name}.json").is_file())
+            military = json.loads((out / "data/military.json").read_text())
+            report = Report()
+            check_military(report, military)
+            self.assertFalse(report.failed)
             for script in out.rglob("*.js"):
                 name = script.relative_to(out).as_posix()
                 for ref in javascript_imports(script.read_text(), name):
@@ -133,12 +141,15 @@ class ReleaseTests(unittest.TestCase):
             def log_message(self, _format, *args):
                 pass
 
+        class BrowserServer(ThreadingHTTPServer):
+            request_queue_size = 64  # Chromium fetches ES modules in parallel.
+
         with tempfile.TemporaryDirectory() as directory:
             out = Path(directory) / "release"
             release(out)
             handler = partial(QuietHandler, directory=out)
             port = int(os.environ.get("INDIACIV_RELEASE_TEST_PORT", 0))
-            with ThreadingHTTPServer(("127.0.0.1", port), handler) as server:
+            with BrowserServer(("127.0.0.1", port), handler) as server:
                 thread = Thread(target=server.serve_forever)
                 thread.start()
                 try:

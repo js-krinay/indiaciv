@@ -1,4 +1,4 @@
-import { esc, int, popShort, compact } from "../format.js";
+import { esc, int, popShort, compact, periodLabel } from "../format.js";
 import { formatLensValue } from "./lenses.js";
 import { glyph } from "./icon.js";
 import { FOREIGN } from "../world.js";
@@ -12,7 +12,11 @@ export function showCellTooltip(mx, my, w, i, lens, showResources = true, resour
   const raw = w.raw;
   const lines = [];
   const city = w.cityByCell.get(i);
-  if (city) lines.push(`<b>${esc(city.name)}</b> <span class="muted">· ${popShort(city.population)} people projected for 2026</span>`);
+  if (city) {
+    const population = city.provenance?.population;
+    const period = population?.vintage === "older" ? periodLabel(population, " · ") : " projected for 2026";
+    lines.push(`<b>${esc(city.name)}</b> <span class="muted">· ${popShort(city.population)} people${period}</span>`);
+  }
 
   const wt = w.water[i];
   if (wt) {
@@ -32,8 +36,9 @@ export function showCellTooltip(mx, my, w, i, lens, showResources = true, resour
     const county = raw.county[i] >= 0 ? raw.counties[raw.county[i]].name + ", " : "";
     lines.push(`${esc(county)}${esc(raw.states[o].name)}`);
     if (lens) {
-      const details = lens.values[i] == null ? null : lens.state_details?.[o];
-      const period = lens.period ? ` · ${esc(lens.period)}` : "";
+      const details = lens.values[i] == null ? null : lens.cell_details?.[i] || lens.state_details?.[o];
+      const periodMeta = details?.period ? details : lens;
+      const period = lens.name.endsWith(` · ${periodMeta.period}`) ? "" : periodLabel(periodMeta, " · ");
       const estimate = details?.estimated ? " · IndiaCiv estimate" : "";
       const coverage = details?.coverage ? ` · ${esc(details.coverage)}` : "";
       lines.push(`${glyph(lens, 13)} ${esc(lens.name)}: <b>${formatLensValue(lens, lens.values[i])}</b>${estimate}${coverage}${period}`);
@@ -82,7 +87,7 @@ function resourceDetail(w, type, item, sources) {
   const value = Number.isFinite(item.value) && type.unit !== "field"
     ? `${esc(item.value.toLocaleString("en-IN"))} ${esc(type.unit)}<br>` : "";
   return `${glyph(type, 16)} <b>${esc(type.name)}${name}</b><br>${esc(status + item.detail)}<br>${value}${context}` +
-    `<span class="muted">${esc(item.period)} · ${esc(sources.get(item.source) || item.source)}</span>`;
+    `<span class="muted">${periodLabel(item)} · ${esc(sources.get(item.source) || item.source)}</span>`;
 }
 
 /**
@@ -102,7 +107,7 @@ export function showCityTooltip(mx, my, city, gold) {
     stats.push({ label: "Employed residents", text: indianNumber(work.employed_all_ages), source: workforceSource(work) });
   }
   show(mx, my, `<b>${esc(city.full)}</b>${stats.map((row) =>
-    `<br>${esc(row.label)} · ${esc(row.text)}<br><span class="muted">${esc(row.source)}</span>`).join("")}
+    `<br>${esc(row.label)} · ${esc(row.text)}<br><span class="muted">${periodLabel(row.periodMeta) || esc(row.source)}</span>`).join("")}
     <br><span class="muted">Click to open the city</span>`);
 }
 

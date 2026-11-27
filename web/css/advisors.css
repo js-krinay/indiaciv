@@ -176,8 +176,6 @@
 .adv-srow .st i { display: block; height: 100%; box-shadow: inset -1px 0 0 rgba(0,0,0,.35); }
 .adv-srow .st i:hover { filter: brightness(1.35); }
 .adv-srow .vl { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
-.adv-port-split .adv-srow { grid-template-columns: minmax(0, 1fr) minmax(44px, .7fr) auto; }
-.adv-port-split .vl { white-space: nowrap; }
 
 /* ---------- share bar ---------- */
 .adv-share-bar { display: flex; height: 18px; border-radius: 3px; overflow: hidden; border: 1px solid rgba(0,0,0,.6); box-shadow: 0 0 0 1px rgba(201,164,92,.3); margin: 4px 0 8px; }
@@ -253,6 +251,8 @@
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 .adv-thead .th.r button { text-align: right; }
+.adv-thead .th button:has(.column-period) { display: block; }
+.adv-thead .column-period { display: block; }
 .adv-thead .th.l button { text-align: left; }
 .adv-thead .th[aria-sort="ascending"] button, .adv-thead .th[aria-sort="descending"] button { color: var(--gold-bright); }
 .adv-thead .arr { font-size: 8px; margin-left: 3px; }
@@ -402,14 +402,3 @@ body.adv-tip-on #tooltip { display: none !important; }
 .adv-olist li { margin: 2px 0; }
 .adv-olist b { font-weight: 600; color: var(--ink); }
 .adv-cols-chart svg { height: 110px; }
-
-.adv-tclip { overflow-x: auto; max-width: 100%; }
-.adv-tgrid { min-width: var(--columns-min); }
-.adv-cols-pop { max-width: calc(100vw - 44px); }
-
-.adv-portrait { flex: none; }
-.adv-sec select { max-width: 100%; }
-.adv-bar:not(button) { cursor: default; }
-
-.adv-cell-details { margin: 8px 0; padding: 8px; border: 1px solid var(--gold); border-radius: 4px; }
-.adv-cell-details p { margin: 4px 0; }

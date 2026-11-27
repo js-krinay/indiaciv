@@ -22,11 +22,13 @@ from ..core.paths import INTERIM
 from ..core.store import atomic_write_text, load_interim, save_interim, write_web
 from ..india import DISPLAY_NAMES
 from ..india.grid import ORIGIN_X, ORIGIN_Y, RADIUS_METRES, center
+from ..india.city_sources import HEX_GEOGRAPHY
 from .boundaries import (
     UTS, UT_PARTS, chart_owner, check_chart, guarantee_named_places, hex_overlap, india_area_majority,
     named_indian_cells, nearest_state, promote_islands, reserve_part,
 )
 from .rivers import ESTUARIES, EdgeGraph, build_edges, build_lakes, check_hydrography, delta_courses, edge_masks
+from .historical_land import ESRI_SOURCE, WC_SOURCE, rollup
 from ..core.source import osm_notice
 from .terrain_layers import (
     BASE_TABLE, FEATURE_ID, FEATURE_TABLE, FLAT_SLOPE, FLAT_SPREAD, MOUNTAIN_SLOPE, MOUNTAIN_SPREAD,
@@ -36,6 +38,7 @@ from ..india.terrain_validation import FIXTURE as TERRAIN_FIXTURE, measure, unex
 
 REQUIRES = ["soi_outline", "india_terrain", "india_layered_terrain", "natural_earth", "etopo", "datameet",
             "open_rivers", "hydrolakes", "krishna_delta", "pulicat", "soi_boundary_chart"]
+OPTIONAL_REQUIRES = [ESRI_SOURCE, WC_SOURCE, HEX_GEOGRAPHY]
 BOUNDARY_FIXTURE = Path(__file__).with_name("soi_conformity.json")
 PRODUCES = ["_world", "_boundary_decisions", "world.json"]
 
@@ -506,7 +509,8 @@ def build() -> None:
     # Keep the named part on the map while preserving geographic samples for district density.
     for cell, district in part_counties.items():
         county[cell] = district
-    print(f"    {borrowed} Indian hexes borrowed a neighbour's district; {sum(1 for i in range(grid.size) if owner[i] >= 0 and county[i] < 0)} have none")
+    district_gaps = [i for i in range(grid.size) if owner[i] >= 0 and county[i] < 0]
+    print(f"    {borrowed} Indian hexes borrowed a neighbour's district; {len(district_gaps)} require overlap review")
     geoids = [f"{d['state_code']:02d}-{d['code']:03d}" for d in districts]  # Census table A-01 keys
     states_out = [{"fips": STATE_ABBR[st["name"]], "abbr": STATE_ABBR[st["name"]], "name": st["name"]} for st in states]
 
@@ -553,18 +557,40 @@ def build() -> None:
     legacy_elevation = elev.copy()
     counts_at: dict[int, Counter] = {}
     layers_at = {}
+    def native_cover(source):
+        try:
+            data = load_interim(source)
+        except FileNotFoundError:
+            return {}
+        return data["cells"] if data.get("sampling") == "native" else {}
+
+    esri_cells, worldcover_cells = map(native_cover, (ESRI_SOURCE, WC_SOURCE))
+    land_samples = []
     for c in terrain["cells"]:
         q, r = map(int, c["id"].split(":"))
         x, y = center(q, r)
         i = grid.cell_at(*proj.from_projected(x / 1000, y / 1000))
         if i >= 0 and c["covers"]:
             counts_at[i] = Counter({int(code): n for code, n in c["covers"].items()})
+        if i >= 0 and owner[i] >= 0 and water[i] == LAND:
+            land_samples.append((states_out[owner[i]]["abbr"], geoids[county[i]] if county[i] >= 0 else None,
+                                 {int(code): n for code, n in esri_cells.get(c["id"], {}).items()},
+                                 {int(code): n for code, n in worldcover_cells.get(c["id"], {}).items()}))
         if i >= 0 and layers and c["id"] in layers["cells"]:
             layers_at[i] = layers["cells"][c["id"]]
             obs = layers_at[i]["relief"]
             if water[i] == LAND and owner[i] >= 0 and obs:
                 elev[i], elev_max[i] = obs["elevation"], obs["upper"]
                 relief[i] = relief_for(obs["spread"], obs["slope"])
+    historical_land = rollup(land_samples)
+    from .hex_geography import prepared_geography
+
+    geography = prepared_geography({"grid": grid.to_dict(), "projection": proj.to_dict(),
+                                    "owner": owner, "water": water})
+    district_indices = {geoid: i for i, geoid in enumerate(geoids)}
+    for cell in district_gaps:
+        if district := geography.get("districts", {}).get(str(cell)):
+            county[cell] = district_indices[district]
     cover = [0] * grid.size
     pct = {k: [0] * grid.size for k in PCT}
     no_cover = 0
@@ -711,6 +737,7 @@ def build() -> None:
             "tables": tables,
             "states": states_out,
             "counties": [{"geoid": g, "name": DISPLAY_NAMES.get(d["name"], d["name"])} for g, d in zip(geoids, districts)],
+            "historical_land": historical_land,
             "rivers": rivers,
             "river_edges": river_edges,
             "river_junctions": river_junctions,
@@ -731,6 +758,7 @@ def build() -> None:
             "owner": owner,
             "county": county,
             "county_samples": county_samples,
+            "district_gaps": district_gaps,
             "states": [st["fips"] for st in states_out],
             "state_names": [st["name"] for st in states_out],
             "counties": geoids,
@@ -738,6 +766,7 @@ def build() -> None:
             "elev": elev,
             "cover": cover,
             "pct": pct,
+            "historical_land": historical_land,
         },
     )
 

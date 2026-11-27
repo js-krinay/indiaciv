@@ -1,4 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <path fill="#c3ac62" stroke="#120d06" stroke-width="3" d="M32 2 58 17v30L32 62 6 47V17Z"/>
-  <path fill="#517845" d="M18 43 32 20l14 23Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32">
+  <title>Flag of India</title>
+  <rect width="48" height="32" fill="#fff"/>
+  <rect width="48" height="10.667" fill="#FF9933"/>
+  <rect y="21.333" width="48" height="10.667" fill="#138808"/>
+  <g transform="translate(24 16)" fill="none" stroke="#000080">
+    <circle r="6.5" stroke-width="0.9"/>
+    <g stroke-width="0.35"><line x1="0" y1="0" x2="6.500" y2="0.000"/><line x1="0" y1="0" x2="6.279" y2="1.682"/><line x1="0" y1="0" x2="5.629" y2="3.250"/><line x1="0" y1="0" x2="4.596" y2="4.596"/><line x1="0" y1="0" x2="3.250" y2="5.629"/><line x1="0" y1="0" x2="1.682" y2="6.279"/><line x1="0" y1="0" x2="0.000" y2="6.500"/><line x1="0" y1="0" x2="-1.682" y2="6.279"/><line x1="0" y1="0" x2="-3.250" y2="5.629"/><line x1="0" y1="0" x2="-4.596" y2="4.596"/><line x1="0" y1="0" x2="-5.629" y2="3.250"/><line x1="0" y1="0" x2="-6.279" y2="1.682"/><line x1="0" y1="0" x2="-6.500" y2="0.000"/><line x1="0" y1="0" x2="-6.279" y2="-1.682"/><line x1="0" y1="0" x2="-5.629" y2="-3.250"/><line x1="0" y1="0" x2="-4.596" y2="-4.596"/><line x1="0" y1="0" x2="-3.250" y2="-5.629"/><line x1="0" y1="0" x2="-1.682" y2="-6.279"/><line x1="0" y1="0" x2="-0.000" y2="-6.500"/><line x1="0" y1="0" x2="1.682" y2="-6.279"/><line x1="0" y1="0" x2="3.250" y2="-5.629"/><line x1="0" y1="0" x2="4.596" y2="-4.596"/><line x1="0" y1="0" x2="5.629" y2="-3.250"/><line x1="0" y1="0" x2="6.279" y2="-1.682"/></g>
+    <circle r="1.1" fill="#000080" stroke="none"/>
+  </g>
 </svg>

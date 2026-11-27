@@ -7,14 +7,50 @@ from ..core.geo import MapProjection
 from ..core.hexgrid import HexGrid
 from ..core.paths import WEB_DATA
 from ..core.store import load_interim, save_interim, write_web
+from ..india import GHSL_UCDB
 from ..sources.resource_references import CROP_PERIOD, MINE_PERIOD
+from .city_view import CONFIG, footprint_resources
 from .crop_resources import crop_items, world_elevation
 
 GEM_SOURCES = ["gem_power", "gem_coal", "gem_iron", "gem_oil_gas"]
 REQUIRES = ["_world", "world.json", *GEM_SOURCES, "cities.json"]
+OPTIONAL_REQUIRES = [GHSL_UCDB]
 PRODUCES = ["resources.json", "_crop_production"]
 GEM_PERIODS = {"gem_power": "Sep 2026", "gem_coal": "Aug 2026", "gem_iron": "Sep 2026",
                "gem_oil_gas": "Mar 2026"}
+ADVISOR_GROUPS = [
+    {"id": "thermal", "label": "Power plants",
+     "types": ["nuclear", "coal_plant", "gas_plant", "oil_plant", "bioenergy"]},
+    {"id": "water", "label": "Hydro", "types": ["hydro", "pumped_storage"]},
+    {"id": "renew", "label": "Wind, solar & batteries", "types": ["wind", "solar", "battery"]},
+    {"id": "mines", "label": "Mines",
+     "types": ["coal_mine", "copper", "iron", "lead_zinc", "bauxite", "diamond", "limestone"]},
+    {"id": "plays", "label": "Oil & gas fields", "types": ["oil", "gas", "oil_gas"]},
+]
+
+
+def advisor_fields(types):
+    silver = next((row for row in types if row["id"] == "lead_zinc"), None)
+    if silver:
+        types = [*types, {**silver, "id": "silver", "name": "Silver by-product", "unit": None,
+                          "description": "Verified silver by-product at mapped lead-zinc mines."}]
+    periods = {"gem_power": "September 2026", "gem_coal": "August 2026",
+               "gem_iron": "September 2026", "gem_oil_gas": "March 2026"}
+    for row in types:
+        key, name, source = row["id"], row["name"], row["source"]
+        common = {"type": key, "source": source, "description": row["description"],
+                  "period": row.get("period") or periods.get(source, "November 2026")}
+        yield {**common, "key": f"resource_{key}_count", "label": f"{name} sites",
+               "group": "Crops" if row["category"] == "agri" else "Resources",
+               "format": "int", "unit": "mapped sites"}
+        if row["unit"] == "MW":
+            yield {**common, "key": f"resource_{key}_mw", "label": f"{name} capacity",
+                   "group": "Energy", "format": "mw", "unit": "MW", "sum_values": True}
+        elif row["unit"] == "Mt/yr":
+            yield {**common, "key": f"resource_{key}_capacity", "label": f"{name} capacity",
+                   "group": "Energy", "format": "float", "unit": "million metric tonnes per year", "sum_values": True}
+
+
 OFFSHORE_SNAP_KM = 130  # About three centre spacings on the former 25 km grid.
 
 # In icon priority order. Thresholds are inclusive and use the displayed units.
@@ -84,6 +120,7 @@ for kind, name, emoji, color, group, source, description in CROP_TYPES:
                       resource_class=group))
 for kind, name, emoji, color, group, category, source, description in [
     ("diamond", "Diamonds", "💎", "#537b9d", "luxury", "mineral", "panna_diamond", "Majhgawan mine in Panna."),
+    ("gold", "Gold mine", "🥇", "#d4af37", "luxury", "mineral", "hutti_gold", "Hutti gold mine in Raichur."),
     ("bauxite", "Bauxite", "⛏️", "#a45138", "strategic", "mineral", "panchpatmali_bauxite", "Panchpatmali mine in Odisha."),
     ("limestone", "Limestone", "⛏️", "#758378", "strategic", "mineral", "jamul_limestone", "Jamul mine in Chhattisgarh."),
     ("fish", "Fish", "🐟", "#3a7892", "bonus", "agri", "veraval_fish", "Named coastal fishing landing centres."),
@@ -104,7 +141,7 @@ MINIMUM = {kind: minimum for kind, _, _, _, minimum in POWER} | {
 }
 for definition in TYPES:
     kind = definition["id"]
-    if kind in {"copper", "lead_zinc"}:
+    if kind in {"copper", "lead_zinc", "gold"}:
         definition["period"] = MINE_PERIOD
     elif kind == "battery":
         definition["period"] = "Aug 2026"
@@ -115,6 +152,8 @@ for definition in TYPES:
         definition["threshold"] = f"≥ {MINIMUM[original]:,} {definition['unit']}"
     elif kind in {"copper", "lead_zinc", "bauxite", "limestone", "diamond", "battery"}:
         definition["threshold"] = "Verified operation in the stated period"
+    elif kind == "gold":
+        definition["threshold"] = "Documented civilian mine with FY 2025-26 producer corroboration"
 RANK = {t["id"]: i for i, t in enumerate(TYPES)}
 
 
@@ -205,21 +244,59 @@ def mapped_gem_sites(world, grid, project):
     return items
 
 
+def assign_city_sites(items, cities, profiles, matches):
+    by_site = {(item["type"], item["name"], item["x"], item["y"]): item for item in items}
+    for city in cities:  # The largest eligible agglomeration wins a shared footprint join.
+        ident = city["id"]
+        if not city.get("city_view"):
+            continue
+        rings = profiles.get(ident, {}).get("yield_rings")
+        excluded = set(matches.get(ident, {}).get("excluded_resources", []))
+        for key in footprint_resources(rings, items, excluded):
+            item = by_site[tuple(key)]
+            if item.get("cbsa") is None:
+                item["cbsa"] = ident
+
+
+def mark_mw_subtotals(items, types):
+    """Mark the MW-only total's observation when every counted site shares it."""
+    mw_types = {row["id"] for row in types if row["unit"] == "MW"}
+    sites = {}
+    for item in items:
+        if item.get("cbsa") and item["type"] in mw_types and item.get("value") is not None:
+            sites.setdefault(item["cbsa"], []).append(item)
+    for rows in sites.values():
+        periods = {row.get("period") for row in rows}
+        if len(periods) == 1 and None not in periods:
+            rows[0]["aggregate_mw"] = {"period": periods.pop(), "source": sorted({row["source"] for row in rows}),
+                                       "estimated": any(row.get("estimated") for row in rows)}
+
+
 def build():
     world = load_interim("_world")
     grid = HexGrid(**world["grid"])
     project = MapProjection(**world["projection"])
     items = mapped_gem_sites(world, grid, project)
-    cities = {city["cell"] for city in json.loads((WEB_DATA / "cities.json").read_text())}
+    cities = json.loads((WEB_DATA / "cities.json").read_text())
     rendered = None if "elev" in world else json.loads((WEB_DATA / "world.json").read_text())
     elevation = world_elevation(world, rendered)
-    items.extend(crop_items(world, grid, project, cities, {item["cell"] for item in items}, elevation))
+    items.extend(crop_items(world, grid, project, {city["cell"] for city in cities},
+                            {item["cell"] for item in items}, elevation))
+    try:
+        profiles = load_interim(GHSL_UCDB)["profiles"]
+    except FileNotFoundError:
+        profiles = {}
+    if profiles:
+        matches = json.loads((CONFIG / "city_view_matches.json").read_text())
+        assign_city_sites(items, cities, profiles, matches)
     items.sort(key=lambda it: (RANK[it["type"]], -(it["value"] or 0), it["name"], it["cell"]))
     save_interim("_crop_production", dict(version=1, grid=world["grid"], projection=world["projection"],
                                           period=CROP_PERIOD, unit="t", estimated=True, source=None,
                                           method=None, crops={}), vintage=CROP_PERIOD)
     present = {it["type"] for it in items}
     types = [t for t in TYPES if t["id"] in present]
+    mark_mw_subtotals(items, types)
     summary = summarize(items, types)
-    write_web("resources.json", dict(types=types, items=items, summary=summary))
+    write_web("resources.json", dict(types=types, items=items, summary=summary, advisor_groups=ADVISOR_GROUPS,
+                                     advisor_fields=list(advisor_fields(types))))
     print("    " + ", ".join(f"{kind} {row['count']}" for kind, row in summary["national"].items()))

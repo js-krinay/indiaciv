@@ -7,6 +7,7 @@ import { compact, dollars, esc, int, money, pct, yieldDetails, yieldValue } from
 import { hasIcon } from "../icons.js";
 import { icon, glyph } from "./icon.js";
 import { DISTRICT_ICON } from "./infoPanel.js";
+import { cityProjectedGrowth } from "./cityHeadlines.js";
 
 export const METRO_MIN = 250000; // metros in growth / specialisation / per-person rankings
 export const BIG_METRO_MIN = 500000; // metros in the unemployment rankings
@@ -72,7 +73,8 @@ export function statDefs(nation) {
   return [
     {
       key: "population", label: "Population", name: "Population", color: "#e8dcc0", iconId: "pop", emoji: "👥", unit: "people",
-      description: "Residents.", source: nation?.vintage || "", value: n.population ?? null,
+      description: n.provenance?.population?.period ? `Residents · ${n.provenance.population.period}` : "Residents.",
+      source: n.provenance?.population?.period || nation?.vintage || "", value: n.population ?? null,
     },
     ...(fin(profile?.growth) && profile.growth_period ? [{
       key: "growth", label: "Growth", name: "Projected population growth", color: "#a8d39a",
@@ -82,7 +84,7 @@ export function statDefs(nation) {
       details: `${profile.growth_period} · Technical Group on Population Projections`,
     }] : []),
     ...yields,
-    ...(n.unemployment == null ? [] : [{ // hidden while the build has no unemployment figure (India)
+    ...(n.unemployment == null || n.provenance?.unemployment?.scope === "urban" ? [] : [{
       key: "unemployment", label: "Unemployment", name: "Unemployment rate", color: "#e8dcc0", iconId: "unemployment", emoji: "😐",
       unit: "rate", description: "Unemployed ÷ civilian labour force.", source: nation?.vintage || "", value: n.unemployment,
     }]),
@@ -174,12 +176,12 @@ export function buildReport(key, { nation, states, cities, lenses, lensVintage }
   if (key === "population") reportPopulation(rep, n, st, metros);
   else if (key === "growth") {
     const options = { fmt: (v) => signedPct(v, 2), exact: (v) => signedPct(v, 2) };
-    const cityPeriod = metros.find(({ o }) => fin(o.projected_growth))?.o.growth_period;
+    const cityPeriod = metros.find(({ o }) => fin(cityProjectedGrowth(o)))?.o.growth_period;
     rep.boards.statesNote = `States and UTs · ${def.source}.`;
     rep.boards.modes = [{ id: "abs", label: def.label,
       hint: cityPeriod ? `Urban agglomerations · ${cityPeriod} · UN DESA projections.` : "",
       states: rank(st, (area) => area.profile?.growth, options),
-      metros: rank(metros, (area) => area.projected_growth, {
+      metros: rank(metros, cityProjectedGrowth, {
         ...options, exact: (v, area) => `${options.fmt(v)} · ${area.growth_period}`,
       }) }];
   }
@@ -201,7 +203,7 @@ function reportPopulation(rep, n, st, metros) {
   const since = yrs ? ` since ${yrs[0]}` : "";
   if (fin(n.growth)) rep.context.push(`${signedPct(n.growth)}${since} (Census population estimates)`);
   const emp = ratio(n.employed, n.population);
-  if (emp != null) rep.context.push(`${compact(n.employed)} employed, ${pct(emp)} of residents`);
+  if (emp != null) rep.context.push(`${compact(n.employed)} employed age 15+, ${pct(emp)} of residents · ${n.provenance?.employed?.period} · IndiaCiv estimate`);
 
   const g = (o) => o.growth;
   const row = (x, prefix = "") => ({
@@ -221,7 +223,8 @@ function reportPopulation(rep, n, st, metros) {
   if (groups.length) rep.breakdown = { title: yrs ? `Population change ${yrs[0]}–${yrs[1]}` : "Population change", note: rep.scope.note, groups };
 
   rep.boards.modes = [
-    { id: "abs", label: "Largest", states: rank(st, (o) => o.population), metros: rank(metros, (o) => o.population) },
+    { id: "abs", label: "Largest", states: rank(st, (o) => o.population),
+      metros: rank(metros, (o) => o.provenance?.population?.vintage === "older" ? null : o.population) },
     {
       id: "rel", label: "Fastest growing", hint: `Population change${since}; metros of ${compact(METRO_MIN)}+ people.`,
       states: rank(st, g, { fmt: signedPct, exact: (v) => signedPct(v, 2) }), metros: rank(metros, g, { fmt: signedPct, exact: (v) => signedPct(v, 2), min: METRO_MIN }),

@@ -3,9 +3,16 @@
 from math import prod
 
 from ..core.source import SourceInfo
+from .people_sources import PINS
 
 RBI_SOURCE = "rbi_state_gsva"
 NATIONAL_SOURCE = "mospi_national_gva_fy26"
+HISTORICAL_DETAIL_PERIODS = dict.fromkeys(
+    ("uttar_pradesh_gsva_detail", "kerala_gsva_detail", "tamil_nadu_gsva_detail", "bihar_gsva_detail"),
+    "FY 2024-25 (1 Apr 2024 – 31 Mar 2025)"
+)
+RESIDUAL_METHOD = ("IndiaCiv estimates split the residual city industry output after manufacturing and "
+                   "construction using the source's nominal mining and utilities proportions.")
 METHOD = ("IndiaCiv estimate: carry each nominal state GSVA group forward using the corresponding "
           "national nominal growth rates, then divide by the estimated total across the three groups.")
 
@@ -30,6 +37,56 @@ SOURCES = [
                "Government publication, derived shares only",
                "Uses the first advance estimates of nominal GSVA in the Budget 2026-27 edition, Form F-1.",
                ["City View sector mix"]),
+    SourceInfo("odisha_gsva_fy26", "Odisha Economic Survey 2025-26, Figure 1.3 and Table 1.2",
+               "Directorate of Economics and Statistics, Odisha",
+               "https://assembly.odisha.gov.in/WriteReadData/News/OES%202026%20WEB%20UPLOAD.pdf",
+               "Government publication, attributed shares only",
+               "FY 2025-26 (1 Apr 2025 – 31 Mar 2026) nominal GSVA advance estimates. Mining is included in "
+               "industry. For city output, IndiaCiv estimates split the residual industry share after "
+               "manufacturing and construction using the published mining and utility proportions. "
+               "SHA-256 1af94ebd625a031f4ffb93f2d5307dee91efd1b26b27fea7a98c40cf4677e65c.",
+               ["State and City View sector mix"]),
+    SourceInfo("andhra_pradesh_gsva_detail_fy26", "Andhra Pradesh Socio-Economic Survey 2025-26, Chart 3.11",
+               "Planning Department, Andhra Pradesh",
+               "https://www.ap.gov.in/assets/documents/socioeconomicsurvey/2025-26_Book.pdf",
+               "Government publication, attributed shares only",
+               "FY 2025-26 (1 Apr 2025 – 31 Mar 2026) first advance estimates at current prices. "
+               "SHA-256 d55e67b5c8c623c6fbe2ff07b08816856ad3e8ee17bbb667ab855d9bb088a3c1.",
+               ["City View industry output"]),
+    SourceInfo("telangana_gsva_fy26", "Telangana Socio Economic Outlook 2026, §6.1.1 and §7.2.1",
+               "Directorate of Economics and Statistics, Telangana",
+               "https://www.telangana.gov.in/wp-content/uploads/2026/08/Socio-Economic-Outlook-2026.pdf",
+               "Government publication, derived shares only",
+               "FY 2025-26 (1 Apr 2025 – 31 Mar 2026) provisional advance estimates at current prices. "
+               "For city output, IndiaCiv estimates split the residual industry share after manufacturing "
+               "and construction using the published mining and utility proportions. "
+               "SHA-256 b0001a02778cb04630ec1b7c5f18e6d71b54f111ac45c37e4db342db8cb1bf68.",
+               ["State sector mix", "City View industry output"]),
+    SourceInfo("karnataka_gsva_fy26", "Karnataka Economic Survey 2025-26, English final edition, Appendix 1.1",
+               "Directorate of Economics and Statistics, Karnataka",
+               "https://data.opencity.in/dataset/699b7b8d-3813-4e44-8d70-cfdf1414ee85/resource/"
+               "ee584e22-2c78-4a54-9054-74db776a9a53/download/economic_survey_2025-26_english_finalmpdf_1772796504.pdf",
+               "Government publication, derived shares only",
+               "FY 2025-26 (1 Apr 2025 – 31 Mar 2026) nominal advance estimates. " + RESIDUAL_METHOD,
+               ["State sector mix", "City View industry output"]),
+    SourceInfo("madhya_pradesh_gsva_fy26", "Madhya Pradesh Economic Survey 2025-26, Tables 1.2–1.4",
+               "Government of Madhya Pradesh",
+               "https://www.mpinfo.org/mpinfoNew/Uploads/PDF/Tuesday%2C%20February%2017%2C%202026/D-170226020441.pdf",
+               "Government publication, derived shares only",
+               "FY 2025-26 (1 Apr 2025 – 31 Mar 2026) nominal advance estimates, 17 February 2026 edition. "
+               + RESIDUAL_METHOD, ["State sector mix", "City View industry output"]),
+    SourceInfo("rajasthan_gsva_fy26", "Rajasthan Economic Review 2025-26, Figure 13.3",
+               "Directorate of Economics and Statistics, Rajasthan",
+               "https://finance.rajasthan.gov.in/docs/budget/statebudget/2026-2027/Economicreviewe.pdf",
+               "Government publication, derived shares only",
+               "FY 2025-26 (1 Apr 2025 – 31 Mar 2026) nominal advance estimates, 2026–27 budget edition. "
+               + RESIDUAL_METHOD, ["State sector mix", "City View industry output"]),
+    SourceInfo("jammu_kashmir_gsva_fy26", "Jammu and Kashmir Economic Survey 2025-26, Tables 1(ix)–1(xi)",
+               "Directorate of Economics and Statistics, Jammu and Kashmir",
+               "https://ecostatjk.nic.in/pdf/publications/ecosurvey/Economic%20Survey%202025-26_webCopy.pdf",
+               "Government publication, derived shares only",
+               "FY 2025-26 (1 Apr 2025 – 31 Mar 2026) first nominal advance estimates, 1 February 2026 edition. "
+               + RESIDUAL_METHOD, ["State sector mix", "City View industry output"]),
 ]
 
 
@@ -43,11 +100,19 @@ SECTOR_MIX = {
     "DL": sector_mix("Delhi", SOURCES[0], 322_764, 637_029 + 15_424_468, 103_379_535, 119_763_796),
     "MH": sector_mix("Maharashtra", SOURCES[1], 473_089, 65_349 + 1_043_844, 2_855_198, 4_437_480),
     "AP": sector_mix("Andhra Pradesh", SOURCES[2], 539_454, 384_471, 700_717, 1_624_642),
+    "OD": sector_mix("Odisha", SOURCES[3], 19.6, 41.3, 39.1, 100),
+    "TS": sector_mix("Telangana", SOURCES[5], 1_648_613 - 304_217 - 1_130_596, 304_217, 1_130_596, 1_648_613),
+    "KA": sector_mix("Karnataka", SOURCES[6], 322_756, 580_144, 2_093_564, 2_996_465),
+    "MP": sector_mix("Madhya Pradesh", SOURCES[7], 40.13, 22.75, 37.12, 100),
+    "RJ": sector_mix("Rajasthan", SOURCES[8], 25.74, 26.55, 47.71, 100),
+    "JK": sector_mix("Jammu & Kashmir", SOURCES[9], 20.45 - .40, 18.52 + .40, 61.02, 100),
 }
 
 for state, components, total in (
     ("DL", (637_029, 5_014_381, 6_859_334, 3_550_753), 119_763_796),
     ("MH", (65_349, 657_015, 297_238, 89_591), 4_437_480),
+    ("OD", (9.5, 18.8, 9.6, 3.3), 100),
+    ("TS", (35_892, 137_229, 93_404, 37_692), 1_648_613),
 ):
     SECTOR_MIX[state]["detail"] = {
         key: value / total for key, value in zip(("mining", "manufacturing", "construction", "utilities"), components)
@@ -65,8 +130,81 @@ SOURCES += [
                "https://www.mospi.gov.in/uploads/latestReleases/latest_release_1780655857536_5ac01869-ca4a-422d-b7a7-57b81da60932_Press_Note_on_GDP_Estimates_for_Q4_2025-26_and_PE_FY_2025-26_F.pdf",
                "MoSPI Category A aggregates, credited reuse",
                "5 June 2026 release. Current-price year-to-year ratios are used to project state sectors, "
-               "with mining and quarrying added to the secondary sector.", ["Economy"]),
+               "with mining and quarrying added to the secondary sector. Statement 4 also supplies the national "
+               "provisional FY 2025-26 (1 Apr 2025 – 31 Mar 2026) GVA levels. PDF SHA-256 " + PINS["gdp"],
+               ["Economy"]),
+    SourceInfo("uttar_pradesh_gsva_detail", "Uttar Pradesh State Economic Survey 2025-26, Table 1.1",
+               "Government of Uttar Pradesh",
+               "https://budget.up.nic.in/btn-survey/Economic_Survey_UP_2025_26.pdf",
+               "Government publication, attributed derived shares only",
+               "FY 2024-25 quick estimates at current prices. IndiaCiv estimates split the remaining "
+               "FY 2025-26 city industry allocation using the prior-year mining and utilities proportions. "
+               "SHA-256 2995e9f5b3a7740ea0c855bc08620a2dac3063719802b46f1a03aca57037875d.",
+               ["City View industry output"]),
+    SourceInfo("kerala_gsva_detail", "Kerala Economic Review 2025, Appendix 1.1.10",
+               "Kerala State Planning Board / Directorate of Economics and Statistics",
+               "https://spb.kerala.gov.in/economic-review/ER2025/appendix/01110.html",
+               "Government publication, attributed derived shares only",
+               "FY 2024-25 quick estimates at current prices. IndiaCiv estimates split the remaining "
+               "FY 2025-26 city industry allocation using the prior-year mining and utilities proportions. "
+               "SHA-256 fe2e02214bc5d5f0bd055499ecd83d15cba396b4956acbd25f6afbbb73596ffb.",
+               ["City View industry output"]),
+    SourceInfo("tamil_nadu_gsva_detail", "Tamil Nadu Estimates of State Domestic Product, Tables 18 and 20",
+               "Department of Economics and Statistics, Tamil Nadu",
+               "https://des.tn.gov.in/node/346",
+               "Government publication, attributed derived shares only",
+               "FY 2024-25 advance estimates at current prices. " + RESIDUAL_METHOD + " "
+               "SHA-256 c3b445d76bdfb4f9c708ecda249fd419aae1acd34fb0ae2820d11b9799042b48.",
+               ["City View industry output"]),
+    SourceInfo("bihar_gsva_detail", "State Domestic Product of Bihar, November 2026 edition, Statements 4.2 and 5.2",
+               "Directorate of Economics and Statistics, Bihar",
+               "https://des.bihar.gov.in/viewStateIncomeDocument?file=si.pdf",
+               "Government publication, attributed derived shares only",
+               "FY 2024-25 quick estimates at current prices. " + RESIDUAL_METHOD,
+               ["City View industry output"]),
 ]
+
+# Relative weights within the city industry's remaining share, with only the split carried forward.
+DETAIL_SPLITS = {
+    "OD": ("odisha_gsva_fy26", 9.5, 3.3),
+    "TS": ("telangana_gsva_fy26", 35_892, 37_692),
+    "UP": ("uttar_pradesh_gsva_detail", 24_890, 73_145),
+    "KL": ("kerala_gsva_detail", 299_377, 1_526_237),
+    "TN": ("tamil_nadu_gsva_detail", 8_955, 80_127),
+    "KA": ("karnataka_gsva_fy26", 19_598, 44_660),
+    "MP": ("madhya_pradesh_gsva_fy26", 2.96, 3.35),
+    "RJ": ("rajasthan_gsva_fy26", 3.30, 3.20),
+    "JK": ("jammu_kashmir_gsva_fy26", .40, 4.57),
+    "BR": ("bihar_gsva_detail", 3_691, 20_263),
+}
+
+SOURCES += [SourceInfo(
+    "kerala_matched_gsdp_fy26", "Kerala Data Portal, Major Deficit Indicators, 3 February 2026 edition",
+    "Government of Kerala",
+    "https://datahub.kerala.gov.in/charts/"
+    "eyJpdiI6IkN1ZXJsNk9XY1VzckxpSEk3SzEvSFE9PSIsInZhbHVlIjoiQUF5MHNXeTdlRlNzd1FZM0pNa0hEZz09IiwibWFjIjoi"
+    "Yzg0MDNiZTMxYjU1ZjAwYmMwZGZiNDFkNDU5NTFjNGY0M2UxM2QyZTY4M2FmOWNmN2I0NzEyZmRiOTY0YjIwYSIsInRhZyI6IiJ9",
+    "Government publication, derived growth only",
+    "Nominal FY 2024-25 and FY 2025-26 GSDP from the same fiscal series. IndiaCiv estimates apply the same "
+    "city urban population allocation shares to both years. "
+    "Checked snapshot SHA-256 928a8f5216cc71f15639544bed94c508e87dba480eff31e848c046654915a378.",
+    ["City output growth"],
+), SourceInfo(
+    "jharkhand_matched_gsdp_fy26", "Jharkhand Economic Survey 2025-26, Table 1.1 and §2.6.1",
+    "Department of Finance, Government of Jharkhand",
+    "https://finance.jharkhand.gov.in/pdf/JES_2025_26.pdf",
+    "Government publication, derived growth only",
+    "Current-price FY 2024-25 and 2025-26 GSDP. FY 2025-26 is the survey's budget estimate. "
+    "IndiaCiv estimates use the same city allocation shares in both years. "
+    "SHA-256 61784b9a0796e86b7aae4ba1d26f93ee712fa395d2581689ce4e0006c061a495.",
+    ["City output growth"],
+)]
+
+# Published nominal pair in crore INR. The current-year fiscal estimate is source-provided.
+MATCHED_GSDP = {
+    "JH": (516_255, 556_286, "jharkhand_matched_gsdp_fy26"),
+    "KL": (1_248_533.01, 1_427_145.23, "kerala_matched_gsdp_fy26"),
+}
 
 # Latest common nominal baseline in RBI Handbook tables 25, 33, 37, 41 and 49.
 # Share of total GSVA. Agriculture & allied is total less industry and services.
@@ -130,19 +268,31 @@ def carry_forward(year, key, share):
     return share * prod(after / before for before, after in zip(series, series[1:]))
 
 
-def state_sector_mix(state, name, period):
-    if state in SECTOR_MIX:
-        return {**SECTOR_MIX[state], "period": period, "estimated": False}
+def state_sector_mix(state, name, period, *, for_city=False):
+    if state in SECTOR_MIX and (state not in RBI_BASELINE or not for_city):
+        record = {**SECTOR_MIX[state], "period": period, "vintage": period, "estimated": False}
+        if state == "AP" and for_city:
+            record["detail"] = {"mining": .0209, "manufacturing": .1084, "construction": .08, "utilities": .0273}
+            record["detail_source"] = dict.fromkeys(record["detail"], "andhra_pradesh_gsva_detail_fy26")
+        return record
     if state not in RBI_BASELINE:
         return None
     year, industry, services, manufacturing, construction = RBI_BASELINE[state]
     groups = {"agriculture": 1 - industry - services, "industry": industry, "services": services}
     projected = {key: carry_forward(year, key, share) for key, share in groups.items()}
     total = sum(projected.values())
-    detail = {"manufacturing": manufacturing, "construction": construction}
+    detail = {key: carry_forward(year, key, share) / total
+              for key, share in {"manufacturing": manufacturing, "construction": construction}.items()}
+    detail_source = {}
+    residual = projected["industry"] / total - sum(detail.values())
+    if for_city and state in DETAIL_SPLITS and residual > 0:
+        source, mining, utilities = DETAIL_SPLITS[state]
+        for key, weight in (("mining", mining), ("utilities", utilities)):
+            detail[key] = residual * weight / (mining + utilities)
+            detail_source[key] = source
     return {
         "state": name, "shares": {key: share / total for key, share in projected.items()},
-        "detail": {key: carry_forward(year, key, share) / total for key, share in detail.items()},
-        "source": [RBI_SOURCE, NATIONAL_SOURCE], "period": period,
+        "detail": detail, **({"detail_source": detail_source} if detail_source else {}),
+        "source": [RBI_SOURCE, NATIONAL_SOURCE], "period": period, "vintage": period,
         "status": "IndiaCiv estimate", "estimated": True, "description": METHOD,
     }

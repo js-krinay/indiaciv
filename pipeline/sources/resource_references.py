@@ -16,6 +16,17 @@ def pib(id, title, release, description, date):
 
 
 REFERENCES = [
+    SourceInfo("hutti_gold", "Hutti gold mine lease 2671, December 2023 EAC minutes, item 1.5",
+               "Ministry of Environment, Forest and Climate Change",
+               "https://environmentclearance.nic.in/writereaddata/Form-1A/Minutes/0501202486178076Minutes_24thEACmeeting_26-28Dec%2C2023.pdf",
+               "Government publication. Uses the documented site identity and location as facts.",
+               "Approximate midpoint of the reported lease coordinates at Hutti in Raichur, Karnataka. "
+               "The Ministry of Mines corroborates gold production at company level for FY 2025-26.", ["resources"]),
+    SourceInfo("mines_gold_fy26", "Ministry of Mines Annual Report 2025–26, section 2.23",
+               "Ministry of Mines", "https://mines.gov.in/admin/download/69945dabea1821771330987.pdf",
+               "Government publication. Uses the reported company classification with attribution.",
+               "Confirms Hutti Gold Mines Company as a primary gold producer for FY 2025-26 "
+               "(1 Apr 2025 – 31 Mar 2026). The report gives company-level evidence.", ["resources"]),
     SourceInfo("hcl_mines", "Hindustan Copper 58th Annual Report FY 2025-26", "Hindustan Copper",
                "https://tcp.hindustancopper.com/Upload/Reports/0-639233596169693750-AnnualReport.pdf",
                "Operator copyright. Uses site and operating facts with attribution.",
@@ -146,6 +157,7 @@ GROWING_REGIONS = [
 GROWING_ANCHORS = {"thrissur_crops": [(10.6393, 76.1558)]}
 
 SITES = [
+    ("gold", "Hutti gold mine", "KA", 16.2038, 76.6612, "hutti_gold", MINE_PERIOD),
     ("copper", "Malanjkhand copper mine", "MP", 22.0167, 80.7167, "hcl_mines", MINE_PERIOD),
     ("copper", "Khetri copper mine", "RJ", 28.0800, 75.8218, "hcl_mines", MINE_PERIOD),
     ("lead_zinc", "Rampura Agucha mine", "RJ", 25.8375, 74.7375, "hzl_mines", MINE_PERIOD),

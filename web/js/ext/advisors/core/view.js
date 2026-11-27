@@ -153,8 +153,8 @@ export function sourcesHtml(data, ids, caveats = []) {
   return `<footer class="adv-sources">
     ${caveats.length ? `<h4>Read with care</h4><ul class="adv-caveats">${caveats.map((c) => `<li>${c}</li>`).join("")}</ul>` : ""}
     <h4>Sources</h4>
-    <ul>${list.map((s) => `<li><b>${esc(s.title)}</b>${s.publisher && s.publisher !== s.title ? `, ${esc(s.publisher)}` : ""}</li>`).join("")}</ul>
-    <button type="button" class="adv-link" data-pedia="source/index">All sources, files and checksums in the Almanac</button>
+    <ul>${list.map((s) => `<li><b>${esc(s.title)}</b>${s.publisher && s.publisher !== s.title ? `, ${esc(s.publisher)}` : ""}${s.vintage ? ` <span class="v">${esc(s.vintage)}</span>` : ""}</li>`).join("")}</ul>
+    <button type="button" class="adv-link" data-pedia="Sources">All sources, files and checksums in the Almanac</button>
   </footer>`;
 }
 

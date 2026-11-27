@@ -21,6 +21,7 @@
 import { css, luminance, shade } from "../color.js";
 import { drawIcon, hasIcon } from "../icons.js";
 import { compact, popShort } from "../ext/cityView/fmt.js"; // format.js plus a 1000K → 1.0M roll-over fix
+import { cityProjectedGrowth } from "../ui/cityHeadlines.js";
 import { cityStateIndex, isCapital } from "../world.js";
 import { cityIsDot } from "./art/city.js";
 import { compactCityGdp } from "../ui/cityHeadlines.js";
@@ -104,7 +105,9 @@ export function specialty(city, nation) {
 
 /** Projected growth is already a fraction. Older records may carry a formatted growth rate. */
 function growthOf(city) {
-  if (Number.isFinite(city.projected_growth) && city.growth_period) return city.projected_growth;
+  const projected = cityProjectedGrowth(city);
+  if (Number.isFinite(projected)) return projected;
+  if (city.provenance?.population?.vintage === "older" || city.provenance?.growth?.vintage === "older") return null;
   let g = city.growth;
   if (g && typeof g === "object") g = g.rate ?? (g.pct != null ? g.pct / 100 : g.value);
   if (!Number.isFinite(g)) return null;
@@ -158,7 +161,7 @@ function measure(ctx, city, yields, nation, L) {
   });
   const workers = city.resident_workforce;
   if (Number.isFinite(workers?.employed_all_ages)) {
-    const t = `≈${compact(workers.employed_all_ages)}`;
+    const t = `≈${compact(workers.employed_all_ages)}${workers.unemployment_benchmark ? ` · ${workers.period}` : ""}`;
     parts.push({ yd: { icon: "pop", color: "#e8dcc0" }, t, w: ctx.measureText(t).width });
   }
   const yieldsW = parts.reduce((a, p) => a + L.yieldIcon + 2 + p.w + L.yieldGap, 0) - L.yieldGap;

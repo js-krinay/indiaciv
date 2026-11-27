@@ -7,8 +7,9 @@ from ..core.geo import MapProjection
 from ..india.transport_corridors import FREIGHT_CORRIDORS
 from .world import COAST, OCEAN
 
+CARGO_PERIOD = "1 Apr 2026 – 31 Oct 2026"
 PERIOD = dict(period_start="2026-04-01", period_end="2026-10-31",
-              label="Apr–Oct 2026 (1 Apr 2026 – 31 Oct 2026)", status="Advance estimate")
+              label=f"Apr–Oct 2026 ({CARGO_PERIOD})", status="Advance estimate")
 CARGO_SOURCE = "mopsw_coastal_cargo"
 DFC_SOURCE = "pib_dfc_completion"
 
@@ -130,3 +131,21 @@ def trade_check(doc, world, grid):
                and all(doc["rail_corridors"].get(name) for name in trade["corridors"]))
     return [("PASS" if valid else "FAIL", f"{len(branches)} single-port coastal cargo branches on a sea-only network"),
             ("PASS" if freight else "FAIL", "Trade uses the two operating rail corridor paths")]
+
+
+def route_document(network, ports, corridors):
+    """Publish literal paths in the trade route contract with observation metadata."""
+    by_id = {port["id"]: port for port in ports}
+    routes = [
+        dict(path=branch["cells"], top_mode="water", name=by_id[branch["port_id"]]["name"],
+             tons_k=branch["tonnes"] / 1000, period=CARGO_PERIOD,
+             period_start=network["period_start"], period_end=network["period_end"],
+             status=network["status"], source=CARGO_SOURCE)
+        for branch in network["branches"]
+    ]
+    routes.extend(
+        dict(path=corridors[name], top_mode="rail", name=name, period="8 Sep 2026", source=DFC_SOURCE)
+        for name in network["corridors"] if corridors.get(name)
+    )
+    routes.insert(0, dict(path=network["backbone"], top_mode="water", schematic=True, source=CARGO_SOURCE))
+    return dict(literal_paths=True, sources=[CARGO_SOURCE, DFC_SOURCE], zones=[], routes=routes)

@@ -5,11 +5,12 @@ from ..india.civic_sources import (
     ABHA, ABHA_PER_100, PMAYG, PMAYG_PER_1000, PMAYU2, PMAYU2_PER_1000, PMJAY_PER_100, PMJAY_STATES,
 )
 from ..india.explorer_sources import INTERNET_PER_100, INTERNET_SOURCE
+from ..india.household_cost_sources import HCES, INTERIM as HOUSEHOLD_COSTS, NFHS, PERIODS, POVERTY, RENT, TELECOM
 from .projection import state_population, units
 
 INPUTS = [
     "tg_projections", "plfs_q3", "jjm_july", "tg_urban", "gsdp_fy26", "gsdp_components",
-    "gdp_fy26", "cea_fy26", "public_works_wage", "public_works_wage_india",
+    "gdp_fy26", "cea_fy26", "public_works_wage", "public_works_wage_india", HOUSEHOLD_COSTS,
 ]
 REQUIRES = ["_world", *INPUTS]
 PRODUCES = ["_state_metrics"]
@@ -63,6 +64,30 @@ def estimate_gsdp(crore, base_year, annual_growth):
     return crore * (1 + annual_growth) ** (2025 - base_year)
 
 
+def advisor_columns(records, definitions):
+    groups = {"labour": "Work", "prosperity": "Prosperity", "daily_life": "Daily life",
+              "energy": "Energy", "schemes": "Public schemes"}
+    columns = {}
+    for key, record in records.items():
+        spec = definitions.get(key)
+        if key == "internet_per_100" or not spec or not spec.get("period") or not spec.get("source"):
+            continue
+        unit, group = spec["unit"], spec["group"]
+        format = ("inr" if "₹" in unit or "INR" in unit else
+                  f"decimal{spec['precision']}" if group == "schemes" else spec["format"])
+        source = record.get("source", spec["source"])
+        if denominator := spec.get("denominator_source"):
+            source = [source, denominator]
+        columns[key] = {
+            **record, "label": spec["name"], "group": groups.get(group, "State metrics"),
+            "format": format, "unit": unit, "source": source, "lens": key,
+            "period": record.get("period") or spec["period"], "vintage": record.get("vintage", spec.get("vintage")),
+            "heading_caption": spec["period"], "period_scope": spec.get("period_scope"),
+            "hide_rank": spec.get("vintage") == "older", "description": spec.get("description", ""),
+        }
+    return columns
+
+
 def definitions():
     out = {}
 
@@ -72,10 +97,33 @@ def definitions():
             "unit": unit, "precision": 1 if group == "labour" else 2, "format": "pct" if unit == "%" else "int", "scale": "linear",
             "ramp": HEAT if higher == "bad" else RAMP, "higher_is": higher, "source": source,
             "source_line": f"{publisher} · {period}", "period": period,
-            "period_start": start, "period_end": end, "description": description,
+            **({"period_start": start, "period_end": end} if start and end else {"vintage": "older"}),
+            "description": description,
             "note": " ".join(x for x in (GENERAL_NOTE, note) if x),
         }
 
+    for sector in ("rural", "urban"):
+        add(f"mpce_index_{sector}", f"Monthly consumption per person ({sector}, index, India = 100)", "prosperity", HCES,
+            "MoSPI", PERIODS[HCES], None, None, "index (India = 100)",
+            f"Mean monthly per-person household consumption in {sector} areas, indexed to the corresponding India mean.")
+    add("fixed_wifi_households", "Households using fixed/Wi-Fi internet at home", "daily_life", TELECOM,
+        "MoSPI", PERIODS[TELECOM], None, None, "%",
+        "Share of all households using fixed/Wi-Fi service at home.")
+    for sector, label in (("rural", "rural"), ("urban", "urban"), ("all", "rural and urban")):
+        add(f"rent_index_{sector}", f"Rental cost ({label}, index, India = 100)", "prosperity", RENT,
+            "MoSPI", PERIODS[RENT], None, None, "index (India = 100)",
+            f"Mean monthly rent among renter households ({label}), indexed to the corresponding India mean.")
+    add("no_household_health_financing", "Households with no member covered by health financing", "daily_life",
+        NFHS, "MoHFW and IIPS", PERIODS[NFHS], None, None, "%",
+        "Share of households without a usual member covered by a health insurance or financing scheme.")
+    out["no_household_health_financing"].update(source_line="MoHFW and IIPS", period_scope="per_state")
+    for sector in ("rural", "urban"):
+        add(f"rangarajan_poverty_{sector}",
+            f"Poverty headcount index ({sector}, Rangarajan method, HCES 2022–23), median of 18 reporting states = 100",
+            "prosperity", POVERTY, "RBI Bulletin authors", PERIODS[POVERTY], None, None,
+            "index (reporting median = 100)",
+            f"Share below the Rangarajan poverty line, divided by the median for {sector} areas "
+            "in the 18 boundary-compatible reporting states.")
     for key, name, higher, description in WORK:
         for suffix, sector in (("", "Rural and urban"), ("_rural", "Rural"), ("_urban", "Urban")):
             label = name if not suffix else f"{name} ({sector.lower()})"
@@ -159,6 +207,14 @@ def build():
     for source in ("public_works_wage", "public_works_wage_india"):
         for name, value in inputs.get(source, {}).items():
             put(name, "public_works_daily_wage", value, source)
+
+    for key, values in inputs[HOUSEHOLD_COSTS].items():
+        definition = meta[key]
+        for name, record in values.items():
+            value, period = (record["value"], record["period"]) if key == "no_household_health_financing" else (
+                record, definition["period"])
+            put(name, key, value / 100 if definition["format"] == "pct" else value,
+                period=period, vintage="older")
 
     population = {name: state_population(tg, name) for name in world["state_names"]}
     population["India"] = 1000 * tg["population"]["INDIA"]["2026"][0]

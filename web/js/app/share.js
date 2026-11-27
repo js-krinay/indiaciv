@@ -1,6 +1,8 @@
 // Share popover: copy a link to the current view, or download a 1600×900 PNG of it with a caption strip.
 import { drawIcon, hasIcon } from "../icons.js";
 import { icon } from "../ui/icon.js";
+import { periodLabel } from "../format.js";
+import { formatLensTick } from "../ui/lenses.js";
 
 // The address printed on shared images. Set it to the published site (e.g. "example.com/us-atlas"); when left
 // empty, the page's own host and path are used, except on a local dev server, where SITE_FALLBACK is printed.
@@ -39,7 +41,7 @@ export function imageCredits(info) {
   if (info.lensCredits?.length) rows.push(`Lens data · ${info.lensCredits.join(" · ")}`);
   if (info.resourceCredits?.length) rows.push(`Resource data · ${info.resourceCredits.join(" · ")}`);
   const site = siteLabel();
-  rows.push(site === SITE_FALLBACK ? "IndiaCiv · Sources in the Almanac" : `${site}/#pedia=source/index`);
+  rows.push(site === SITE_FALLBACK ? "IndiaCiv · Sources in the Almanac" : `${site}/?credits`);
   return rows;
 }
 
@@ -71,7 +73,7 @@ function spaced(ctx, px) {
 
 /**
  * Compose the share image.
- * info: {renderMap(canvas, w, h) → bool, lens (lens object or null), formatValue(lens, t) → string,
+ * info: {renderMap(canvas, w, h) → bool, lens (lens object or null),
  *        selection: {kind, name, sub} | null}
  */
 export function composeImage(info, { height = IMG_H } = {}) {
@@ -82,7 +84,8 @@ export function composeImage(info, { height = IMG_H } = {}) {
   const ctx = cv.getContext("2d");
   ctx.font = `14px ${SANS}`;
   const credits = imageCredits(info).flatMap((line) => wrapCredit(ctx, line));
-  const captionH = CAPTION_H + credits.length * 17;
+  const captionBase = CAPTION_H + (info.lens?.vintage === "older" ? 18 : 0);
+  const captionH = captionBase + credits.length * 17;
   const mapH = Math.max(75, imgH - captionH);
 
   // --- map ---
@@ -116,25 +119,19 @@ export function composeImage(info, { height = IMG_H } = {}) {
 
   // Emblem + title
   const ex = 64;
-  // IndiaCiv's emblem (the favicon): a gold hexagon with a green peak.
-  const hexagon = (r) => {
-    ctx.beginPath();
-    for (let k = 0; k < 6; k++) ctx.lineTo(ex + r * Math.cos(Math.PI / 3 * k - Math.PI / 2), cy + r * Math.sin(Math.PI / 3 * k - Math.PI / 2));
-    ctx.closePath();
-  };
-  hexagon(31);
+  ctx.beginPath();
+  ctx.arc(ex, cy, 30, 0, Math.PI * 2);
   ctx.fillStyle = "#120d06";
   ctx.fill();
-  hexagon(28);
-  ctx.fillStyle = "#c3ac62";
+  ctx.beginPath();
+  ctx.arc(ex, cy, 28, 0, Math.PI * 2);
+  ctx.fillStyle = "#c9a45c";
   ctx.fill();
   ctx.beginPath();
-  ctx.moveTo(ex - 14, cy + 11);
-  ctx.lineTo(ex, cy - 12);
-  ctx.lineTo(ex + 14, cy + 11);
-  ctx.closePath();
-  ctx.fillStyle = "#517845";
+  ctx.arc(ex, cy, 24.5, 0, Math.PI * 2);
+  ctx.fillStyle = "#2a4d8f";
   ctx.fill();
+  star(ctx, ex, cy + 1, 14, 6, "#f8f0d8");
 
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "#ecd08e";
@@ -176,11 +173,14 @@ export function composeImage(info, { height = IMG_H } = {}) {
     ctx.font = `14px ${SANS}`;
     ctx.fillStyle = "#d8cba8";
     ctx.textAlign = "left";
-    ctx.fillText("≤ " + info.formatValue(lens, 0), rx, ry + rh + 18);
+    ctx.fillText(formatLensTick(lens, 0, 0), rx, ry + rh + 18);
     ctx.textAlign = "right";
-    ctx.fillText("≥ " + info.formatValue(lens, 1), rx + rw, ry + rh + 18);
+    ctx.fillText(formatLensTick(lens, 1, 4), rx + rw, ry + rh + 18);
     ctx.textAlign = "left";
-    if (lens.estimated && lens.source_line) {
+    if (lens.vintage === "older") {
+      ctx.fillText(periodLabel(lens, "", { plain: true }), rx, cy + 48, rw);
+      ctx.fillText(lens.unit || "", rx, cy + 64, rw);
+    } else if (lens.estimated && lens.source_line) {
       ctx.fillText(lens.source_line, rx, cy + 48, rw);
     }
   } else {
@@ -206,7 +206,7 @@ export function composeImage(info, { height = IMG_H } = {}) {
   ctx.textAlign = "left";
   ctx.font = `14px ${SANS}`;
   ctx.fillStyle = "#d8cba8";
-  credits.forEach((line, i) => ctx.fillText(line, 44, y0 + CAPTION_H + 17 * i, IMG_W - 88));
+  credits.forEach((line, i) => ctx.fillText(line, 44, y0 + captionBase + 17 * i, IMG_W - 88));
 
   // Thin gold frame around the whole picture
   ctx.strokeStyle = "rgba(201,164,92,.85)";
@@ -234,6 +234,18 @@ function fit(ctx, text, maxW) {
   let t = text;
   while (t.length > 3 && ctx.measureText(t + "…").width > maxW) t = t.slice(0, -1);
   return t + "…";
+}
+
+function star(ctx, x, y, R, r, color) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rr = i % 2 ? r : R;
+    ctx[i ? "lineTo" : "moveTo"](x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
 }
 
 /**

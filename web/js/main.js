@@ -6,15 +6,12 @@ import { drawBanners } from "./render/banners.js";
 import { waterNameAt } from "./render/art/hydrography.js";
 import { renderTopbar } from "./ui/topbar.js";
 import { showCellTooltip, showCityTooltip, showHtmlTooltip, showResourceTooltip, hideTooltip } from "./ui/tooltip.js";
-import { initLensDock, formatLensValue, lensValueAt } from "./ui/lenses.js";
+import { initLensDock } from "./ui/lenses.js";
 import { openCityPanel, closeCityPanel } from "./ui/cityPanel.js";
 import { openStatePanel } from "./ui/statePanel.js";
-import { openDistrictPanel } from "./ui/districtPanel.js";
 import { installSheetSwipe } from "./ui/infoPanel.js";
 import { initPedia } from "./ui/pedia.js";
-import { terrainRoute } from "./ui/pediaIndex.js";
-import { showPanel } from "./ui/infoPanel.js";
-import { esc } from "./format.js";
+import { esc, periodLabel } from "./format.js";
 import { initYieldReports } from "./ui/yieldReport.js";
 import { Minimap } from "./ui/minimap.js";
 import { icon } from "./ui/icon.js";
@@ -50,17 +47,19 @@ const SELECT_ANIM_MS = 33; // ~30 fps while a state's border highlight animates
 const isMobile = () => matchMedia("(max-width: 700px)").matches;
 
 async function main() {
-  const optional = (name) => loadJSON(name, true);
-  const [world, cities, nation, catalog, resources, statesData, wonders, infrastructure, protectedLand, protectedRamsar] = await Promise.all([
+  const [world, cities, nation, lenses, sourcesData, resources, statesData,
+    wonders, infrastructure, protectedLand, protectedRamsar, almanac] = await Promise.all([
     loadJSON("world"), loadJSON("cities"), loadJSON("nation"),
-    optional("lens_catalog"), optional("resources"), optional("states"), optional("wonders"), optional("infrastructure"),
-    optional("protected_land"), optional("protected_ramsar"),
+    loadJSON("lenses", true), loadJSON("sources", true), loadJSON("resources", true), loadJSON("states", true),
+    loadJSON("wonders", true), loadJSON("infrastructure", true), loadJSON("protected_land", true),
+    loadJSON("protected_ramsar", true), loadJSON("almanac", true),
   ]);
-  const lensFile = catalog && Array.isArray(catalog.lenses) ? catalog : { vintage: "", groups: [], lenses: [] };
-  const sources = [];
+  const lensFile = lenses && Array.isArray(lenses.lenses) ? lenses : { vintage: "", groups: [], lenses: [] };
+  for (const lens of lensFile.lenses) lens.values = decodeLensValues(lens.values, world.owner.length);
+  const sources = sourcesData || [];
   const w = prepareWorld(world, cities, { resources });
   const state = {
-    cities, lens: null, band: null, hoverCell: -1, selectedCity: null, selectedState: null, selectedDistrict: null,
+    cities, lens: null, band: null, hoverCell: -1, selectedCity: null, selectedState: null,
     showResources: !!w.resources,
     highlight: null, // {cells?, cities?, states?, resources?, dimOthers?, color?} (render/overlays.js)
     resourceFilter: null, // {types?: Set<typeId>, minValue?: number}
@@ -100,22 +99,7 @@ async function main() {
     requestDraw();
     url.schedule();
   });
-  const pedia = initPedia({
-    world, nation, cities, lenses: lensFile, sources, w, resources, states, wonders, infrastructure,
-    protectedLand, protectedRamsar,
-  }, {
-    load: () => loadData("sources"),
-    href: (key) => url.href(key),
-    entryId: () => url.entryId,
-    travel: (direction) => url.travel(direction),
-    navigate(key, target) {
-      url.flush();
-      hideTooltip();
-      pedia.apply(key, { mapFocus: !!target });
-      if (target) showPediaTarget(target);
-      url.flush();
-    },
-  });
+  const pedia = initPedia({ world, nation, lenses: lensFile, sources, w, resources, states, almanac });
   const help = initHelp();
 
   // --- static layer cache ----------------------------------------------------------------------------------------
@@ -511,9 +495,7 @@ async function main() {
   // --- lens ------------------------------------------------------------------------------------------------------
   const dock = initLensDock({
     lenses: lensFile, sources, w,
-    trade: Boolean(infrastructure?.trade),
-    protectedLand: Boolean(protectedLand?.sites.length || protectedRamsar?.sites.length),
-    onPick: (lens) => pickLens(lens),
+    onPick: (lens) => setLens(lens),
     onBand: (band) => setBand(band),
   });
 
@@ -523,34 +505,6 @@ async function main() {
     minimapQueued = true;
     requestAnimationFrame(() => { minimapQueued = false; minimap.rebuild(); });
   };
-
-  let pendingLens = null;
-  function pickLens(lens) {
-    pendingLens = null;
-    if (!lens || lens.values) {
-      if (lens !== state.lens || state.band) setLens(lens);
-      if (lens && lensById.get(lens.id) === lens && !sources.length) {
-        return loadData("sources").then(() => {
-          if (state.lens === lens) dock.render(lens, state.band);
-        });
-      }
-      return;
-    }
-    const request = { lens };
-    pendingLens = request;
-    toast(`Loading ${lens.name}…`);
-    return Promise.all([loadData("lenses"), loadData("sources")]).then(() => {
-      if (pendingLens !== request) return;
-      pendingLens = null;
-      if (lens.values) {
-        if (toastEl.textContent === `Loading ${lens.name}…`) toastEl.hidden = true;
-        setLens(lens);
-      } else {
-        toast("The lens data could not be loaded.");
-        url.schedule();
-      }
-    });
-  }
 
   function setLens(lens) {
     const changed = lens !== state.lens;
@@ -574,7 +528,6 @@ async function main() {
   }
 
   // --- selection -------------------------------------------------------------------------------------------------
-  let selectionRequest = 0;
   const announceEl = document.getElementById("announce");
   const announce = (text) => {
     announceEl.textContent = "";
@@ -586,15 +539,14 @@ async function main() {
     const parts = ["Hex map of India", state.lens ? `coloured by the ${state.lens.name} lens` : "showing terrain"];
     if (state.selectedCity) parts.push(`${state.selectedCity.name} selected`);
     else if (state.selectedState != null) parts.push(`${stateName(state.selectedState)} selected`);
-    else if (state.selectedDistrict != null) parts.push(`${w.raw.counties[state.selectedDistrict].name} selected`);
     canvas.setAttribute("aria-label", parts.join(", "));
   }
 
   const panelCtx = () => ({
-    w, nation, states, cities, resources, metricLenses: lensFile.lenses.filter((lens) => lens.period),
+    w, nation, states, cities,
     onClose: () => clearSelection(),
     pediaLink,
-    onPedia: (key) => pedia.open(key),
+    onPedia: pedia.open,
     terrainLinks: pediaTerrainLinks,
     onState: (idx) => selectState(idx, { fly: true }),
     onCity: (city) => selectCity(city, { fly: true }),
@@ -604,7 +556,6 @@ async function main() {
     if (!city) return clearSelection();
     state.selectedCity = city;
     state.selectedState = null;
-    state.selectedDistrict = null;
     app.panels.city(city, panelCtx());
     if (fly && city.cell != null) focusCity(city);
     announce(`${city.name} selected. ${city.full || ""}`);
@@ -615,36 +566,16 @@ async function main() {
     if (idx == null || !w.raw.states[idx]) return clearSelection();
     state.selectedCity = null;
     state.selectedState = idx;
-    state.selectedDistrict = null;
     app.panels.state(idx, { ...panelCtx(), cell });
     if (fly) focusState(idx);
     announce(`${stateName(idx)} selected.`);
     afterSelect();
   }
 
-  function selectDistrict(idx, cell, approximate) {
-    state.selectedCity = null;
-    state.selectedState = null;
-    state.selectedDistrict = idx;
-    openDistrictPanel(idx, {
-      ...panelCtx(), cell, approximate, places: lensFile.places, sources,
-      cityById, wonders: wonders?.wonders || [], resources,
-      onWonder: (id) => app.openWonder?.(id),
-      onCompare: app.hasMode("advisor") ? (geoid) => {
-        clearSelection();
-        app.setMode("advisor", { id: "explorer", level: "counties", row: geoid });
-      } : null,
-    });
-    if (isMobile()) flyToVisible(w.grid.cx(cell), w.grid.cy(cell), cam.scale);
-    announce(`${w.raw.counties[idx].name} selected.`);
-    afterSelect();
-  }
-
   function clearSelection() {
-    const had = state.selectedCity || state.selectedState != null || state.selectedDistrict != null;
+    const had = state.selectedCity || state.selectedState != null;
     state.selectedCity = null;
     state.selectedState = null;
-    state.selectedDistrict = null;
     app.panels.close();
     if (had) announce("Selection closed.");
     afterSelect();
@@ -652,7 +583,6 @@ async function main() {
 
   let lastSelSig = "";
   function afterSelect() {
-    selectionRequest++;
     hideTooltip();
     describeCanvas();
     requestDraw();
@@ -680,86 +610,24 @@ async function main() {
     const name = t.toLowerCase().replace(/[_+]/g, " ");
     return w.raw.states.findIndex((st, i) => (states?.[i]?.name || st.name || "").toLowerCase() === name);
   }
-  function pediaLink(key, label) {
-    return key ? `<a href="${esc(url.href(key))}" data-pedia-route="${esc(key)}">${esc(label)}</a>` : "";
+  function pediaLink(page, label) {
+    return page ? `<a href="#" data-pedia-route="${esc(page)}">${esc(label)}</a>` : "";
   }
 
   function pediaTerrainLinks(cell) {
     if (cell == null || cell < 0) return [];
     const fields = [
-      [w.base ? "base" : "cover", [w.base?.[cell] ?? w.cover?.[cell]]],
-      ["relief", w.water[cell] ? [] : [w.relief[cell]]],
-      ["features", pedia.featuresAt(cell)],
-      ["water", w.base ? [] : [w.water[cell]]],
+      [w.base ? "base" : "cover", w.base?.[cell] ?? w.cover?.[cell]],
+      ["relief", w.water[cell] ? null : w.relief[cell]],
+      ["water", w.base ? null : w.water[cell]],
     ];
-    return fields.flatMap(([field, ids]) => ids.map((id) => w.tables[field].find((row) => row.id === id))
-      .filter(Boolean).map((row) => pediaLink(terrainRoute(field, row), row.name))).filter(Boolean);
-  }
-
-  function openTileAlmanacPanel(cell) {
-    const links = pediaTerrainLinks(cell);
-    if (!links.length) return;
-    clearSelection();
-    showPanel({
-      kind: "tile", title: "Terrain", stripe: "#c9a45c",
-      sections: [{ title: "Read this tile", html: links.join(" · ") }],
-      onClose: clearSelection, onPedia: pedia.open, pediaRoute: "terrain/index", pediaLink,
-    });
-  }
-
-  function openResourcePanel(item) {
-    const type = w.resources.typeById.get(item.type);
-    if (!type) return;
-    clearSelection();
-    const key = `resource/${type.id}`;
-    showPanel({
-      kind: "resource", title: item.name || type.name, stripe: type.color || "#c9a45c",
-      sections: [{ title: type.name, html: `<p>${esc(item.detail || "")}</p><p>${esc(item.period || "")}</p>` }],
-      onClose: clearSelection, onPedia: pedia.open, pediaRoute: key, pediaLink,
-    });
-  }
-
-  function showPediaTarget(target) {
-    const point = (x, y) => flyToVisible(x, y, Math.min(cam.maxScale, Math.max(cam.scale, 4.5)));
-    switch (target.kind) {
-      case "state": selectState(stateIndex(w, target.id), { fly: true }); break;
-      case "city": selectCity(target.row); break;
-      case "wonder":
-        if (app.openWonder) app.openWonder(target.row.id);
-        else { clearSelection(); point(target.row.x, target.row.y); }
-        break;
-      case "resource":
-        app.setShowResources(true);
-        app.setResourceFilter(null);
-        resourceGroup.value = "";
-        openResourcePanel(target.row);
-        point(target.row.x, target.row.y);
-        break;
-      case "lens": app.setLens(target.id); break;
-      case "cell":
-        app.setLens(null);
-        clearSelection();
-        point(w.grid.cx(target.cell), w.grid.cy(target.cell));
-        break;
-      case "protected":
-        ui.setMapToggle("protected", true);
-        if (target.point) point(...target.point);
-        break;
-      case "rail":
-        ui.setMapToggle("rail", true);
-        if (target.point) point(...target.point);
-        break;
-      case "trade": ui.setMapToggle("trade", true); break;
-      case "point":
-        clearSelection();
-        point(...target.point);
-        break;
-    }
+    const labels = fields.map(([field, id]) => w.tables[field].find((row) => row.id === id)?.name);
+    return [...labels, ...(almanac?.cell_features?.[cell] || [])]
+      .filter(Boolean).map((label) => pediaLink("Terrain", label));
   }
 
   let stateHashRef = null; // {idx, raw}: the form of the #state value the current selection came from
   const url = createHashState({
-    onHistory: pedia.setHistory,
     // A flight is not "busy": read() reports its destination. Pans and wheel zooms are, until they settle.
     busy: () => cam.moving && !cam.flight && !held.size,
     read() {
@@ -768,8 +636,7 @@ async function main() {
           state: stateHashRef && stateHashRef.idx === state.selectedState ? stateHashRef.raw : w.raw.states[state.selectedState]?.fips,
         } : {};
       return {
-        lens: (pendingLens?.lens || state.lens)?.id || null,
-        pedia: pedia.route,
+        lens: state.lens?.id || null,
         ...sel,
         // at = [x km, y km, log2(scale / home-fit scale)]; during a flight, where it will land.
         at: userMoved ? (cam.flight ? [cam.flight.x1, cam.flight.y1, Math.log2(cam.flight.s1 / fitScale())]
@@ -778,7 +645,8 @@ async function main() {
     },
     apply(p, { initial }) {
       const lens = p.lens ? lensById.get(p.lens) || null : null;
-      pickLens(lens);
+      if (lens !== state.lens || state.band) setLens(lens);
+      if (lens) dock.remember(lens.id);
       const city = p.city ? cities.find((c) => c.id === p.city) : null;
       const sIdx = p.state ? stateFromHash(p.state) : -1;
       stateHashRef = sIdx >= 0 ? { idx: sIdx, raw: p.state } : null;
@@ -803,7 +671,6 @@ async function main() {
         cam.flyTo(h.x, h.y, h.s, 650);
         userMoved = false;
       }
-      pedia.apply(p.pedia, { restore: !initial });
       requestDraw();
     },
   });
@@ -822,11 +689,10 @@ async function main() {
   document.querySelector(".search-kbd")?.setAttribute("title", "Press / or Ctrl K to search");
 
   const search = initSearch({
-    cities, wonders: wonders?.wonders,
+    cities,
     states: w.raw.states.map((s, i) => ({ name: states?.[i]?.name || s.name, abbr: s.abbr, population: states?.[i]?.population })),
     onPick(r) {
       if (r.kind === "city") selectCity(r.city, { fly: true });
-      else if (r.kind === "wonder") app.openWonder?.(r.wonder.id);
       else selectState(r.index, { fly: true });
     },
   });
@@ -944,7 +810,7 @@ async function main() {
     c.fillRect(0, 0, W, H);
   }
 
-  const sourceById = new Map();
+  const sourceById = new Map(sources.map((source) => [source.id, source]));
   function shareCredit(id) {
     const source = sourceById.get(id);
     return source ? [source.publisher, source.title, source.license?.split(/\. | \(/)[0]].filter(Boolean).join(", ") : "";
@@ -967,13 +833,12 @@ async function main() {
     resourceCredits: resourceShareCredits(),
     layerCredits: [
       app.mapArt?.on.wonders && "Wonders: IndiaCiv inventory (CC BY-SA 4.0) · UNESCO, ASI, Ramsar, Wikidata, Wikipedia, OpenStreetMap and Smithsonian GVP",
-      staticLayers.some((layer) => layer.id === "india-trade" && layerActive(layer, cam.scale * w.grid.R))
+      staticLayers.some((layer) => layer.id === "trade" && layerActive(layer, cam.scale * w.grid.R))
         && [shareCredit("mopsw_coastal_cargo"), shareCredit("pib_dfc_completion")].filter(Boolean).join(" · "),
       staticLayers.some((layer) => layer.id === "protected" && layerActive(layer, cam.scale * w.grid.R))
         && "Protected land: Convention on Wetlands RSIS (CC BY 4.0), WII, NTCA, Wikidata and © OpenStreetMap contributors",
     ].filter(Boolean),
     lens: state.lens,
-    formatValue: (lens, t) => formatLensValue(lens, lensValueAt(lens, t)),
     selection: state.selectedCity ? { kind: "city", name: state.selectedCity.name }
       : state.selectedState != null ? { kind: "state", name: stateName(state.selectedState) } : null,
   });
@@ -1017,28 +882,18 @@ async function main() {
 
   // --- resources toggle + minimap toggle -------------------------------------------------------------------------
   const resBtn = document.getElementById("btn-res");
-  const resourceGroup = document.getElementById("resource-group");
-  const resourceSources = new Map();
+  const resourceSources = new Map(sources.map((source) => [source.id, source.title]));
   if (resBtn) {
     resBtn.hidden = !w.resources;
-    resourceGroup.hidden = !w.resources?.types.some((type) => type.resource_class);
     document.getElementById("lens-dock").hidden = !w.resources && !lensFile.lenses.length && !wonders;
     resBtn.innerHTML = `${icon("resources", "⛏️", { size: 15 })}<span>Resources</span>`;
     const sync = () => {
       resBtn.classList.toggle("active", state.showResources);
       resBtn.setAttribute("aria-pressed", String(state.showResources));
-      resourceGroup.disabled = !state.showResources;
     };
     resBtn.onclick = () => {
       state.showResources = !state.showResources;
       sync();
-      hideTooltip();
-      requestDraw();
-    };
-    resourceGroup.onchange = () => {
-      const group = resourceGroup.value;
-      const types = group ? w.resources.types.filter((type) => type.resource_class === group) : null;
-      state.resourceFilter = types ? { types: new Set(types.map((type) => type.id)) } : null;
       hideTooltip();
       requestDraw();
     };
@@ -1150,9 +1005,6 @@ async function main() {
       }
     }
     const resource = hitResource(mx, my);
-    if (!sources.length && (resource?.period || w.resources?.byCell.get(cell)?.some((item) => item.period))) {
-      loadData("sources");
-    }
     if (resource?.period && !city) showResourceTooltip(mx, my, w, resource, resourceSources);
     else if (tip != null && tip !== "") showHtmlTooltip(mx, my, tip);
     else if (city) showCityTooltip(mx, my, city, nation.yields?.find((yieldDef) => yieldDef.key === "gold"));
@@ -1240,7 +1092,6 @@ async function main() {
     const resource = hitResource(mx, my);
     clearTimeout(pendingTap);
     pendingTap = setTimeout(() => {
-      const request = ++selectionRequest;
       // Extensions (e.g. a mode) may take the click: a "mapclick" handler that returns true consumes it.
       const ev = {
         cell, city: city || null, resource, state: owner >= 0 ? owner : null, x: mx, y: my, pointerType: e.pointerType,
@@ -1258,21 +1109,12 @@ async function main() {
         }
       };
       if (!modes.mode && lh?.layer.id === "wonders" && layerClick()) return;
-      if (!modes.mode && resource) { openResourcePanel(resource); return; }
+      if (!modes.mode && resource) { pedia.open("Resources"); return; }
       if (!modes.mode && lh?.layer.id !== "wonders" && layerClick()) return;
       if (events.emit("mapclick", ev)) return;
       if (modes.mode && layerClick()) return;
       if (city) selectCity(city);
-      else if (owner >= 0 && !w.water[cell]) {
-        const mode = modes.mode;
-        Promise.all([loadData("lenses"), loadData("sources")]).then(() => {
-          if (request !== selectionRequest || mode !== modes.mode) return;
-          const mapped = w.raw.county[cell];
-          const district = mapped >= 0 ? mapped : lensFile.places?.district_fallbacks?.[cell];
-          if (w.raw.counties[district]) selectDistrict(district, cell, mapped < 0);
-          else selectState(owner, { fly: isMobile(), cell });
-        });
-      } else if (cell >= 0) openTileAlmanacPanel(cell);
+      else if (owner >= 0 && !w.water[cell]) selectState(owner, { fly: isMobile(), cell });
       else if (panelShown()) clearSelection();
     }, DOUBLE_MS);
     // A click changes what is on screen (a panel, a mode, a flight), so drop the tooltip until the pointer moves again.
@@ -1333,7 +1175,7 @@ async function main() {
   }
 
   window.addEventListener("keydown", (e) => {
-    if (e.defaultPrevented || pedia.isOpen) return;
+    if (e.defaultPrevented) return;
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if ((e.metaKey || e.ctrlKey) && !e.altKey && k === "k") {
       e.preventDefault();
@@ -1347,9 +1189,6 @@ async function main() {
     if (k === "/") {
       e.preventDefault();
       search.focus();
-    } else if (k === "w" && app.mapArt) {
-      e.preventDefault();
-      if (!e.repeat) ui.setMapToggle("wonders", !app.mapArt.on.wonders);
     } else if (PAN_KEYS[k] && !(k.startsWith("Arrow") && ownsArrows(e.target))) {
       e.preventDefault();
       held.add(k);
@@ -1359,7 +1198,7 @@ async function main() {
     else if (k === "l") {
       const all = [null, ...lensFile.lenses];
       const step = e.shiftKey ? -1 : 1;
-      pickLens(all[(all.indexOf(pendingLens?.lens || state.lens) + step + all.length) % all.length]);
+      setLens(all[(all.indexOf(state.lens) + step + all.length) % all.length]);
     } else if (k === "r" && w.resources) resBtn?.click();
   });
   window.addEventListener("keyup", (e) => {
@@ -1374,30 +1213,12 @@ async function main() {
   // The `app` object handed to ext/*/install(app) and exposed as window.__app. See the README of this API in
   // app/api.js and the summary below; names here are a stable contract with the extensions in ext/.
   const dataLoads = new Map(); // name → Promise<data | null>
+  dataLoads.set("sources", Promise.resolve(sources));
+  dataLoads.set("lenses", Promise.resolve(lensFile));
   function loadData(name) {
     if (!DATA_NAME.test(String(name))) return Promise.reject(new Error(`loadData: bad name "${name}"`));
     if (!dataLoads.has(name)) {
       dataLoads.set(name, loadJSON(name, true).then((d) => {
-        if (name === "lenses" && d) {
-          for (const row of d.lenses) {
-            const lens = lensById.get(row.id);
-            if (lens) lens.values = decodeLensValues(row.values, world.owner.length);
-          }
-          Object.assign(lensFile, { places: d.places, disasters: d.disasters });
-          d = lensFile;
-        }
-        if (name === "sources" && d) {
-          for (const source of d) {
-            sourceById.set(source.id, source);
-            resourceSources.set(source.id, source.title);
-          }
-          sources.push(...d);
-          d = sources;
-        }
-        if (!d && (name === "lenses" || name === "sources")) {
-          dataLoads.delete(name);
-          return null;
-        }
         app.data[name] = d ?? null;
         events.emit("data", { name, data: app.data[name] });
         return app.data[name];
@@ -1475,7 +1296,9 @@ async function main() {
     clearSelection,
     setLens(ref) {
       const lens = ref == null ? null : typeof ref === "string" ? lensById.get(ref) || null : ref;
-      return pickLens(lens);
+      if (lens !== state.lens) setLens(lens);
+      else if (state.band) setBand(null);
+      if (lens && !modes.mode) dock.remember(lens.id);
     },
     setBand,
     flyTo(x, y, scale = cam.scale, ms = 750) { flyToVisible(x, y, scale, ms); },
@@ -1517,17 +1340,7 @@ async function main() {
   dock.render(null, null);
   url.applyCurrent(true); // after the home fit, so "at" zoom is relative to it
   document.getElementById("loading").remove();
-  const welcome = document.getElementById("welcome");
-  const welcomeKey = "indiaciv.welcomeDismissed";
-  let welcomeDismissed = false;
-  try { welcomeDismissed = localStorage.getItem(welcomeKey) === "1"; } catch { /* storage is optional */ }
-  welcome.hidden = welcomeDismissed || !!location.hash || new URLSearchParams(location.search).has("credits");
-  welcome.querySelector("button").onclick = () => {
-    welcome.hidden = true;
-    try { localStorage.setItem(welcomeKey, "1"); } catch { /* storage is optional */ }
-    canvas.focus({ preventScroll: true });
-  };
-  if (!pedia.route && new URLSearchParams(location.search).has("credits")) pedia.open("source/index");
+  if (new URLSearchParams(location.search).has("credits")) pedia.open("Sources");
   installExtensions(app);
 }
 

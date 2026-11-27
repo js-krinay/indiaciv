@@ -5,6 +5,23 @@ from pipeline.build import lenses
 
 
 class CityLensesTest(unittest.TestCase):
+    def test_old_population_keeps_its_period_and_cannot_supply_2026_growth(self):
+        older = {"period": "Census 2011", "vintage": "older"}
+        cities = [{"population": 500_000, "projected_growth": 0.02, "footprint": [0, 2],
+                   "provenance": {"population": older, "projected_growth": older}}]
+        population, growth = lenses.city_lenses(cities, 4)
+        self.assertEqual(growth["values"], [None] * 4)
+        self.assertEqual(population["values"][2], 500_000)
+        self.assertEqual(population["cell_details"]["2"], older)
+
+    def test_checker_rejects_growth_values_from_older_city(self):
+        cities = [{"id": "old", "footprint": [0], "population": 100,
+                   "provenance": {"population": {"period": "Census 2011", "vintage": "older"}}}]
+        report = check.Report(quiet=True)
+        check.check_periods(report, {"cities.json": cities, "lenses.json": {
+            "lenses": [{"id": "city_growth", "values": [0.02]}]}})
+        self.assertTrue(report.failed)
+
     def test_city_values_cover_only_footprints(self):
         cities = [{"population": 500_000, "projected_growth": 0.02, "footprint": [0, 2]}]
         population, growth = lenses.city_lenses(cities, 4)

@@ -51,7 +51,7 @@ export function createEmitter() {
 
 // --- URL hash ----------------------------------------------------------------------------------------------------
 
-const CORE_KEYS = new Set(["lens", "city", "state", "at", "pedia"]);
+const CORE_KEYS = new Set(["lens", "city", "state", "at"]);
 const DEBOUNCE_MS = 350;
 
 /**
@@ -91,25 +91,13 @@ export function createHashState(opts) {
     if (!tail) return base;
     return base ? `${base}&${tail}` : `#${tail}`;
   };
-  const sig = (core, ex) => `${core.lens || ""}|${core.city || ""}|${core.state || ""}|${core.pedia || ""}|${ex.map((e) => e.join("=")).join("&")}`;
+  const sig = (core, ex) => `${core.lens || ""}|${core.city || ""}|${core.state || ""}|${ex.map((e) => e.join("=")).join("&")}`;
   const hashSig = (hash) => {
     const p = params(hash);
     const ex = [...extras.keys()].filter((k) => p.get(k)).map((k) => [k, p.get(k)]);
     return sig(parseHash(hash), ex);
   };
   let entrySig = hashSig(location.hash);
-  const session = Math.random().toString(36).slice(2);
-  let position = 0;
-  let lastPosition = 0;
-  let entryId = 0;
-  let lastEntryId = 0;
-  const historyData = () => ({ ...history.state, indiaCivHistory: { session, position, id: entryId } });
-  const directions = () => ({
-    back: position != null && position > 0,
-    forward: position != null && position < lastPosition,
-  });
-  try { history.replaceState(historyData(), ""); } catch { position = null; }
-  const notifyHistory = () => opts.onHistory?.(directions(), entryId);
 
   function write(force = false) {
     timer = 0;
@@ -125,19 +113,13 @@ export function createHashState(opts) {
     const url = location.pathname + location.search + (hash || "");
     const s = sig(core, ex);
     try {
-      if (s !== entrySig) {
-        const next = position == null ? 0 : position + 1;
-        const id = ++lastEntryId;
-        history.pushState({ ...history.state, indiaCivHistory: { session, position: next, id } }, "", url);
-        entryId = id;
-        lastPosition = position = next;
-      } else history.replaceState(historyData(), "", url);
+      if (s !== entrySig) history.pushState(null, "", url);
+      else history.replaceState(null, "", url);
     } catch {
       /* some sandboxes forbid history writes: the app still works, the link just doesn't update */
     }
     entrySig = s;
     lastWritten = location.hash;
-    notifyHistory();
   }
 
   function schedule() {
@@ -164,16 +146,10 @@ export function createHashState(opts) {
     }
     entrySig = hashSig(location.hash);
     lastWritten = location.hash;
-    notifyHistory();
   }
 
   const onNav = () => {
-    const marker = history.state?.indiaCivHistory;
-    const next = marker?.session === session ? marker.position : null;
-    const nextId = marker?.session === session ? marker.id : null;
-    if (location.hash === lastWritten && nextId === entryId) return;
-    position = next;
-    entryId = nextId;
+    if (location.hash === lastWritten) return;
     clearTimeout(timer);
     applyCurrent(false);
   };
@@ -210,13 +186,6 @@ export function createHashState(opts) {
       timer = setTimeout(() => write(), 0);
     },
     applyCurrent,
-    get entryId() { return entryId; },
-    href(pedia) {
-      return format({ ...opts.read(), pedia }, readExtras()) || location.pathname + location.search;
-    },
-    travel(direction) {
-      if (direction === -1 && directions().back || direction === 1 && directions().forward) history.go(direction);
-    },
     register,
     flush() {
       clearTimeout(timer);
@@ -512,8 +481,7 @@ export function createMapToggles({ dock, after, area, hash, onChange }) {
     pop.innerHTML = `<div class="ml-head">Map layers</div>` + list.map((t) => {
       const on = isOn(t);
       return `<button type="button" class="ml-row${on ? " on" : ""}" role="menuitemcheckbox" aria-checked="${on}" data-toggle="${esc(t.id)}"
-        ${t.title ? `title="${esc(t.title)}"` : ""}><span class="ml-ic">${t.swatch
-          ? `<span class="${esc(t.swatch)}" aria-hidden="true"></span>` : glyph(t.icon, 16)}</span><span class="ml-lbl">${esc(t.label)}</span>
+        ${t.title ? `title="${esc(t.title)}"` : ""}><span class="ml-ic">${glyph(t.icon, 16)}</span><span class="ml-lbl">${esc(t.label)}</span>
         <span class="ml-switch" aria-hidden="true"></span></button>`;
     }).join("");
   }
@@ -534,9 +502,9 @@ export function createMapToggles({ dock, after, area, hash, onChange }) {
     return true;
   }
 
-  function add({ id, label, icon: ic = "", swatch, get, set, title = "", default: def } = {}) {
+  function add({ id, label, icon: ic = "", get, set, title = "", default: def } = {}) {
     if (!id || typeof get !== "function" || typeof set !== "function") throw new Error("addMapToggle({id, label, icon, get, set})");
-    const t = { id: String(id), label: label || String(id), icon: ic, swatch, title, get, set, def: false };
+    const t = { id: String(id), label: label || String(id), icon: ic, title, get, set, def: false };
     t.def = def === undefined ? isOn(t) : !!def;
     toggles.set(t.id, t);
     ensureDom();

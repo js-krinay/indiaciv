@@ -1,6 +1,6 @@
 import unittest
 
-from pipeline.build.trade import COASTAL_CARGO, PERIOD, sea_path
+from pipeline.build.trade import COASTAL_CARGO, PERIOD, route_document, sea_path
 from pipeline.core.hexgrid import HexGrid
 
 
@@ -20,3 +20,18 @@ class TradeTests(unittest.TestCase):
         self.assertTrue(set(path) <= sea)
         self.assertTrue(all(b in grid.neighbours(a) for a, b in zip(path, path[1:])))
         self.assertIsNone(sea_path(grid, {start, end}, start, {end}))
+
+
+    def test_trade_routes_keep_path_and_single_port_observation(self):
+        network = dict(**PERIOD, backbone=[1, 2, 3], corridors=["Eastern DFC"],
+                       branches=[dict(port_id="port", cells=[4, 5, 2], tonnes=1234)])
+        doc = route_document(network, [{"id": "port", "name": "Port"}], {"Eastern DFC": [9, 8, 7]})
+        backbone, port, rail = doc["routes"]
+        self.assertTrue(backbone["schematic"])
+        self.assertEqual(port["path"], [4, 5, 2])
+        self.assertEqual(port["tons_k"], 1.234)
+        self.assertEqual(port["period"], "1 Apr 2026 – 31 Oct 2026")
+        self.assertNotIn("a", port)
+        self.assertNotIn("b", port)
+        self.assertEqual(rail["path"], [9, 8, 7])
+        self.assertNotIn("tons_k", rail)

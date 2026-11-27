@@ -31,7 +31,9 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from .build import state_metrics
-from .build.cities import city_state_lookup, city_state_mismatches
+from .build.cities import city_state_lookup, city_state_mismatches, older_city_value
+from .build.lenses import city_lenses
+from .build.transport_statistics import AAI_JHARSUGUDA, OPERATOR_LOCALITIES
 from .core.geo import MapProjection
 from .core.paths import INTERIM, WEB_DATA
 from .india import DFC_COMPLETION_URL, ESTUARY_SOURCES, LOCAL_SOURCES, WUP_SOURCE
@@ -46,7 +48,7 @@ from .sources.resource_references import CROP_PERIOD, FIELD_CROPS, REFERENCES as
 
 LOCAL_IDS = {s.id for s in [*LOCAL_SOURCES, *CITY_PEOPLE_SOURCES, *CLUSTER_SOURCES,
                             *DISASTER_SOURCES, HOUSING_INFO, *WONDER_CREDITS]}
-REFERENCE_IDS = {s.id for s in [*ESTUARY_SOURCES, *RESOURCE_REFERENCES]}
+REFERENCE_IDS = {s.id for s in [*ESTUARY_SOURCES, *RESOURCE_REFERENCES]} | {AAI_JHARSUGUDA, OPERATOR_LOCALITIES}
 
 # Density lens total vs ACS county total. Tight because lenses.py uses the same
 # land-share formula, so this mainly catches dropped or double-counted people.
@@ -55,7 +57,7 @@ LENS_NULL_WARN = 0.05  # share of Indian cells with a null lens value
 CONUS_EXCLUDE = {"02", "15", "60", "66", "69", "72", "78"}  # AK, HI, territories
 
 REQUIRED = ["world.json", "cities.json", "nation.json", "sources.json"]
-OPTIONAL = ["states.json", "lenses.json", "resources.json", "counties.json"]
+OPTIONAL = ["states.json", "lenses.json", "resources.json", "counties.json", "military.json"]
 
 WATER_IDS = range(0, 4)
 RELIEF_IDS = range(0, 4)
@@ -273,8 +275,10 @@ def _check_econ(r: Report, what: str, obj: dict, yield_keys) -> None:
     y = obj.get("yields")
     if not isinstance(y, dict) or set(y) != set(yield_keys) or not all(v is None or is_num(v) for v in y.values()):
         r.fail(f"{what}: yields must have exactly {list(yield_keys)} with number|null values, got {y!r}"[:240])
-    if not isinstance(obj.get("jobs"), dict) or not all(v is None or is_num(v) for v in obj["jobs"].values()):
-        r.fail(f"{what}: jobs must be {{industry: number|null}}")
+    jobs = obj.get("jobs")
+    if "jobs" not in obj or (jobs is not None and (
+            not isinstance(jobs, dict) or not all(v is None or is_num(v) for v in jobs.values()))):
+        r.fail(f"{what}: jobs must be null or {{industry: number|null}}")
     for k in ("unemployment", "rent_burden"):
         v = obj.get(k)
         if is_num(v) and not 0 <= v <= 1:
@@ -351,13 +355,15 @@ def allowed_period(value):
 def allowed_part(part):
     if allowed_single(part):
         return True
-    if (match := re.search(r"\(([^()]*)\)$", part)) and allowed_single(match[1]):
+    if (match := re.fullmatch(r"([^()]*)\(([^()]*)\)", part)) and not re.search(r"\b\d{4}\b", match[1]) and allowed_single(match[2]):
         return True  # "<label> (<period>)"
     return allowed_single(re.sub(r"\s+[a-z][a-z ]*$", "", part))  # "<period> <label>"
 
 
 def allowed_single(value):
     value = re.sub(r"^(?:Projected for |Effective )", "", value)
+    if re.fullmatch(r"Reported \d{4}-\d{2}-\d{2}", value):
+        value = value.removeprefix("Reported ")
     if value in {"2026", "mid-2026", "2026 snapshot", "FY 2025-26"}:
         return True
     if match := re.fullmatch(r"(?:FY|[A-Za-z ]+ year) 2025[-–]26 \((.*)\)", value):
@@ -373,20 +379,72 @@ def allowed_single(value):
         return False
 
 
+def valid_older_period(value):
+    if not isinstance(value, str):
+        return False
+    if " · " in value:
+        return all(valid_older_period(part) for part in value.split(" · "))
+    if " to " in value and len(value.split(" to ")) == 2:
+        start, end = value.split(" to ")
+        if re.fullmatch(FULL_DATE, start) and re.fullmatch(FULL_DATE, end):
+            try:
+                return period_date(start) <= period_date(end) < date(2026, 1, 1)
+            except ValueError:
+                return False
+    if match := re.fullmatch(rf"FY (\d{{4}})[-–](\d{{2}}) \(({FULL_DATE})\s*[-–—]\s*({FULL_DATE})\)", value):
+        try:
+            year = int(match[1])
+            return (year < 2025 and (year + 1) % 100 == int(match[2])
+                    and period_date(match[3]) == date(year, 4, 1)
+                    and period_date(match[4]) == date(year + 1, 3, 31))
+        except ValueError:
+            return False
+    year_pattern = r"[12]\d{3}"
+    if re.search(r"\b(?:publish\w*|releas\w*|retriev\w*|accessed|updated|unknown|undated)\b", value, re.I):
+        return False
+    # A source/series label may precede a year, date or interval.
+    if not re.fullmatch(rf"[\w .,&/–—-]*\(?[\w .,&/–—-]*\b{year_pattern}\b[\d . /–—-]*\)?", value):
+        return False
+    years = [int(year) for year in re.findall(rf"\b{year_pattern}\b", value)]
+    if not years or max(years) >= 2026:
+        return False
+    for year, suffix in re.findall(rf"\b({year_pattern})\s*[-–—]\s*(\d{{2}})(?![\d-])", value):
+        end = int(year) // 100 * 100 + int(suffix)
+        if end < int(year):
+            end += 100
+        if end >= 2026:
+            return False
+    return True
+
+
 def check_periods(r: Report, docs: dict) -> None:
     """Validate observation periods, including optional outputs and nested records."""
     nation = docs.get("nation.json")
     india = isinstance(nation, dict) and "profile" in nation
 
-    def visit(value, path):
+    def visit(value, path, nested=False):
         if isinstance(value, dict):
+            older = value.get("vintage") == "older"
+            if older and not valid_older_period(value.get("period")):
+                r.fail(f"{path}.period: an older value needs its actual pre-2026 year")
             for key, period in value.items():
-                is_period = key == "period" or key.endswith("_period") or india and (
-                    key == "gdp_vintage" or key == "vintage" and path in {"nation.json", "lenses.json", "wonders.json"})
+                if older and key in {"vintage", "period"}:
+                    continue
+                if key == "period" and value.get("estimated") is True and isinstance(period, str):
+                    weights = value.get("input_weights")
+                    if (isinstance(weights, dict) and weights.get("vintage") == "older"
+                            and valid_older_period(weights.get("period"))):
+                        label = weights["period"].split(" (", 1)[0]
+                        period = period.removesuffix(f" · Mining and utilities use {label} weights")
+                observation_vintage = key == "vintage" and isinstance(period, str) and (india or nested)
+                is_period = (key == "period" or key.endswith("_period") or (india and key == "gdp_vintage")
+                             or observation_vintage)
+                if observation_vintage and allowed_part(period):
+                    continue
                 if is_period and period is not None and not allowed_period(period):
                     r.fail(f"{path}.{key}: period {period!r} does not qualify for 2026")
                 elif isinstance(period, (dict, list)):
-                    visit(period, f"{path}.{key}")
+                    visit(period, f"{path}.{key}", nested=True)
                 if india and key in {"year", "gdp_year"} and period not in (None, 2026):
                     r.fail(f"{path}.{key}: expected observation year 2026, got {period!r}")
                 if india and key == "growth_years" and period is not None and (
@@ -402,14 +460,29 @@ def check_periods(r: Report, docs: dict) -> None:
         elif isinstance(value, list):
             for i, item in enumerate(value):
                 if isinstance(item, (dict, list)):
-                    visit(item, f"{path}[{i}]")
+                    visit(item, f"{path}[{i}]", nested=True)
 
     failures = r.count("FAIL")
     for name, doc in docs.items():
         if name not in {"sources.json", "world.json"}:
             visit(doc, name)
+    cities = docs.get("cities.json")
+    city_rows = [row for row in cities if isinstance(row, dict)] if isinstance(cities, list) else []
+    older_cities = [c for c in city_rows if older_city_value(c, "growth")]
+    for city in older_cities:
+        if city.get("projected_growth") is not None:
+            r.fail(f"cities.json {city.get('id')}: older data cannot supply projected growth")
+    if older_cities:
+        lenses = (docs.get("lenses.json") or {}).get("lenses", [])
+        for lens in lenses:
+            values = lens.get("values") if isinstance(lens, dict) and lens.get("id") == "city_growth" else None
+            if isinstance(values, list) and all(isinstance(c.get("footprint"), list) and
+                    all(is_int(cell) and 0 <= cell < len(values) for cell in c["footprint"]) for c in city_rows):
+                expected = city_lenses(city_rows, len(values))[1]["values"]
+                if values != expected:
+                    r.fail("lenses.json city_growth: 2026 growth must exclude older observations")
     if r.count("FAIL") == failures:
-        r.ok("observation periods comply with the 2026 data rule")
+        r.ok("observation periods comply with the data period rule")
 
 
 def check_cities(r: Report, cities, ctx: dict | None, yield_keys=YIELD_KEYS) -> None:
@@ -473,8 +546,8 @@ def _check_city_view(r: Report, what: str, c: dict, ctx: dict | None, ids: set) 
         if owner and any(not 0 <= v < ctx["n"] or owner[v] < 0 for v in fp):
             r.fail(f"{what}: footprint has cells that are not Indian land")
     cs = c.get("counties")
-    if not (isinstance(cs, list) and all(isinstance(g, str) and re.fullmatch(r"\d{5}", g) for g in cs)):
-        r.fail(f"{what}: counties must be a list of 5-digit GEOID strings")
+    if not (isinstance(cs, list) and all(isinstance(g, str) and re.fullmatch(r"\d{2}-?\d{3}", g) for g in cs)):
+        r.fail(f"{what}: counties must be a list of district GEOID strings")
     ps = c.get("pop_series")
     if ps is not None and not (isinstance(ps, dict) and ps and all(re.fullmatch(r"\d{4}", str(y)) for y in ps)
                                and all(v is None or (is_num(v) and v > 0) for v in ps.values())):
@@ -496,6 +569,8 @@ def _check_city_view(r: Report, what: str, c: dict, ctx: dict | None, ids: set) 
 def _check_city_ranks(r: Report, cities: list, keys: list) -> None:
     """ranks: exactly `keys`; per key the non-null ranks are a permutation of 1..N, null exactly where the value is."""
     def value(c, k):
+        if older_city_value(c, k):
+            return None
         if "rank_counts" in c:
             if k == "gdp":
                 return c["yields"].get("gold")
@@ -771,8 +846,9 @@ def check_resources(r: Report, doc, ctx: dict | None, source_ids: set | None, ci
         if MILITARY_FACILITY.search(str(it["name"])) or it["type"] in {"uranium", "rare_earths"}:
             r.fail(f"resources.json: prohibited site {it['name']}")
         if "period" in it:
-            if not allowed_period(it["period"]):
-                r.fail(f"resources.json: {it['name']} needs a 2026 period")
+            valid = valid_older_period(it["period"]) if it.get("vintage") == "older" else allowed_period(it["period"])
+            if not valid:
+                r.fail(f"resources.json: {it['name']} needs a qualifying observation period")
             if source_ids is not None and it.get("source") not in source_ids:
                 r.fail(f"resources.json: {it['name']} has no registered item source")
             if ctx and ctx["owner"] and is_int(it["cell"]) and 0 <= it["cell"] < ctx["n"]:
@@ -915,8 +991,8 @@ def check_counties(r: Report, doc, ctx: dict | None, city_ids: set | None) -> No
                     errs[f"{k} not text"] += 1
             elif not is_num(v) or (fmt[k] == "pct" and not 0 <= v <= 1) or (k in ("population", "land_km2", "density") and v < 0):
                 errs[f"{k} out of range"] += 1
-        if not (isinstance(rec["geoid"], str) and re.fullmatch(r"\d{5}", rec["geoid"])):
-            errs["geoid not 5 digits"] += 1
+        if not (isinstance(rec["geoid"], str) and re.fullmatch(r"\d{2}-?\d{3}", rec["geoid"])):
+            errs["invalid district ID"] += 1
         if city_ids is not None and rec["cbsa"] is not None and rec["cbsa"] not in city_ids:
             errs["cbsa not a cities.json id"] += 1
     if errs:
@@ -926,7 +1002,51 @@ def check_counties(r: Report, doc, ctx: dict | None, city_ids: set | None) -> No
         if [row[cols.index("geoid")] for row in rows] != want:
             r.fail("counties.json: rows must be world.json counties, in the same order")
     if r.count("FAIL") == fails_before:
-        r.ok(f"counties.json: {len(rows)} counties × {len(cols)} columns ({doc['vintage']})")
+        r.ok(f"counties.json: {len(rows)} districts × {len(cols)} columns ({doc['vintage']})")
+
+
+def check_military(r: Report, doc) -> None:
+    from .build.military import PUBLIC_INDICATORS
+
+    what = "military.json"
+    if not need_keys(r, what, doc, ["national", "vintage", "sources"]):
+        return
+    national = doc["national"]
+    if (set(doc) - {"national", "states", "vintage", "sources"} or not isinstance(national, dict)
+            or set(national) - {"spending", "veterans", *PUBLIC_INDICATORS}):
+        r.fail(f"{what}: only approved public aggregates are permitted")
+        return
+    spending = national.get("spending", {})
+    if (not isinstance(spending, dict) or set(spending) - {"total", "pct_gdp"}
+            or any(not is_num(value) or value < 0 for value in spending.values())):
+        r.fail(f"{what}: spending must contain only the aggregate and its GDP share")
+        return
+    counts = [national["veterans"]] if "veterans" in national else []
+    states = doc.get("states", {})
+    if not isinstance(states, dict):
+        r.fail(f"{what}: state registrations must be keyed by state or UT")
+        return
+    for code, state in states.items():
+        if (not re.fullmatch(r"[A-Z]{2}", code) or not isinstance(state, dict)
+                or set(state) - {"veterans", "veterans_pct"} or "veterans" not in state
+                or ("veterans_pct" in state and not (is_num(state["veterans_pct"]) and 0 <= state["veterans_pct"] <= 1))):
+            r.fail(f"{what}: {code} may contain only public veteran registration totals and shares")
+            return
+        counts.append(state["veterans"])
+    if any(not is_int(count) or count < 0 for count in counts):
+        r.fail(f"{what}: registrations must be non-negative integer totals")
+        return
+    vintage, sources = doc["vintage"], doc["sources"]
+    if (not isinstance(vintage, dict) or set(vintage) - {"spending", "veterans", *PUBLIC_INDICATORS}
+            or any(not isinstance(value, str) for value in vintage.values())
+            or not isinstance(sources, list) or any(not isinstance(source, str) for source in sources)):
+        r.fail(f"{what}: invalid public aggregate provenance")
+        return
+    for key in set(PUBLIC_INDICATORS).intersection(national):
+        if not is_int(national[key]) or national[key] < 0 or not vintage.get(key, "").strip():
+            r.fail(f"{what}: {key} requires a non-negative integer total and an observation period")
+            return
+    r.ok(f"{what}: approved public aggregates only")
 
 
 def check_sources(r: Report, doc) -> set | None:
@@ -1315,7 +1435,16 @@ def run(web_dir: Path = WEB_DATA, interim_dir: Path = INTERIM, quiet: bool = Fal
             if (packed or catalog_path.exists()) and all(isinstance(row, dict) for row in rows):
                 catalog = _load(r, web_dir, catalog_path.name, True)
                 expected = {key: lens_doc.get(key) for key in ("vintage", "groups")}
+                if "recent" in lens_doc:
+                    expected["recent"] = lens_doc["recent"]
                 expected["lenses"] = [{k: v for k, v in row.items() if k != "values"} for row in rows]
+                if ctx:
+                    for row, expected_row in zip(rows, expected["lenses"], strict=True):
+                        if row.get("id") == "density":
+                            try:
+                                expected_row["values"] = decode_lens_values(row.get("values"), ctx["n"])
+                            except ValueError:
+                                pass  # check_lenses reports invalid grids
                 if catalog != expected:
                     r.fail("lens_catalog.json: metadata must match lenses.json")
                 else:
@@ -1325,6 +1454,8 @@ def run(web_dir: Path = WEB_DATA, interim_dir: Path = INTERIM, quiet: bool = Fal
         check_resources(r, docs["resources.json"], ctx, source_ids, city_ids)
     if docs["counties.json"] is not None:
         check_counties(r, docs["counties.json"], ctx, city_ids)
+    if docs["military.json"] is not None:
+        check_military(r, docs["military.json"])
     check_growth(r, docs)
     check_periods(r, docs | {path.name: _load(r, web_dir, path.name, False)
                              for path in web_dir.glob("*.json") if path.name not in docs})

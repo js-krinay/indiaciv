@@ -36,15 +36,15 @@ SUBDIVISION_ALIASES = {
 }
 
 
-def aqi_summary(rows):
+def aqi_summary(rows, start=START, end=END):
     daily = {}
     for stamp, aqi, *_ in rows:
         day = date.fromisoformat(stamp)
-        if START <= day <= END and type(aqi) is int and 0 <= aqi <= 500:
+        if start <= day <= end and type(aqi) is int and 0 <= aqi <= 500:
             if day in daily and daily[day] != aqi:
                 raise ValueError(f"Conflicting AQI for {day}")
             daily[day] = aqi
-    if len(daily) >= MIN_DAYS:
+    if len(daily) >= (4 * ((end - start).days + 1) + 4) // 5:
         return {"days": len(daily), "poor": sum(aqi >= 201 for aqi in daily.values())}
     return None
 
@@ -99,13 +99,19 @@ def station_key(name):
 
 def prepare_aqi(path):
     cities = []
+    monthly = []
     with ZipFile(path) as archive:
         for name in archive.namelist():
             entry = json.loads(archive.read(name))
             summary = aqi_summary(entry["days"])
             if summary is not None:
                 cities.append({"city": entry["city"], "state": entry["state"], **summary})
-    return {"cities": cities}
+            elif (entry["city"], entry["state"]) == ("Madurai", "Tamil Nadu"):
+                january = aqi_summary(entry["days"], START, date(2026, 1, 31))
+                if january is not None:
+                    monthly.append({"city": entry["city"], "state": entry["state"], **january,
+                                    "calendar_days": 31, "period": "1 Jan 2026 – 31 Jan 2026", "vintage": "2026 observed"})
+    return {"cities": cities, "monthly": monthly}
 
 
 def prepare_pm25(path, stations_path):

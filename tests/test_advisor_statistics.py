@@ -2,13 +2,44 @@ import unittest
 from pathlib import Path
 
 from pipeline.__main__ import helper_files
-from pipeline.build import states
+from pipeline.build import catalog, states
 from pipeline.build.advisor_statistics import civic_offices_in_footprint, national_statistics, veteran_estimate
 from pipeline.india import advisor_sources
 from pipeline.india.city_labour import broad_industry
 
 
 class AdvisorStatisticsTests(unittest.TestCase):
+    def test_generated_columns_label_their_periods_and_keep_zero(self):
+        records = states.advisor_columns(None, {
+            "unloaded": 1, "loaded": 0, "period": "FY 2024-25 (1 Apr 2024 – 31 Mar 2025)",
+            "vintage": "older", "source_id": "mopsw_basic_ports_2025",
+        })
+        self.assertEqual(records["port_loaded"]["value"], 0)
+        self.assertEqual(records["port_loaded"]["vintage"], "older")
+        self.assertEqual(records["port_loaded"]["source"], "mopsw_basic_ports_2025")
+        self.assertEqual(states.advisor_columns(None, None), {})
+
+    def test_state_power_total_only_includes_generating_capacity(self):
+        summary = {
+            "solar": {"unit": "MW", "value": 150, "count": 4},
+            "coal_plant": {"unit": "MW", "value": 410, "count": 3},
+            "gas_plant": {"unit": "MW", "value": None},
+            "coal_mine": {"unit": "Mt/yr", "value": 12},
+        }
+        result = states.power_summary(summary)
+        self.assertEqual(result["total"], 560)
+        self.assertEqual(result["by_type"], {"solar": 150, "coal_plant": 410})
+        self.assertEqual(result["sites"], {"solar": 4, "coal_plant": 3})
+        self.assertIsNone(states.power_summary({}))
+
+    def test_almanac_carries_national_veteran_grant(self):
+        stats = national_statistics({}, 1_400_000_000, 340_000_000_000_000)
+        grant = stats["veteran_penury_grant"]
+        source = next(source for source in advisor_sources.SOURCES if source.id == grant["source"])
+        entry = catalog.release_credits(source.to_dict())
+        self.assertIn(f"₹{grant['value']:,} per month", entry["description"])
+        self.assertIn(grant["period"], entry["description"])
+
     def test_curated_source_updates_invalidate_state_build(self):
         self.assertIn(Path(advisor_sources.__file__), helper_files(Path(states.__file__)))
 

@@ -86,34 +86,3 @@ export function emblem(adv, size = 48, title = "") {
     ${g}
   </svg>`;
 }
-
-// Fictional advisor portraits drawn for the India council, with distinct clothing and silhouettes.
-const PORTRAITS = {
-  economy: ["#a35b3d", "#8e4938", "M16 32V22q0-12 16-12 16 0 16 14v8l-5-8-4-3q-10 7-22 6Z", "M15 52l13 10L16 67H6Z"],
-  people: ["#b9724a", "#935146", "M15 39V26q-1-16 17-16 19 0 18 17v17l-8-6V23q-9 6-20 6v12Z", "M44 50 31 64v3h16l9-12Z"],
-  prosperity: ["#935231", "#39766d", "M14 38V25q0-16 18-16 17 0 18 16v15l-7-4-2-11-10-7-10 11-1 9Z", "M17 51 38 67H21L8 55Z"],
-  land: ["#af633c", "#657849", "M16 33v-8q0-13 16-13 15 0 16 13v7l-5-5-4-7-8 6-10 1Z", "M25 48 34 54l-8 13h-8l5-15Z"],
-  energy: ["#bd7a50", "#8c592e", "M15 35V23q0-13 16-13 17 0 17 14v10l-7-10q-12 4-22 0l1 11Z", "M43 48 34 61l7 6h11Z"],
-  commerce: ["#9e5d37", "#336575", "M16 32v-8q0-10 9-13 15-6 23 8v13l-5-8-13-5-9 9v5Z", "M16 53l16 14H15L7 61Z"],
-  culture: ["#b46e47", "#87436a", "M14 38V26q0-17 18-17 18 0 18 17v17l-8-7V25q-8 0-13-8-2 11-9 13v9Z", "M45 50 29 67H18l19-18Z"],
-};
-
-export function portrait(adv) {
-  const [skin, cloth, hair, sash] = PORTRAITS[adv.id];
-  return `<svg class="adv-portrait" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
-    <defs><clipPath id="adv-portrait-${adv.id}"><circle cx="32" cy="32" r="28"/></clipPath></defs>
-    <circle cx="32" cy="32" r="31" fill="#bd934e"/>
-    <g clip-path="url(#adv-portrait-${adv.id})">
-      <path fill="#192733" d="M0 0h64v64H0z"/>
-      <circle cx="32" cy="28" r="21" fill="${adv.color}" opacity=".28"/>
-      <path d="M5 67c2-11 10-17 21-19l2-8h8l2 8c11 2 19 8 21 19Z" fill="${cloth}"/>
-      <path d="M27 41h10v8q-5 8-10 0z" fill="${skin}"/>
-      <path d="M18 24q0-10 14-10 14 0 14 10v10q-3 13-14 13-11 0-14-13Z" fill="${skin}"/>
-      <path d="${hair}" fill="#261d1b"/>
-      <path d="M23 32h4m10 0h4m-11 8q2 1 4 0" stroke="#33201b" stroke-width="1.2" stroke-linecap="round" fill="none"/>
-      <path d="m33 33 1 4h-2" stroke="#603e29" fill="none" stroke-width="1"/>
-      <path d="${sash}" fill="#e1bd75" opacity=".8"/>
-    </g>
-    <circle cx="32" cy="32" r="28" fill="none" stroke="#785727"/>
-  </svg>`;
-}

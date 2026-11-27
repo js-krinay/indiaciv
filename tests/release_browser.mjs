@@ -39,6 +39,43 @@ try {
       await page.locator("#loading").waitFor({ state: "hidden" });
       await page.waitForFunction(() => window.__app?.extensions?.length === 3);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      await page.evaluate(() => window.__app.advisors.open("commerce"));
+      const rankedPorts = page.getByRole("list", { name: "Busiest ports", exact: true });
+      await rankedPorts.getByRole("listitem").first().waitFor();
+      assert.deepEqual(await rankedPorts.getByRole("listitem").evaluateAll((rows) =>
+        rows.map((row) => row.dataset.key)), await page.evaluate(() =>
+        window.__app.data.infrastructure.ports.filter((port) =>
+          port.rank != null && port.period === window.__app.data.infrastructure.vintage.ports
+        ).map((port) => "p" + port.id)));
+      assert.equal(await page.evaluate(() =>
+        window.__app.data.infrastructure.ports.some((port) =>
+          port.id === "dhamra" && port.tons === 46081000 && port.vintage === "older")), true);
+      await page.locator(".adv-close").click();
+      const economy = await page.evaluate(() => {
+        const { nation } = window.__app.data;
+        return {
+          servicesShare: nation.nation.jobs.services / nation.nation.employed,
+          stockServicesGDP: nation.nation.gdp_by_industry?.services ?? null,
+          publishedServicesGVA: nation.national_gva.values.services,
+        };
+      });
+      assert.ok(Math.abs(economy.servicesShare - 0.335) < 1e-8);
+      assert.equal(economy.stockServicesGDP, null);
+      assert.equal(economy.publishedServicesGVA, 170847040000000);
+      await page.evaluate(() => {
+        const app = window.__app;
+        return app.cityView.open(app.data.cities.find((city) => city.city_view));
+      });
+      await page.locator(".cv-dock .cv-tabs").waitFor({ state: "visible" });
+      await page.waitForFunction(() => ["citizens", "counties", "districts"].every((name) => window.__app.data[name]));
+      assert.deepEqual(await page.locator(".cv-tabs [data-tab]").evaluateAll((tabs) =>
+        tabs.map((tab) => tab.dataset.tab)), ["citizens", "districts", "economy", "workforce", "resources", "compare"]);
+      await page.locator(".cv-close").click();
+      await page.evaluate(() => window.__app.advisors.open("military"));
+      await page.locator(".adv-body").getByText("Union defence allocation", { exact: true }).waitFor();
+      await page.evaluate(() => window.__app.advisors.open("culture"));
+      await page.getByRole("table", { name: "Documented hazard events" }).waitFor();
+      await page.locator(".adv-close").click();
       await page.locator("#btn-pedia").click();
       await page.locator("#pedia").waitFor({ state: "visible" });
       await page.waitForFunction(() => window.__app?.data.sources?.length > 0);

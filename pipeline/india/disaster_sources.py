@@ -7,7 +7,8 @@ PERIOD = "1 Jan – 27 Nov 2026"
 COVERAGE = (
     "Selected documented 2026 events. Earthquake counts use the NCS January–October lists for epicentres "
     "of magnitude 5.0 or higher. Cyclone counts include "
-    "documented landfall and observed weather. Districts are mapped to atlas boundaries. "
+    "documented landfall and observed weather. The May Uttar Pradesh thunderstorm uses districts "
+    "confirmed by the state damage report reproduced by IMD. Districts are mapped to atlas boundaries. "
     "Coverage varies by type and area."
 )
 IMD = "https://mausam.imd.gov.in/"
@@ -48,6 +49,11 @@ tizit = source("nagaland_tizit_flood_20260719", "Tizit flooding",
                "Nagaland Department of Information & Public Relations",
                "https://ipr.nagaland.gov.in/index.php/incessant-rainfall-causes-flood-like-situation-in-tizit",
                "Nagaland DIPR release of 19 July 2026.")
+up_storm = source("imd_up_storm_20260513", "Uttar Pradesh thunderstorm of 13 May 2026",
+                  "India Meteorological Department and Uttar Pradesh State Disaster Management Authority",
+                  "https://internal.imd.gov.in/press_release/20260515_pr_4986.pdf",
+                  "14 May 2026 report, including the Uttar Pradesh SDMA damage report (Table 1). "
+                  "PDF SHA-256 486768e6d70f3e0f114fba1e96390c22177936ec284be03104c728f0e53c1d8d.")
 
 INCIDENTS[0].update(id="cyclone-arnab", start_date="2026-10-26", end_date="2026-10-28",
                     landfall_date="2026-10-28", districts=["28-545", "28-547"],
@@ -55,6 +61,15 @@ INCIDENTS[0].update(id="cyclone-arnab", start_date="2026-10-26", end_date="2026-
                     related_sources=[{"source": INCIDENTS[0]["source"], "url": INCIDENTS[0]["url"],
                                       "publisher": "Press Information Bureau"}], **arnab)
 INCIDENTS.extend([
+    # Table 1 names affected districts. Duplicate Varanasi entries count once.
+    # Sambhal has no equivalent district in the atlas's Census 2011 geography.
+    dict(id="up-thunderstorm-20260513", type="Thunderstorm", label="Uttar Pradesh thunderstorm",
+         start_date="2026-05-13", reported_on="2026-05-14", vintage="2026",
+         area="Uttar Pradesh districts identified in the state damage report",
+         districts=["09-135", "09-149", "09-150", "09-152", "09-153", "09-154", "09-155",
+                    "09-156", "09-158", "09-163", "09-172", "09-173", "09-174", "09-175",
+                    "09-176", "09-178", "09-180", "09-181", "09-182", "09-185", "09-190",
+                    "09-193", "09-196", "09-197", "09-198", "09-199", "09-200"], **up_storm),
     dict(id="cyclone-murasu", type="Cyclone", label="Cyclone Murasu", start_date="2026-11-01",
          end_date="2026-11-04", reported_on="2026-11-05", landfall_date="2026-11-03",
          districts=["28-549"], area="Landfall near Ongole", state_names=["Andhra Pradesh", "Telangana", "Andaman & Nicobar",

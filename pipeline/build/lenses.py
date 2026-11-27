@@ -18,26 +18,35 @@ from ..india import WUP_SOURCE
 from ..india.advisor_sources import HP_REGISTRATIONS, VETERAN_METHOD, VETERAN_PERIOD, VETERAN_POPULATION, VETERAN_SOURCES
 from ..india.city_conditions_sources import EVENTS
 from ..india.city_sources import DISTRICT_AGE_SOURCE
-from .advisor_statistics import veteran_population
+from ..india.census_work_sources import CULTIVATION_INTERIM
+from ..india.household_cost_sources import PILOT_INTERIM
+from ..india.historical_sources import VILLAGE_LAND_SOURCE
+from .advisor_statistics import veteran_columns, veteran_population
 from .air_weather import GROUP as WEATHER_GROUP, INPUTS as WEATHER_INPUTS, weather_lenses
 from .boundaries import nearest_state
 from .city_conditions import member_events
-from .disasters import COVERAGE, PERIOD, disaster_lenses, event_summary, index_events, inventory
+from .cities import older_city_value
+from .disasters import COVERAGE, PERIOD, advisor_definitions, disaster_lenses, event_summary, index_events, inventory
 from .district_values import district_sample_values, small_district_values
+from .historical_land import DENOMINATOR, ESRI_FIELDS, advisor_columns as land_columns
+from .hex_geography import AGE_META, DENSITY_META, fill_blanks, prepared_geography
+from ..india.city_sources import HEX_GEOGRAPHY
 from .projection import CITY_GROWTH_PERIOD, STATE_GROWTH_PERIOD, district_growth
 from .state_metrics import GROUPS as METRIC_GROUPS
 from .states import district_states, mapped_area
 
 REQUIRES = ["_world", "census_a01", "datameet", "tg_projections", "states.json", "cities.json",
-            "wonders.json", "resources.json", *WEATHER_INPUTS, "_state_metrics", VETERAN_POPULATION, DISTRICT_AGE_SOURCE]
+            "wonders.json", "resources.json", *WEATHER_INPUTS, "_state_metrics", VETERAN_POPULATION,
+            DISTRICT_AGE_SOURCE, PILOT_INTERIM]
 PRODUCES = ["lenses.json", "lens_catalog.json"]
+OPTIONAL_REQUIRES = [CULTIVATION_INTERIM, HEX_GEOGRAPHY, VILLAGE_LAND_SOURCE]
 
 SOURCE = "tg_projections"
 DISTRICT_POPULATION_SOURCES = ("census_a01", "datameet", SOURCE)
 PARTIAL_NOTE = "Every hex of a state shows the state's value. The seven smaller North-East states share one combined " \
                "projection; Goa, Ladakh and the smaller union territories have none."
 AGE_NOTE = "The seven smaller North-East states share one combined projection. WorldPop supplies age estimates for Goa " \
-           "and five union territories. Ladakh has no age data."
+           "and selected union territories."
 AGE_SOURCE_LINE = "Projected for 1 March 2026 (MoHFW) · 2026 estimate (WorldPop)"
 HEALTH_CREDIT = "IndiaCiv estimate for 2026 (interpolated from Technical Group projections)"
 FULL_NOTE = "Every hex of a state or union territory shows its value."
@@ -119,22 +128,45 @@ def city_lenses(cities: list[dict], size: int) -> list[dict]:
     lenses = []
     for lid, name, key, unit, fmt, scale, ramp, description in definitions:
         values = [None] * size
+        cell_details = {}
         # The biggest city supplies the tile's value if its banners share a tile.
         for city in reversed(cities):
+            older = older_city_value(city, key)
+            if key == "projected_growth" and older:
+                continue
+            meta = (city.get("provenance") or {}).get(key)
             for cell in city["footprint"]:
-                values[cell] = city[key]
+                values[cell] = city.get(key)
+                if older and values[cell] is not None:
+                    cell_details[str(cell)] = meta
+                else:
+                    cell_details.pop(str(cell), None)
         limits = domain(values) if any(value is not None for value in values) else ([1, 10] if scale == "log" else [0, 1])
         lenses.append({
             "id": lid, "group": "cities", "name": name, "icon": "l-people", "emoji": "",
             "unit": unit, "format": fmt, "scale": scale, "domain": limits,
             "ramp": ramp, "higher_is": "neutral", "source": WUP_SOURCE,
             "period": CITY_GROWTH_PERIOD if key == "projected_growth" else "mid-2026",
-            "description": description, "note": "Values appear on city hexes only.", "values": values,
+            "description": description, "note": "Values appear on mapped city footprints.", "values": values,
         })
+        if cell_details:
+            lens = lenses[-1]
+            lens.update(cell_details=cell_details,
+                        description="Population of each urban agglomeration, labelled with its observation period.")
+            older_sources = {meta["source"] for meta in cell_details.values() if isinstance(meta.get("source"), str)}
+            if older_sources:
+                lens["sources"] = sorted({WUP_SOURCE, *older_sources})
+            periods = {meta["period"] for meta in cell_details.values() if isinstance(meta.get("period"), str)}
+            if len(periods) == 1 and len(cell_details) == sum(value is not None for value in values):
+                lens.update(vintage="older", period=next(iter(periods)))
+                if len(older_sources) == 1:
+                    lens["source"] = next(iter(older_sources))
     return lenses
 
 
 def build() -> None:
+    from .census_civic import advisor_columns, civic_lenses, civic_rows
+
     world = load_interim("_world")
     a01 = load_interim("census_a01")["districts"]
     dm = load_interim("datameet")
@@ -150,11 +182,21 @@ def build() -> None:
     density = []
     areas = []
     places = {}
+    civic = civic_rows("districts")
     hp_population = veteran_population("districts")
     try:
         district_ages = load_interim(DISTRICT_AGE_SOURCE)["districts"]
     except FileNotFoundError:
         district_ages = {}
+    pilot = load_interim(PILOT_INTERIM)["districts"]
+    try:
+        cultivation = load_interim(CULTIVATION_INTERIM)["districts"]
+    except FileNotFoundError:
+        cultivation = {}
+    try:
+        village_land = load_interim(VILLAGE_LAND_SOURCE)
+    except FileNotFoundError:
+        village_land = {}
     for d, geoid, k in zip(districts, world["counties"], homes):
         grow = district_growth(tg, states[k]["name"], d["state_code"])
         population = round(a01[geoid]["population"] * grow)
@@ -170,7 +212,25 @@ def build() -> None:
             "population": population, "area_km2": area,
             "density": density[-1], "center": center,
             "provenance": {"population": estimate, "density": estimate},
+            "historical_land": world.get("historical_land", {}).get("districts", {}).get(geoid),
         }
+        if geoid in civic:
+            places[geoid]["census_civic"] = civic[geoid]
+        if record := village_land.get(geoid):
+            places[geoid]["village_grazing"] = record
+        places[geoid]["advisor_columns"] = {
+            **advisor_columns(civic.get(geoid, {})),
+            **land_columns(places[geoid]["historical_land"], district=True),
+        }
+        if record := pilot.get(geoid):
+            places[geoid]["consumption_index"] = record["urban"]
+            places[geoid]["provenance"]["consumption_index"] = {
+                key: record[key] for key in ("source", "period", "vintage")
+            }
+        if record := cultivation.get(geoid):
+            places[geoid]["cultivation"] = {
+                key: record[key] for key in ("value", "source", "period", "vintage", "coverage")
+            }
         if geoid in district_ages:
             places[geoid]["median_age"] = district_ages[geoid]
             places[geoid]["provenance"]["median_age"] = {
@@ -180,6 +240,9 @@ def build() -> None:
             places[geoid]["registered_veterans"] = HP_REGISTRATIONS[geoid]
             if residents := hp_population.get(geoid):
                 places[geoid]["veteran_share"] = round(HP_REGISTRATIONS[geoid] / residents, 4)
+            places[geoid]["advisor_columns"].update(
+                veteran_columns(HP_REGISTRATIONS[geoid], places[geoid].get("veteran_share"), district=True)
+            )
         if events := member_events({geoid}, EVENTS):
             places[geoid]["hazards"] = events
 
@@ -187,6 +250,8 @@ def build() -> None:
     extra = small_district_values(owner, samples, grid, proj, districts, areas, density)
     dens = [None if v is None else round(v) for v in district_sample_values(owner, samples, density, extra)]
     lo, hi = domain(dens)
+    geography = prepared_geography(world)
+    density_details = fill_blanks(dens, geography.get("density", {}), DENSITY_META)
     lenses = [{
         "id": "density", "group": "people", "name": "Population", "icon": "l-people", "emoji": "👥",
         "unit": "people / km²", "format": "int", "scale": "log", "domain": [max(1, lo), hi],
@@ -200,6 +265,12 @@ def build() -> None:
         "note": "An estimate: every district of a state is assumed to grow at the state's projected rate.",
         "values": dens,
     }]
+    if density_details:
+        lenses[0]["cell_details"] = density_details
+        lenses[0]["sources"].append(DENSITY_META["source"])
+        lenses[0]["source_line"] += " · WorldPop gap estimates for mid-2026"
+        lenses[0]["note"] += (" Gap estimates divide area-weighted WorldPop population by Indian land area where "
+                              "valid pixels cover at least 80% of the land.")
 
     state_rows = json.loads((WEB_DATA / "states.json").read_text())
     veterans = [row.get("advisor_statistics", {}).get("registered_veterans") for row in state_rows]
@@ -220,6 +291,12 @@ def build() -> None:
     for lid, group, name, icon, unit, fmt, scale, ramp, higher, key, desc, note in STATE_LENSES:
         f = SCALE.get(key, 1)
         values = [None if o < 0 or profiles[o].get(key) is None else round(profiles[o][key] * f, 5) for o in owner]
+        details = {}
+        if key == "median_age":
+            for cell, o in enumerate(owner):
+                if o >= 0 and "median_age" in state_rows[o].get("provenance", {}):
+                    values[cell] = None
+            details = fill_blanks(values, geography.get("cell_age", {}), AGE_META)
         if not any(value is not None for value in values):
             continue
         lo, hi = domain(values)
@@ -233,6 +310,12 @@ def build() -> None:
             **({"source_line": AGE_SOURCE_LINE, "sources": [SOURCE, "worldpop_age"], "estimated": True}
                if key in AGE_KEYS else {}),
         })
+        if details:
+            lenses[-1]["cell_details"] = details
+            lenses[-1]["sources"].extend(sorted({record["source"] for record in details.values()}))
+            lenses[-1]["source_line"] += " · WorldPop hex estimates for mid-2026"
+            lenses[-1]["note"] += (" In raster-supported gaps, IndiaCiv pools WorldPop age counts over Indian land "
+                                   "and interpolates within the band containing the median.")
     cities = json.loads((WEB_DATA / "cities.json").read_text())
     wonders = json.loads((WEB_DATA / "wonders.json").read_text())["wonders"]
     resources = json.loads((WEB_DATA / "resources.json").read_text())["items"]
@@ -249,6 +332,31 @@ def build() -> None:
     lenses.extend(weather)
     groups = [{"id": "people", "name": "Districts"}, {"id": "states", "name": "States & UTs"},
               {"id": "cities", "name": "Cities"}, {"id": "health", "name": "Health"}]
+    for key, (_, name) in ESRI_FIELDS.items():
+        records = [(row.get("historical_land") or {}).get(key) for row in state_rows]
+        if not (example := next((row for row in records if row), None)):
+            continue
+        values = [records[o]["value"] if o >= 0 and not water and records[o] else None
+                  for o, water in zip(owner, world["water"])]
+        lenses.append({
+            **{k: example[k] for k in ("source", "period", "vintage")},
+            "id": "farmland" if key == "crop" else key, "group": "land", "name": name,
+            "icon": "l-amenities", "emoji": "",
+            "unit": "% of classified land samples", "format": "pct", "scale": "linear",
+            "domain": [0, 1], "ramp": ["#f3ebcf", "#8fac70", "#204a37"], "higher_is": "neutral",
+            "description": DENOMINATOR,
+            "note": "Each hex shows its state or union territory share. Sparse coverage means 30 to 99 valid samples. "
+                    "Water, clouds and nodata are excluded.",
+            "state_details": {str(i): {"coverage": f"Sparse · n = {record['samples']}"}
+                              for i, record in enumerate(records) if record and record["sparse"]},
+            "values": values,
+        })
+    if any(lens["group"] == "land" for lens in lenses):
+        groups.append({"id": "land", "name": "Land cover"})
+
+    if historical := list(civic_lenses(world, places, a01)):
+        groups.append({"id": "census_civic", "name": "Census civic measures"})
+        lenses.extend(historical)
     for key, definition in load_interim("_state_metrics")["definitions"].items():
         records = [st["metrics"].get(key) for st in state_rows]
         values = [None if o < 0 or water or records[o] is None else records[o]["value"]
@@ -259,6 +367,9 @@ def build() -> None:
         lo, hi = min(present), max(present)
         state_details = {str(i): {k: r[k] for k in ("estimated", "coverage") if r.get(k)}
                          for i, r in enumerate(records) if r and (r.get("estimated") or r.get("coverage"))}
+        for i, record in enumerate(records):
+            if record and record.get("vintage") == "older":
+                state_details.setdefault(str(i), {}).update(vintage="older", period=record["period"])
         sources = {r["source"] for r in records if r is not None}
         if denominator_source := definition.get("denominator_source"):
             sources.add(denominator_source)
@@ -281,14 +392,17 @@ def build() -> None:
     catalog = {
         "vintage": "Projected for 2026",
         "groups": groups,
-        "lenses": [{key: value for key, value in lens.items() if key != "values"} for lens in lenses],
+        "lenses": [{key: value for key, value in lens.items() if key != "values" or lens["id"] == "density"}
+                   for lens in lenses],
     }
+    catalog["recent"] = ["density", "state_density", "growth"]
     write_web("lens_catalog.json", catalog)
     write_web("lenses.json", {
         **catalog,
         "lenses": [{**lens, "values": encode(lens["values"])} for lens in lenses],
         "disasters": {
             "period": PERIOD, "coverage": COVERAGE, "events": events,
+            "advisor_fields": advisor_definitions(events, PERIOD, COVERAGE),
             "states": {key: event_summary(rows) for key, rows in state_events.items()},
             "districts": {key: event_summary(rows) for key, rows in district_events.items()},
         },

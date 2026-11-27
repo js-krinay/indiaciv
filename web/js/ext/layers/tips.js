@@ -1,8 +1,8 @@
 // Hover tooltips for the map-art layers (HTML strings; every data value is escaped). Each says where the number comes
 // from and the caveat that matters for it (FAF values are model estimates; bases have no published headcount; the
 // trade arc is a drawing aid; curated landmarks are an editorial pick).
-import { esc, compact, int, pct } from "../../format.js";
-import { FORT_KINDS, fortKind, WONDER_KINDS } from "../../render/art/sites.js";
+import { esc, compact, int, pct, periodLabel } from "../../format.js";
+import { WONDER_KINDS } from "../../render/art/sites.js";
 import { MODE_STYLE } from "../../render/art/improvements.js";
 import { wonderFactsHtml } from "../../ui/wonderFacts.js";
 
@@ -23,44 +23,21 @@ const HUB_NAME = { L: "Large hub", M: "Medium hub", S: "Small hub", N: "Nonhub p
 const PORT_TYPE = { coastal: "Coastal port", great_lakes: "Great Lakes port", inland: "Inland river port" };
 
 export const tips = {
-  transport({ kind, row, vintage }) {
-    const [, , , ref, name, network] = row;
-    const identity = [...new Set([name, ref].filter(Boolean))].join(" · ");
-    return [`<b>${esc(identity || (kind === "roads" ? "Highway" : "Railway"))}</b>`,
-      network && esc(network), muted(esc(`${vintage} · © OpenStreetMap contributors`))]
-      .filter(Boolean).join("<br>");
-  },
   port(p, m) {
-    if (p.category) {
-      const lines = [`<b>${esc(p.name)}</b>`, esc(p.category)];
-      const location = [p.city, p.state].filter(Boolean).join(", ");
-      if (location) lines.push(esc(location));
-      if (p.cargo) {
-        lines.push(`#${int(p.rank)} by cargo among major ports · ${esc(p.cargo.label)}`);
-        lines.push(`Overseas ${pct(p.cargo.foreign)} · Coastal ${pct(p.cargo.domestic)}`);
-        lines.push(muted(`${esc(p.cargo.status)} · Ministry of Ports, Shipping and Waterways`));
-      }
-      return lines.join("<br>");
-    }
     const yr = p.year ?? "";
     const lines = [
-      `<b>${esc(p.name)}</b> ${muted(`${esc(PORT_TYPE[p.type] || "Port")}, ${esc(p.state || "")}`)}`,
-      `#${esc(p.rank)} by tonnage · <b>${num(p.tons)}</b> short tons (${esc(yr)})`,
+      `<b>${esc(p.name)}</b> ${muted(esc([p.category || PORT_TYPE[p.type] || "Port", p.city, p.state].filter(Boolean).join(", ")))}`,
     ];
-    if (p.foreign != null || p.domestic != null) lines.push(`Foreign ${num(p.foreign)} · domestic ${num(p.domestic)}`);
-    if (p.imports != null || p.exports != null) lines.push(`Imports ${num(p.imports)} · exports ${num(p.exports)}`);
-    lines.push(muted("USACE principal ports; placed at the port area's centre (long river ports are approximate)."));
+    if (p.tons != null) lines.push(`${p.rank == null ? "" : `#${int(p.rank)} by cargo among major ports · `}<b>${num(p.tons)}</b> metric tonnes (${periodLabel(p) || esc(yr)})`);
+    if (p.foreign != null || p.domestic != null) lines.push(`Overseas ${num(p.foreign)} · coastal ${num(p.domestic)} metric tonnes`);
+    if (p.coastal_cargo?.tons != null) lines.push(`Coastal cargo · <b>${num(p.coastal_cargo.tons)}</b> metric tonnes (${periodLabel(p.coastal_cargo) || esc(p.coastal_cargo.year)}) · ${esc(p.coastal_cargo.status)}`);
+    if (p.overseas_direction) lines.push(`Overseas cargo · ${pct(p.overseas_direction.unloaded)} unloaded · ${pct(p.overseas_direction.loaded)} loaded · ${periodLabel(p.overseas_direction)}`);
+    if (p.source_id || p.overseas_direction) lines.push(muted([p.cargo?.status, "Ministry of Ports, Shipping and Waterways"].filter(Boolean).map(esc).join(" · ")));
     return lines.join("<br>");
   },
   airport(a) {
-    if (a.size) {
-      const size = a.size[0].toUpperCase() + a.size.slice(1);
-      const title = a.iata ? `${esc(a.iata)} · ${esc(a.name)}` : esc(a.name);
-      return [`<b>${title}</b>`, esc([a.city, a.state].filter(Boolean).join(", ")),
-        `${esc(size)} airport · ${muted("OurAirports · November 2026")}`].filter(Boolean).join("<br>");
-    }
     const lines = [`<b>${esc(a.id)} · ${esc(a.name)}</b> ${muted(esc([a.city, a.state].filter(Boolean).join(", ")))}`];
-    lines.push(a.hub ? esc(HUB_NAME[a.hub] || a.hub) : "All-cargo airport (not a primary passenger airport)");
+    if (a.hub) lines.push(esc(HUB_NAME[a.hub] || a.hub));
     if (a.enplanements != null) {
       let ch = "";
       if (a.enplanements_prev > 0) {
@@ -70,29 +47,9 @@ export const tips = {
       lines.push(`<b>${num(a.enplanements)}</b> boardings in ${esc(a.year)}${ch}`);
     }
     if (a.cargo_lbs != null) lines.push(`All-cargo landed weight ${num(a.cargo_lbs)} lb`);
-    lines.push(muted("FAA CY enplanements and all-cargo data."));
+    lines.push(muted(`OurAirports · ${periodLabel(a) || esc(a.year || "")}`));
+    if (a.city_provenance) lines.push(muted(`Locality · Airports Authority of India · ${periodLabel(a.city_provenance)}`));
     return lines.join("<br>");
-  },
-  fort(f, m) {
-    const comp = m.data.military?.components?.find((c) => c.id === f.component);
-    const name = comp?.name || FORT_KINDS[fortKind(f.component)]?.name || "Defense site";
-    const tier = { major: "Major installation", base: "Base", site: "Site" }[f.tier] || "";
-    const status = { act: "", semi: " · semi-active", care: " · caretaker status" }[f.status] ?? "";
-    const lines = [
-      `<b>${esc(f.name)}</b> ${muted(esc(f.state || ""))}`,
-      `${esc(name)}${f.joint ? " · joint base" : ""} · ${esc(tier)}${esc(status)}`,
-    ];
-    if (f.area_km2 != null) lines.push(`Boundary ${int(f.area_km2)} km²`);
-    lines.push(muted("DoD MIRTA. Sized by boundary area: no per-base headcount is published."));
-    return lines.join("<br>");
-  },
-  range(r, m) {
-    const comp = m.data.military?.components?.find((c) => c.id === r.component);
-    return [
-      `<b>${esc(r.name)}</b> ${muted(esc(r.state || ""))}`,
-      `Restricted ground · ${esc(comp?.name || "")} · ${int(r.area_km2)} km²`,
-      muted("One of the 30 largest DoD boundaries (MIRTA), drawn on the hexes it covers."),
-    ].join("<br>");
   },
   wonder(x, m) {
     if (x.description) return [
@@ -118,8 +75,21 @@ export const tips = {
     if (rule?.text) lines.push(muted(esc(rule.text)));
     return lines.join("<br>");
   },
+  protected(records) {
+    return records.map((site) => [
+      `<b>${esc(site.name)}</b>`, ...(site.hover || []).filter(Boolean).map(esc),
+    ].join("<br>")).join("<br><br>");
+  },
   route(rt, m) {
     const r = rt.route;
+    if (rt.literal) {
+      const source = m.data.sources?.find((item) => item.id === r.source);
+      return [
+        `<b>${esc(r.name)}</b>`,
+        r.tons_k == null ? "Operational Dedicated Freight Corridor" : `${int(r.tons_k * 1000)} metric tonnes of coastal cargo handled`,
+        esc([r.period, r.status, source?.publisher].filter(Boolean).join(" · ")),
+      ].join("<br>");
+    }
     const t = m.data.trade || {};
     const a = rt.a?.short || rt.a?.name || r.a, b = rt.b?.short || rt.b?.name || r.b;
     const modes = Object.entries(r.modes || {}).filter(([, v]) => v >= 0.05).sort((p, q) => q[1] - p[1])

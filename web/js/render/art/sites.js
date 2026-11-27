@@ -447,6 +447,7 @@ export function drawRestricted(ctx, sets, vp, o) {
 
 /** Protected land (big national parks): a soft green wash and a dotted pale-green boundary. */
 export function drawProtected(ctx, sets, vp, o) {
+  if (sets[0]?.draw) return sets[0].draw(ctx, vp, o);
   const s = vp.s;
   const pad = 2 * (o.Rpx / s);
   const vis = sets.filter((st) => inView(st.bbox, vp, pad));
@@ -1317,4 +1318,84 @@ export function drawPlaque(ctx, text, x, y, { kind = "landmark", sub = "", scale
     ctx.fillText(sub, x, y0 + 19.6 * scale);
   }
   return [x0, y0, x0 + w, y0 + h];
+}
+
+function wetlandGeometry(site) {
+  if (!site.rings?.length) return null;
+  const path = new Path2D();
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const ring of site.rings) {
+    path.moveTo(...ring[0]);
+    for (const [x, y] of ring) {
+      path.lineTo(x, y);
+      x0 = Math.min(x0, x);
+      y0 = Math.min(y0, y);
+      x1 = Math.max(x1, x);
+      y1 = Math.max(y1, y);
+    }
+    path.closePath();
+  }
+  return { site, path, x0, y0, x1, y1 };
+}
+
+export function prepareProtectedLand(w, data) {
+  const sites = data?.protected || [];
+  if (!sites.length) return null;
+  const wonderIds = new Set((data.wonders || []).map((site) => site.id));
+  const grid = w.grid;
+  const cellSites = new Map(), markers = [];
+  for (const site of sites) {
+    if (!site.cells?.length && site.cell != null) markers.push(site);
+    for (const cell of site.cells || []) {
+      if (!cellSites.has(cell)) cellSites.set(cell, []);
+      cellSites.get(cell).push(site);
+    }
+  }
+  const footprint = cellSites.size ? [prepareCellSet(w, cellSites.keys())] : [];
+  const protectedWetlands = sites.map(wetlandGeometry).filter(Boolean);
+  const wetlandBySite = new Map(protectedWetlands.map((geom) => [geom.site, geom]));
+  const hitContext = protectedWetlands.length ? document.createElement("canvas").getContext("2d") : null;
+  const showExtent = (geom, r) => geom && r >= 12
+    && Math.min(geom.x1 - geom.x0, geom.y1 - geom.y0) * r / grid.R >= 4;
+  const showMarker = (s, r) => (!wonderIds.has(s.wonder || `park-${s.id}`) || (s.marker_radius != null && s.cells === null))
+    && (s.designation === "Ramsar wetland" || r >= 3)
+    && !showExtent(wetlandBySite.get(s), r);
+  const markerRadius = (s) => s.marker_radius ?? (s.area_ha == null ? 2.2 : Math.min(6, 2 + 0.068 * Math.sqrt(s.area_ha)));
+  return {
+    draw(ctx, vp, options) {
+      drawProtected(ctx, footprint, vp, options);
+      ctx.fillStyle = "rgba(88,175,150,.24)";
+      ctx.strokeStyle = "#7cc6ae";
+      ctx.lineWidth = 1 / vp.s;
+      for (const geom of protectedWetlands) {
+        if (!showExtent(geom, options.Rpx)
+          || geom.x1 < vp.x0 || geom.x0 > vp.x1 || geom.y1 < vp.y0 || geom.y0 > vp.y1) continue;
+        ctx.fill(geom.path, "evenodd");
+        ctx.stroke(geom.path);
+      }
+      for (const s of markers) {
+        if (!showMarker(s, options.Rpx)) continue;
+        const radius = markerRadius(s) / vp.s;
+        if (s.x + radius < vp.x0 || s.x - radius > vp.x1 || s.y + radius < vp.y0 || s.y - radius > vp.y1) continue;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, radius, 0, 2 * Math.PI);
+        ctx.fillStyle = s.designation === "Ramsar wetland" ? "#7cc6ae" : "#a6c485";
+        ctx.fill();
+        ctx.strokeStyle = "#28483c";
+        ctx.lineWidth = 1 / vp.s;
+        ctx.stroke();
+      }
+    },
+    hit(x, y, r) {
+      const scale = r / grid.R;
+      const near = markers.filter((s) => showMarker(s, r)
+        && Math.hypot(s.x - x, s.y - y) * scale <= markerRadius(s) + 2);
+      for (const geom of protectedWetlands) {
+        if (showExtent(geom, r) && x >= geom.x0 && x <= geom.x1 && y >= geom.y0 && y <= geom.y1
+          && hitContext.isPointInPath(geom.path, x, y, "evenodd")) near.push(geom.site);
+      }
+      const covered = cellSites.get(grid.cellAt(x, y));
+      return near.length ? [...new Set([...near, ...(covered || [])])] : covered;
+    },
+  };
 }

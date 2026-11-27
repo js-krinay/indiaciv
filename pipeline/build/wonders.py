@@ -8,10 +8,11 @@ from ..core.hexgrid import HexGrid
 from ..core.source import osm_notice
 from ..core.paths import WEB_DATA
 from ..india.science_sources import ROSTER, research_points
+from ..india.wonder_visitation import INTERIM as VISITATION, PERIOD as VISIT_PERIOD, SOURCE as VISIT_SOURCE
 from ..core.store import load_interim, write_web
 from ..india.wonders import CREDITS, LICENSE, LICENSE_URL, SOURCE
 
-REQUIRES = ["_world", SOURCE, "datameet", "protected_land.json", "protected_ramsar.json"]
+REQUIRES = ["_world", SOURCE, VISITATION, "datameet", "protected_land.json", "protected_ramsar.json"]
 PRODUCES = ["wonders.json"]
 PARK_LIMIT = 5
 PARK_RULE = "national_park"
@@ -234,6 +235,43 @@ def wonder_document(world, data, protected=(), wetlands=(), points=()):
     }
 
 
+def add_visit_ranks(wonders, cohort):
+    for row in wonders:
+        if (rank := cohort["ranks"].get(row["id"])) is None:
+            continue
+        visit = {"rank": rank, "cohort_size": cohort["size"], "period": VISIT_PERIOD, "source": VISIT_SOURCE}
+        row["metrics"] = {**(row["metrics"] or {}), "visitation": visit}
+        sources = row.setdefault("sources", [])
+        if VISIT_SOURCE not in sources:
+            sources.append(VISIT_SOURCE)
+        row["description"] += (f" Ranked {rank} of {cohort['size']} reporting ASI ticketed sites "
+                               f"by domestic and foreign visits in {VISIT_PERIOD}.")
+
+
+def protected_inventory(osm, wetlands):
+    overlays = {site["ramsar_id"]: site for site in osm if site.get("ramsar_id")}
+    sites = [site for site in osm if not site.get("ramsar_id")]
+    for site in wetlands:
+        shape = overlays.get(site["id"])
+        sites.append({**site, **{key: shape.get(key) for key in ("cells", "rings", "source")}} if shape else site)
+    result = []
+    for site in sites:
+        source = site.get("source") or ""
+        area = site.get("area_ha")
+        area_text = ""
+        if area is not None:
+            from .almanac import number
+            area_text = f"Official area · {number(area / 100, 4)} km²"
+        result.append({**site, "hover": [
+            site.get("status") or site.get("designation"),
+            area_text,
+            " · ".join(filter(None, (site.get("authority"), site.get("period")))),
+            "Location · Wikidata" if source.startswith("wikidata:") else
+            "Mapped geography · © OpenStreetMap contributors" if source.startswith(("node/", "way/", "relation/")) else "",
+        ]})
+    return result
+
+
 def build():
     try:
         data = load_interim(SOURCE)
@@ -245,7 +283,10 @@ def build():
     points = research_points(datameet, district_state_map(datameet))
     protected, wetlands = (json.loads((WEB_DATA / name).read_text())["sites"]
                            for name in ("protected_land.json", "protected_ramsar.json"))
-    write_web("wonders.json", wonder_document(load_interim("_world"), data, protected, wetlands, points))
+    document = wonder_document(load_interim("_world"), data, protected, wetlands, points)
+    document["protected"] = protected_inventory(protected, wetlands)
+    add_visit_ranks(document["wonders"], load_interim(VISITATION))
+    write_web("wonders.json", document)
 
 
 def check(web_dir):

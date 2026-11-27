@@ -1,10 +1,17 @@
-import { COASTAL_INK, CORRIDOR_INK } from "../ext/layers/indiaTrade.js";
-// Lens dock: a fixed quick row, a grouped lens picker, and a rich legend with a
+// Lens dock: a quick row (Terrain + the 3 most recent lenses), a grouped lens picker, and a rich legend with a
 // histogram of hex values whose ramp can be hovered or dragged to highlight a band of values on the map.
-import { compact, esc } from "../format.js";
+import { compact, esc, periodLabel } from "../format.js";
 import { lensScale } from "../world.js";
 import { rampColor, parseHex } from "../color.js";
 import { icon, glyph } from "./icon.js";
+
+export function lensPeriodLabels(lens) {
+  if (lens.period_scope === "per_state") return periodLabel(lens);
+  const older = new Map([...Object.values(lens.state_details || {}), ...Object.values(lens.cell_details || {})]
+    .filter((record) => record.vintage === "older").map((record) => [record.period, record]));
+  if (lens.vintage === "older") older.delete(lens.period);
+  return [lens, ...older.values()].map((record) => periodLabel(record)).filter(Boolean).join(" · ");
+}
 
 export { glyph };
 
@@ -43,7 +50,7 @@ export function formatLensTick(lens, t, k = -1) {
   const zero = Number.isFinite(v) && Math.abs(v) < 1e-9;
   if (zero) s = s.replace(/^(\$?)0\.0+(?!\d)/, (_, d) => d + "0");
   if (k === 0 && !zero) s = "≤ " + s;
-  else if (k === 4) s = "≥ " + s;
+  else if (k === 4 && !(lens.format === "pct" && v === 1)) s = "≥ " + s;
   return s;
 }
 
@@ -55,13 +62,22 @@ export function lensValueAt(lens, t) {
 }
 
 const TERRAIN = { id: null, icon: "terrain", emoji: "🗺️", name: "Terrain" };
-const QUICK_LENSES = [
-  ["density", "Population"], ["state_density", "Density"], ["growth", "Growth"],
-  ["city_bad_air", "Bad-air days"], ["gsdp_pc", "GSDP per person"],
-];
+const RECENT_KEY = "civusa.recentLenses";
 const BINS = 40;
 const HOVER_HALF = 0.08; // half-width of the hover band, in ramp units
 const QUANT = 80; // band edges snap to 1/80 of the ramp so tiny mouse moves don't re-render the map
+
+const loadRecent = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(RECENT_KEY) || "null");
+    return Array.isArray(v) ? v.filter((x) => typeof x === "string") : null;
+  } catch {
+    return null;
+  }
+};
+const saveRecent = (ids) => {
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(ids)); } catch { /* private mode: fine */ }
+};
 
 /**
  * opts: {lenses (lenses.json), sources (sources.json list), w (prepared world), onPick(lens|null), onBand(band|null)}
@@ -77,8 +93,9 @@ export function initLensDock(opts) {
   const legend = document.getElementById("legend");
   let active = null;
   let band = null;
-  const shortcuts = QUICK_LENSES.filter(([id]) => byId.has(id))
-    .map(([id, name]) => ({ ...byId.get(id), name }));
+  let recent = (loadRecent() || lensFile?.recent || []).filter((id) => byId.has(id));
+  for (const l of lenses) if (recent.length < 3 && !recent.includes(l.id)) recent.push(l.id);
+  recent = recent.slice(0, 3);
   let restoreFocus = null;
   const histCache = new Map();
 
@@ -90,18 +107,16 @@ export function initLensDock(opts) {
   const isActive = (l) => (l.id ?? null) === (active?.id ?? null);
   const quickBtn = (l) =>
     `<button class="lens-btn ${isActive(l) ? "active" : ""}" data-id="${esc(l.id ?? "")}" aria-pressed="${isActive(l)}"
-      aria-label="${esc(l.name)}" title="${esc(l.name)}${l.id ? " lens" : " (no lens)"}">${glyph(l, 15)}<span>${esc(l.name)}</span></button>`;
+      title="${esc(l.name)}${l.id ? " lens" : " (no lens)"}">${glyph(l, 15)}<span>${esc(l.name)}</span></button>`;
 
   function renderQuick() {
-    const row = [TERRAIN, ...shortcuts];
+    const row = [TERRAIN, ...recent.map((id) => byId.get(id)).filter(Boolean)];
     quick.innerHTML = row.map(quickBtn).join("");
-    const inRow = !active || shortcuts.some(({ id }) => id === active.id);
+    const inRow = !active || recent.includes(active.id);
     moreBtn.classList.toggle("active", !inRow);
-    moreBtn.innerHTML = `${icon("layers", "▤", { size: 15 })}<span>Lenses</span><span class="caret" aria-hidden="true">▾</span>`;
-    moreBtn.setAttribute("aria-label", "Lenses");
+    moreBtn.innerHTML = `${icon("layers", "▤", { size: 15 })}<span>${inRow ? "Lenses" : esc(active.name)}</span><span class="caret" aria-hidden="true">▾</span>`;
     moreBtn.title = "All lenses (L cycles)";
     moreBtn.hidden = !lenses.length;
-    quick.hidden = !lenses.length; // a lone "Terrain" button does nothing (the India build has no lenses yet)
   }
 
   function renderPicker() {
@@ -122,19 +137,24 @@ export function initLensDock(opts) {
       </div>`;
   }
 
-  function pick(id) {
-    opts.onPick(byId.get(id) || null);
+  function pick(id, fromPicker) {
+    const lens = id ? byId.get(id) || null : null;
+    if (lens && fromPicker && !recent.includes(lens.id)) {
+      recent = [lens.id, ...recent].slice(0, 3);
+      saveRecent(recent);
+    }
+    opts.onPick(lens);
   }
 
   quick.onclick = (e) => {
     const b = e.target.closest("button[data-id]");
-    if (b) pick(b.dataset.id);
+    if (b) pick(b.dataset.id, false);
   };
   picker.onclick = (e) => {
     if (e.target.closest(".lp-close")) return closePicker();
     const b = e.target.closest("button[data-id]");
     if (!b) return;
-    pick(b.dataset.id);
+    pick(b.dataset.id, true);
     closePicker();
   };
   moreBtn.onclick = () => (picker.hidden ? openPicker() : closePicker());
@@ -190,11 +210,14 @@ export function initLensDock(opts) {
   }
 
   function sourceLine(lens) {
-    if (lens.source_line) return esc(lens.source_line);
+    const hasOlder = lens.vintage === "older" || [...Object.values(lens.state_details || {}), ...Object.values(lens.cell_details || {})]
+      .some((record) => record.vintage === "older");
+    if (lens.source_line) {
+      return [esc(lens.source_line), hasOlder && lensPeriodLabels(lens)].filter(Boolean).join(" · ");
+    }
     const src = sources.find((s) => s.id === lens.source);
     const name = src ? src.publisher && src.title.length > 44 ? src.publisher : src.title : lens.source;
-    const vintage = lens.period || lensFile?.vintage || "";
-    return [name, vintage].filter(Boolean).map(esc).join(" · ");
+    return [name && esc(name), lensPeriodLabels(lens) || periodLabel(lensFile?.vintage)].filter(Boolean).join(" · ");
   }
 
   // Categorical lenses (format "category"): values are indices into lens.categories, whose colours are the ramp
@@ -271,25 +294,8 @@ export function initLensDock(opts) {
   let legendExpanded = false;
   function renderLegend() {
     if (!active) {
-      legend.hidden = !w.tables.base.length;
-      legend.classList.remove("expanded");
-      const groups = [["Base terrain", w.tables.base], ["Relief", w.tables.relief], ["Features", w.tables.features]];
-      legend.innerHTML = legend.hidden ? "" : `
-        <details class="terrain-key">
-          <summary class="title">Terrain legend</summary>
-          <div class="terrain-key-body">${groups.map(([label, entries]) => `
-            <h4>${label}</h4><ul>${entries.map((entry) => `
-              <li><i style="background:${esc(entry.color)}"></i><div><b>${esc(entry.name)}</b>
-                <p>${esc(entry.rule)} <em>${esc(entry.example)}</em></p></div></li>`).join("")}</ul>`).join("")}
-            ${opts.protectedLand || opts.trade ? "<h4>Map layers</h4>" : ""}
-            ${opts.trade ? `<ul>
-              <li><i style="background:${CORRIDOR_INK}"></i><div><b>Dedicated freight corridors</b><p>Operating rail routes.</p></div></li>
-              <li><i style="background:${COASTAL_INK}"></i><div><b>Coastal cargo</b><p>Branch width follows cargo handled at each port. Dashes mark the shared schematic sea lane.</p></div></li>
-            </ul>` : ""}
-            ${opts.protectedLand ? `<ul><li><i class="protected-swatch"></i><div>
-              <b>Protected land</b><p>Green tint shows mapped extents. Dots mark smaller or point-only sites.</p>
-            </div></li></ul>` : ""}</div>
-        </details>`;
+      legend.hidden = true;
+      legend.innerHTML = "";
       return;
     }
     const l = active;
@@ -460,6 +466,12 @@ export function initLensDock(opts) {
       if (!picker.hidden) renderPicker();
       renderLegend();
       showBand();
+    },
+    remember(id) {
+      if (!byId.has(id) || recent.includes(id)) return;
+      recent = [id, ...recent].slice(0, 3);
+      saveRecent(recent);
+      renderQuick();
     },
     openPicker,
     closePicker,

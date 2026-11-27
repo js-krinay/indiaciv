@@ -2,6 +2,7 @@
 // to the next unit reads "1.0M" rather than "1000K" (e.g. Westchester's 999,600 people). format.js is shared
 // with the rest of the app; this wrapper keeps the same output for every other value.
 import { compact as baseCompact, popShort as basePopShort } from "../../format.js";
+import { indianNumber } from "../../ui/cityHeadlines.js";
 
 const UNITS = [[1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]];
 
@@ -16,6 +17,8 @@ function rollover(n, fmt) {
 }
 
 export const compact = (n) => rollover(n, baseCompact);
-export const money = (n) => (n == null ? "–" : "$" + compact(n));
-export const yieldValue = (y, v) => (y.unit === "usd" ? money(v) : compact(v));
+export const int = (n) => n == null ? "–" : indianNumber(n);
+export const dollars = (n) => n == null ? "–" : `₹${int(n)}`;
+export const money = (n) => n == null ? "–" : Math.abs(n) >= 1e7 ? `₹${int(n / 1e7)} cr` : dollars(n);
+export const yieldValue = (y, v) => y.unit === "INR" ? money(v) : compact(v);
 export const popShort = (n) => rollover(n, basePopShort);

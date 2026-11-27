@@ -4,10 +4,75 @@ import unittest
 from pathlib import Path
 
 from pipeline.build.city_economy import city_finances, city_sector_output, gateway_records, segment_distance
+from pipeline.build import city_economy
 from pipeline.core.hexgrid import HexGrid
+from pipeline.build.state_metrics import FY
+from pipeline.india.city_economy_sources import state_sector_mix
 
 
 class CityEconomyTests(unittest.TestCase):
+    def test_matched_nominal_growth_needs_a_published_pair_for_every_state(self):
+        result = city_economy.matched_city_output_growth({"KL": .1})
+        self.assertAlmostEqual(result["value"], 1427145.23 / 1248533.01 - 1)
+        self.assertEqual(result["source"], ["kerala_matched_gsdp_fy26"])
+        self.assertEqual(result["vintage"], FY)
+        self.assertIn("separate from headline city GDP", result["description"])
+        self.assertIsNone(city_economy.matched_city_output_growth({"KL": .1, "LD": .2}))
+
+    def test_matched_nominal_growth_uses_the_same_state_weights_for_both_years(self):
+        result = city_economy.matched_city_output_growth({"KL": .1, "JH": .2})
+        before = .1 * 1_248_533.01 + .2 * 516_255
+        after = .1 * 1_427_145.23 + .2 * 556_286
+        self.assertAlmostEqual(result["value"], after / before - 1)
+        self.assertEqual(result["source"], ["jharkhand_matched_gsdp_fy26", "kerala_matched_gsdp_fy26"])
+
+    def test_andhra_pradesh_output_fills_detailed_sectors_without_changing_the_broad_mix(self):
+        mix = state_sector_mix("AP", "Andhra Pradesh", FY, for_city=True)
+        result = city_sector_output({"AP": 10000}, {"AP": mix})
+        self.assertEqual(result["values"]["industry"], 2367)
+        self.assertEqual(sum(result["values"][key] for key in ("mining", "manufacturing", "construction", "utilities")),
+                         2367)
+        self.assertIn("andhra_pradesh_gsva_detail_fy26", result["source"])
+        self.assertEqual(result["vintage"], FY)
+
+    def test_historical_split_keeps_input_period_and_method(self):
+        output = city_sector_output({"UP": 10000}, {"UP": state_sector_mix("UP", "Uttar Pradesh", FY, for_city=True)})
+        data = output["fields"]["mining"]
+        self.assertEqual(data["period"], FY)
+        self.assertEqual(data["input_weights"]["vintage"], "older")
+        self.assertIn("FY 2024-25", data["input_weights"]["period"])
+        self.assertIn("residual", data["description"])
+
+    def test_odisha_city_keeps_previously_available_estimates(self):
+        mix = state_sector_mix("OD", "Odisha", FY, for_city=True)
+        self.assertTrue(mix["estimated"])
+        self.assertEqual(mix["source"], ["rbi_state_gsva", "mospi_national_gva_fy26"])
+        self.assertAlmostEqual(mix["detail"]["mining"] / mix["detail"]["utilities"], 9.5 / 3.3)
+        self.assertNotEqual(mix["detail"]["construction"], .096)
+
+    def test_telangana_detail_allocates_only_the_remaining_industry_share(self):
+        mix = state_sector_mix("TS", "Telangana", FY, for_city=True)
+        self.assertAlmostEqual(mix["detail"]["mining"] / mix["detail"]["utilities"], 35892 / 37692)
+        self.assertAlmostEqual(sum(mix["detail"].values()), mix["shares"]["industry"])
+        self.assertEqual(mix["detail_source"]["mining"], "telangana_gsva_fy26")
+        self.assertEqual(state_sector_mix("TS", "Telangana", FY)["source"], "telangana_gsva_fy26")
+
+    def test_older_nominal_industry_weights_can_split_the_current_residual(self):
+        for state, mining, utilities in (("UP", 24890, 73145), ("KL", 299377, 1526237),
+                                         ("TN", 8955, 80127), ("BR", 3691, 20263)):
+            with self.subTest(state=state):
+                mix = state_sector_mix(state, state, FY, for_city=True)
+                self.assertAlmostEqual(mix["detail"]["mining"] / mix["detail"]["utilities"], mining / utilities)
+                self.assertAlmostEqual(sum(mix["detail"].values()), mix["shares"]["industry"])
+
+    def test_benchmarked_detail_preserves_the_existing_city_industry_total(self):
+        for state, mining, utilities in (("KA", 19598, 44660), ("MP", 2.96, 3.35),
+                                         ("RJ", 3.30, 3.20), ("JK", .40, 4.57)):
+            with self.subTest(state=state):
+                mix = state_sector_mix(state, state, FY, for_city=True)
+                self.assertAlmostEqual(mix["detail"]["mining"] / mix["detail"]["utilities"], mining / utilities)
+                self.assertAlmostEqual(sum(mix["detail"].values()), mix["shares"]["industry"])
+
     def test_rank_uses_cohort_and_preserves_ties_and_missing(self):
         cities = {
             "a": {"population": 10, "yields": {"gold": 1000}},
@@ -62,5 +127,5 @@ class CityEconomyTests(unittest.TestCase):
         self.assertEqual([r["name"] for r in named["rail"]], ["Named corridor"])
 
     @unittest.skipUnless(shutil.which("node"), "Node is needed to test Compare")
-    def test_compare_requires_compatible_series(self):
+    def test_compare_labels_periods_and_omits_empty_columns(self):
         subprocess.run(["node", "tests/city_compare.mjs"], cwd=Path(__file__).resolve().parents[1], check=True)

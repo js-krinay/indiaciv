@@ -1,5 +1,8 @@
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
+from pipeline.build import states
 from pipeline.build.district_values import district_sample_values
 from pipeline.build.states import district_states
 
@@ -9,6 +12,28 @@ def square(x0, y0, x1, y1):
 
 
 class DistrictStatesTest(unittest.TestCase):
+    def test_annual_labour_only_fills_blank_observations(self):
+        combined = {"wpr_all_ages": 40, "unemployment_15_plus": 10, "industry_shares": [40, 30, 30],
+                    "sample_persons": 1000, "sample_persons_15_plus": 800, "sample_clusters": 20}
+        metrics = {"unemployment": {"value": .07}}
+        employed, observations = states.state_labour("CH", 1000, metrics, combined)
+        self.assertEqual(employed, 400)
+        self.assertEqual(metrics["unemployment"]["value"], .07)
+        self.assertEqual(observations["employed"]["period"], "1 March 2026")
+        self.assertIsNone(states.state_labour("CH", 1000, {}, None)[0])
+
+    @unittest.skipUnless(Path("data/interim/_world.json").exists(), "requires built India data")
+    def test_states_build_keeps_the_rbi_bridge_sector_mix(self):
+        with patch.object(states, "write_web") as write:
+            states.build()
+        _, rows = write.call_args.args
+        by_state = {row["abbr"]: row["sector_mix"] for row in rows}
+        self.assertEqual(by_state["AN"]["source"], ["rbi_state_gsva", "mospi_national_gva_fy26"])
+        self.assertTrue(by_state["AN"]["estimated"])
+        self.assertEqual(by_state["OD"]["source"], "odisha_gsva_fy26")
+        self.assertAlmostEqual(by_state["OD"]["shares"]["services"], .391)
+        self.assertIsNone(by_state["LD"])
+
     def test_a_district_goes_to_the_state_holding_most_of_it(self):
         states = [{"name": "Andhra Pradesh", "rings": square(0, 0, 4, 4)}, {"name": "Telangana", "rings": square(0, 4, 4, 8)}]
         districts = [

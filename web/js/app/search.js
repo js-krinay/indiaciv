@@ -14,7 +14,7 @@ export function initSearch(opts) {
   if (!input || !box) return { focus() {}, close() {}, get isOpen() { return false; } };
   // The full placeholder only fits the wide search box; narrower ones say just "Search".
   const narrow = matchMedia("(max-width: 1120px)");
-  const setPlaceholder = () => (input.placeholder = narrow.matches ? "Search" : "Search places & wonders");
+  const setPlaceholder = () => (input.placeholder = narrow.matches ? "Search" : "Search cities & states");
   setPlaceholder();
   narrow.addEventListener?.("change", setPlaceholder);
 
@@ -28,11 +28,6 @@ export function initSearch(opts) {
     entries.push({ kind: "state", index, name: s.name, n: norm(s.name), full: norm(s.abbr), abbr: (s.abbr || "").toLowerCase(),
       pop: s.population || 0, sub: "State", label: s.name });
   });
-
-  for (const wonder of opts.wonders || []) {
-    entries.push({ kind: "wonder", wonder, n: norm(wonder.short), full: norm(wonder.name),
-      pop: 0, label: wonder.short, sub: `Wonder · ${wonder.location}` });
-  }
 
   let results = [];
   let sel = -1;
@@ -69,7 +64,7 @@ export function initSearch(opts) {
 
   function render() {
     if (!results.length) {
-      box.innerHTML = input.value.trim() ? `<div class="sr-empty">No places match “${esc(input.value.trim())}”</div>` : "";
+      box.innerHTML = input.value.trim() ? `<div class="sr-empty">No city or state matches “${esc(input.value.trim())}”</div>` : "";
       box.hidden = !input.value.trim();
       input.setAttribute("aria-expanded", String(!box.hidden));
       input.removeAttribute("aria-activedescendant");
@@ -78,7 +73,7 @@ export function initSearch(opts) {
     }
     box.innerHTML = results
       .map((e, i) => `<div class="sr-item ${i === sel ? "sel" : ""}" role="option" id="sr-${i}" aria-selected="${i === sel}" data-i="${i}">
-        <span class="sr-ic">${e.kind === "state" ? icon("terrain", "🗺️", { size: 16 }) : e.kind === "wonder" ? icon("w-landmark", "◆", { size: 16 }) : icon("pop", "🏙️", { size: 16 })}</span>
+        <span class="sr-ic">${e.kind === "state" ? icon("terrain", "🗺️", { size: 16 }) : icon("pop", "🏙️", { size: 16 })}</span>
         <span class="sr-main"><b>${esc(e.label)}</b><span class="sr-sub">${esc(e.sub)}</span></span>
         <span class="sr-pop">${e.pop ? popShort(e.pop) : ""}</span></div>`)
       .join("");
@@ -95,7 +90,7 @@ export function initSearch(opts) {
     close();
     input.value = "";
     input.blur();
-    opts.onPick(e);
+    opts.onPick(e.kind === "city" ? { kind: "city", city: e.city } : { kind: "state", index: e.index });
   }
 
   function close() {

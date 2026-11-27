@@ -1,25 +1,22 @@
 // Number formatting for the advisor kit, built on web/js/format.js.
 // Formats follow lenses.json / counties.json: int | usd | pct (0..1 fraction) | float | minutes | years | km2 | text,
 // plus a few of our own: money (compact $), signed (signed %), lq (×1.23), mw, count, ratio (×4.2).
-import { compact, dollars, int, money, pct } from "../../../format.js";
+import { dollars, money, pct } from "../../../format.js";
 import { fin } from "./util.js";
 
-export { compact, dollars, int, money, pct };
+export { dollars, money, pct };
 
 const inr = (v) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const indianInteger = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+const indianCompact = new Intl.NumberFormat("en-IN", { notation: "compact", maximumSignificantDigits: 3 });
+export const int = (v) => fin(v) ? indianInteger.format(v) : "–";
+export const compact = (v) => fin(v) ? indianCompact.format(v) : "–";
 
 export const signedPct = (g, d = 1) => (fin(g) ? `${g >= 0 ? "+" : "−"}${Math.abs(g * 100).toFixed(d)}%` : "–");
 
-// Counts to three significant figures (1.12M vs 1.11M rather than 1.1M twice).
+// Counts to three significant figures for larger values.
 export function count3(n) {
-  if (!fin(n)) return "–";
-  const a = Math.abs(n);
-  const sig = (d, unit) => (n / d).toFixed(a / d >= 100 ? 0 : a / d >= 10 ? 1 : 2) + unit;
-  if (a >= 1e12) return sig(1e12, "T");
-  if (a >= 1e9) return sig(1e9, "B");
-  if (a >= 1e6) return sig(1e6, "M");
-  if (a >= 1e4) return sig(1e3, "K");
-  return int(n);
+  return Math.abs(n) >= 1e4 ? compact(n) : int(n);
 }
 
 export const mw = (v) => (fin(v) ? (Math.abs(v) >= 10000 ? `${(v / 1000).toFixed(v >= 1e5 ? 0 : 1)} GW` : `${int(v)} MW`) : "–");
@@ -35,7 +32,7 @@ export function fmtValue(format, v, unit) {
     case "inr": return inr(v);
     case "pct": return pct(v);
     case "signed": return signedPct(v);
-    case "lq": return `×${v.toFixed(2)}`;
+    case "lq": return `×${v.toFixed(3)}`;
     case "ratio": return `×${v.toFixed(1)}`;
     case "minutes": return `${v.toFixed(1)} min`;
     case "years": return `${v.toFixed(1)} yrs`;
@@ -58,7 +55,7 @@ export function fmtCell(format, v, unit) {
   const a = Math.abs(v);
   switch (format) {
     case "int": case "count": return a >= 1e4 ? count3(v) : int(v);
-    case "inr": return a >= 1e5 ? `₹${+(v / 1e5).toFixed(2)}L` : inr(v);
+    case "inr": return a >= 1e5 ? `₹${compact(v)}` : inr(v);
     case "usd": return a >= 1e4 ? `$${count3(v)}` : dollars(v);
     case "money": return money(v);
     case "km2": return a >= 1e5 ? `${count3(v)} km²` : `${int(v)} km²`;
@@ -75,7 +72,8 @@ export function fmtShort(format, v) {
     case "usd": case "money": return money(v);
     case "pct": return `${+(v * 100).toFixed(Math.abs(v) < 0.1 && v !== 0 ? 1 : 0)}%`;
     case "signed": return `${v > 0 ? "+" : v < 0 ? "−" : ""}${+Math.abs(v * 100).toFixed(1)}%`;
-    case "lq": case "ratio": return `×${+v.toFixed(1)}`;
+    case "lq": return `×${+v.toFixed(3)}`;
+    case "ratio": return `×${+v.toFixed(1)}`;
     case "mw": return mw(v);
     case "minutes": case "years": return String(+v.toFixed(0));
     default: return Math.abs(v) >= 1000 ? compact(v) : String(+v.toPrecision(3));
@@ -89,9 +87,9 @@ export function parseNum(text, format) {
   if (!s) return null;
   let isPct = false;
   if (s.endsWith("%")) { isPct = true; s = s.slice(0, -1); }
-  const m = /^(-?\d*\.?\d+)([klmbt]?)$/i.exec(s);
+  const m = /^(-?\d*\.?\d+)(lcr|cr|[klmbt])?$/i.exec(s);
   if (!m) return null;
-  let v = parseFloat(m[1]) * ({ "": 1, k: 1e3, l: 1e5, m: 1e6, b: 1e9, t: 1e12 })[m[2].toLowerCase()];
+  let v = parseFloat(m[1]) * ({ "": 1, k: 1e3, l: 1e5, m: 1e6, cr: 1e7, b: 1e9, t: 1e12, lcr: 1e12 })[(m[2] || "").toLowerCase()];
   if ((format === "pct" || format === "signed") && (isPct || Math.abs(v) > 1)) v /= 100;
   return v;
 }

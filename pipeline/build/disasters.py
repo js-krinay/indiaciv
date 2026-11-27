@@ -1,9 +1,54 @@
 """Compile the documented incident inventory and geographic count lenses."""
 
+import json
 from collections import Counter, defaultdict
 from datetime import date
 
+from ..core.paths import WEB_DATA
+from ..core.store import write_web
 from ..india.disaster_sources import COVERAGE, INCIDENTS, PERIOD
+
+REQUIRES = ["lenses.json"]
+PRODUCES = ["disasters.json"]
+
+
+def advisor_inventory(inventory):
+    """Adapter for the upstream advisor's incident, state and district tables."""
+    events = inventory["events"]
+    counts = Counter(event["type"] for event in events)
+    types = sorted(counts)
+    recent = [{
+        "disaster": event["id"], "date": event["start_date"] or event["reported_on"],
+        "report_only": not event["start_date"], "state": " · ".join(event["states"]),
+        "type": event["type"], "incident_type": event["type"], "title": event["label"],
+        "areas": event.get("area"), "counties": event["districts"],
+        "impact": event.get("impact"), "source": event["source"],
+        **({"period": event["period"], "vintage": event["vintage"]} if "vintage" in event else {}),
+    } for event in events]
+    districts = inventory["districts"]
+    return {
+        "period": inventory["period"],
+        "sources": sorted({event["source"] for event in events}),
+        "fema": {
+            "rule": inventory["coverage"], "total": len(events), "by_type": dict(counts),
+            "types": [{"id": name, "name": name} for name in types],
+            "states": {key: {"total": row["count"], "by_type": row["by_type"]}
+                       for key, row in inventory["states"].items()},
+            "counties": {
+                "columns": ["geoid", "total", "last_date", *types],
+                "rows": [[key, row["count"], row["last_date"], *(row["by_type"].get(name, 0) for name in types)]
+                         for key, row in districts.items()],
+                "last_captions": {key: caption for key, row in districts.items()
+                                  if (caption := row.get("last_caption")) and caption != row["last_date"]},
+            },
+            "recent": recent,
+        },
+    }
+
+
+def build():
+    lenses = json.loads((WEB_DATA / "lenses.json").read_text())
+    write_web("disasters.json", advisor_inventory(lenses["disasters"]))
 
 
 def inventory(world, district_states, district_shapes, projection):
@@ -42,7 +87,7 @@ def check_inventory(doc, source_ids, district_ids, state_ids):
                 or ("end_date" in dates and dates["end_date"] < dates["start_date"])):
             raise ValueError(f"Invalid dates for {row['id']}")
         kind = row["type"]
-        if (kind not in {"Cyclone", "Earthquake", "Flood", "Heatwave", "Landslide"}
+        if (kind not in {"Cyclone", "Earthquake", "Flood", "Heatwave", "Landslide", "Thunderstorm"}
                 or (kind == "Earthquake" and row["magnitude"] < 5)
                 or (kind == "Cyclone" and not dates["start_date"] <= dates["landfall_date"] <= dates["end_date"])):
             raise ValueError(f"Invalid hazard class or evidence for {row['id']}")
@@ -53,7 +98,7 @@ def check_inventory(doc, source_ids, district_ids, state_ids):
             raise ValueError(f"Invalid geography or provenance for {row['id']}")
         if set(row) - {"id", "type", "label", "start_date", "end_date", "reported_on", "landfall_date",
                        "districts", "states", "source", "url", "publisher", "related_sources", "estimated",
-                       "period", "area", "magnitude", "epicentre", "impact"}:
+                       "period", "vintage", "area", "magnitude", "epicentre", "impact"}:
             raise ValueError(f"Unexpected public incident fields for {row['id']}")
         if "impact" in row:
             impact = row["impact"]
@@ -94,7 +139,22 @@ def event_summary(events):
     return {
         "count": len(events), "by_type": dict(Counter(event["type"] for event in events)),
         "last_date": last, "last_report_only": report_only,
+        "last_caption": f"Reported {last}" if report_only else last,
     }
+
+
+def advisor_definitions(events, period, coverage):
+    common = {"period": period, "source": "india_disasters_2026", "group": "Hazards", "description": coverage}
+    specs = [
+        ("disasters", "Documented hazard events", "int", ["count"]),
+        ("disaster_last_date", "Latest hazard date", "text", ["last_caption"]),
+        *((f"disaster_{name.lower()}_count", f"{name} events", "int", ["by_type", name])
+          for name in sorted({event["type"] for event in events})),
+    ]
+    return [{**common, "key": key, "label": label, "format": fmt,
+             "unit": "documented events" if fmt == "int" else "event or report date",
+             "paths": {level: ["hazardSummary", *path] for level in ("states", "metros", "counties")}}
+            for key, label, fmt, path in specs]
 
 
 def disaster_lenses(world, states, districts):

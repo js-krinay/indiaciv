@@ -8,30 +8,36 @@
 //        switchTo(id, params)} — everything registered through ctx is undone when the view goes away.
 import { buildData } from "./core/data.js";
 import { createLinker, createBubbles, createMapTip } from "./core/link.js";
-import { emblem, portrait } from "./core/emblems.js";
+import { emblem } from "./core/emblems.js";
 import { frameNation } from "./core/frame.js";
 import { esc, el } from "./core/util.js";
 import { icon } from "../../ui/icon.js";
 
-const dashboard = () => import("./views/india.js");
 export const ADVISORS = [
-  { id: "economy", name: "Economy", role: "Economic advisor", color: "#c9a43a", blurb: "Compare employment and broad industries across states and urban India.", load: dashboard },
-  { id: "people", name: "People", role: "Population advisor", color: "#c46a4f", blurb: "Explore projected population, growth and age across India.", load: dashboard },
-  { id: "prosperity", name: "Prosperity", role: "Living standards advisor", color: "#3f9c82", blurb: "Compare livelihoods and access to services where 2026 figures are available.", load: dashboard },
-  { id: "land", name: "Land", role: "Surveyor", color: "#6e9a3c", blurb: "Compare agriculture, protected land and district conditions.", load: dashboard },
-  { id: "energy", name: "Energy & Resources", role: "Energy advisor", color: "#d98a2b", blurb: "Find mapped power plants, mines and extraction fields.", load: dashboard },
-  { id: "commerce", name: "Commerce", role: "Transport advisor", color: "#2fa4b8", blurb: "Follow major-port cargo and freight loading across railway zones.", load: dashboard },
-  { id: "culture", name: "Culture", role: "Heritage advisor", color: "#c25b9a", blurb: "Find built landmarks and natural wonders across India.", load: dashboard },
-  { id: "knowledge", name: "Knowledge", role: "Research and education advisor", color: "#4fa3e0", blurb: "Compare research institutions, population, employment and internet subscriptions.", load: dashboard },
-  { id: "military", name: "Defence & veterans", role: "Public affairs advisor", color: "#a67c55", blurb: "Explore the Union defence budget, veterans’ registration estimates and civic administration.", load: dashboard },
-  { id: "explorer", name: "Explorer", role: "Cartographer", color: "#9a7bc9", blurb: "Compare states, urban agglomerations and districts in a table or chart.", load: () => import("./views/explorer.js") },
+  { id: "energy", name: "Energy & Resources", role: "Minister of Power", color: "#d98a2b", dark: "#3a1f08", blurb: "Where the power comes from, and what lies underground.", load: () => import("./views/energy.js") },
+  { id: "economy", name: "Economy", role: "Treasurer", color: "#c9a43a", dark: "#3a2c08", blurb: "Compare estimated output across urban agglomerations.", load: () => import("./views/economy.js") },
+  { id: "people", name: "People", role: "Keeper of the Census", color: "#c46a4f", dark: "#3a140c", blurb: "Where people live, where they are moving, how old and how new.", load: () => import("./views/people.js") },
+  { id: "prosperity", name: "Prosperity & Housing", role: "Steward of the Hearth", color: "#3f9c82", dark: "#082a22", blurb: "Explore unemployment across states and urban agglomerations.", load: () => import("./views/prosperity.js") },
+  { id: "knowledge", name: "Knowledge", role: "Royal Scholar", color: "#4a86d6", dark: "#0a1c3a", blurb: "Degrees and the Science yield.", load: () => import("./views/knowledge.js") },
+  { id: "land", name: "Land", role: "Surveyor General", color: "#6e9a3c", dark: "#18280a", blurb: "Forest, farmland, desert and city: what covers the country.", load: () => import("./views/land.js") },
+  { id: "military", name: "Military", role: "General", color: "#8796ab", dark: "#141b26", blurb: "Explore the Union defence budget and veteran registrations.", load: () => import("./views/military.js") },
+  { id: "commerce", name: "Commerce", role: "Master of Trade", color: "#2fa4b8", dark: "#062630", blurb: "Rail freight and the busiest major ports.", load: () => import("./views/commerce.js") },
+  { id: "culture", name: "Culture", role: "Keeper of Wonders", color: "#c25b9a", dark: "#2e0c22", blurb: "Wonders of the land, faith, and the disasters places endure.", load: () => import("./views/culture.js") },
+  { id: "explorer", name: "Explorer", role: "Cartographer", color: "#9a7bc9", dark: "#1e1236", blurb: "Slice and dice every number: any level, any columns, any chart.", load: () => import("./views/explorer.js") },
 ];
 const byId = new Map(ADVISORS.map((a) => [a.id, a]));
-const COUNCIL = [
-  { label: "Wealth and work", ids: ["economy", "prosperity", "commerce", "energy"] },
-  { label: "People and land", ids: ["people", "culture", "land", "knowledge", "military"] },
-  { label: "Compare places", ids: ["explorer"] },
-];
+// The council picker groups its advisors (any advisor not listed here is added to the last group).
+const COUNCIL = (() => {
+  const g = [
+    { label: "Wealth and work", ids: ["economy", "prosperity", "commerce", "energy"] },
+    { label: "People and land", ids: ["people", "knowledge", "culture", "land"] },
+    { label: "Defence", ids: ["military"] },
+    { label: "Your own questions", ids: ["explorer"] },
+  ];
+  const listed = new Set(g.flatMap((x) => x.ids));
+  g[g.length - 1].ids.push(...ADVISORS.filter((a) => !listed.has(a.id)).map((a) => a.id));
+  return g;
+})();
 // 460 px, narrower below 1200 px wide so the whole country still fits beside the dock (matches advisors.css).
 const dockW = () => (innerWidth >= 1200 ? 460 : Math.round(Math.min(460, Math.max(340, innerWidth * 0.38))));
 
@@ -59,7 +65,7 @@ export function install(app) {
   const tip = createMapTip();
   const canvas = document.getElementById("map");
 
-  const ensureData = () => (dataP ??= Promise.all([app.loadData("city_view"), app.loadData("lenses"), app.loadData("sources")])
+  const ensureData = () => (dataP ??= Promise.all([app.loadData("advisor_tables"), app.loadData("lenses"), app.loadData("sources")])
     .then(() => (data = buildData(app))));
 
   // --- top-bar button ---------------------------------------------------------------------------------------------
@@ -207,7 +213,6 @@ export function install(app) {
         if (app.state.lens) a.lensSaved.ours.add(app.state.lens);
       },
       switchTo,
-      keepCamera() { prevCam = null; },
       cleanup: (fn) => a.cleanup.push(fn),
     };
     try {
@@ -234,14 +239,14 @@ export function install(app) {
 
   function titleHtml(adv) {
     return `<div class="adv-title" style="--adv:${adv.color}">
-      ${["explorer", "knowledge", "military"].includes(adv.id) ? emblem(adv, 64) : portrait(adv)}
+      ${emblem(adv, 64)}
       <div class="adv-titles"><div class="adv-kind">${esc(adv.role)}</div><h2>${esc(adv.name)}</h2><p>${esc(adv.blurb)}</p></div>
     </div>`;
   }
 
   function councilHtml() {
     return `<div class="adv-title council"><div class="adv-titles"><div class="adv-kind">Your council</div><h2>Advisors</h2>
-      <p>Choose an advisor to explore India’s 2026 data. Select a chart entry to find its place on the map.</p></div></div>
+      <p>Each advisor opens a dashboard on one part of India. Hover a chart entry to see it on the map. Click to drill in.</p></div></div>
       ${COUNCIL.map((g) => `<h4 class="adv-council-h">${esc(g.label)}</h4><div class="adv-council">${g.ids.map((id) => byId.get(id)).filter(Boolean).map((a) => `<button type="button" class="adv-card" data-adv="${a.id}" style="--adv:${a.color}">
         ${emblem(a, 48)}<span class="t"><span class="r">${esc(a.role)}</span><b>${esc(a.name)}</b><span class="d">${esc(a.blurb)}</span></span></button>`).join("")}</div>`).join("")}
 `;

@@ -12,11 +12,19 @@ from .release_graph import checked_input, dependency_graph, local_path
 # The templated data loader cannot enumerate its inputs from URL syntax.
 # Seed the graph with the audited public build outputs, never the whole data directory.
 PUBLIC_DATA = (
+    "data/advisor_tables.json",
+    "data/almanac.json",
     "data/cities.json",
+    "data/citizens.json",
     "data/city_view.json",
+    "data/counties.json",
+    "data/disasters.json",
+    "data/districts.json",
     "data/infrastructure.json",
+    "data/trade.json",
     "data/lens_catalog.json",
     "data/lenses.json",
+    "data/military.json",
     "data/nation.json",
     "data/protected_land.json",
     "data/protected_ramsar.json",
@@ -24,6 +32,7 @@ PUBLIC_DATA = (
     "data/sources.json",
     "data/states.json",
     "data/wonders.json",
+    "data/workplace.json",
     "data/world.json",
 )
 ENTRY_ASSETS = ("index.html", "favicon.svg", "social-preview.png")

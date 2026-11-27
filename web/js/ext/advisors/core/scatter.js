@@ -26,7 +26,9 @@ export function createScatter(host, opts) {
   tip.hidden = true;
   const hint = document.createElement("div");
   hint.className = "adv-shint";
-  root.append(cv, tip, hint);
+  const periods = document.createElement("p");
+  periods.className = "adv-note";
+  root.append(cv, tip, hint, periods);
   host.appendChild(root);
 
   let o = opts;
@@ -57,6 +59,9 @@ export function createScatter(host, opts) {
     root._count = valid.length;
     cv.setAttribute("aria-label", o.ariaLabel || `Scatter plot of ${valid.length} points: ${o.y?.label || "y"} against ${o.x?.label || "x"}`);
     hint.textContent = o.brush === false ? "" : `${valid.length.toLocaleString("en-US")} points · drag to select`;
+    periods.textContent = [["X", o.x], ["Y", o.y]].flatMap(([axis, spec]) =>
+      spec?.period ? [`${axis} ticks · ${spec.period}`] : []).join("  |  ");
+    periods.hidden = !periods.textContent;
     draw();
   }
 
@@ -95,11 +100,11 @@ export function createScatter(host, opts) {
     c.fillStyle = "rgba(236,208,142,.9)";
     c.font = "11px 'Palatino Linotype', Palatino, Georgia, serif";
     c.textAlign = "center";
-    c.fillText(`${o.x?.label || ""}${sx.log ? " (log)" : ""}`, (M.l + W - M.r) / 2, H - 9);
+    c.fillText(`${o.x?.label || ""}${sx.log ? " (log)" : ""}`, (M.l + W - M.r) / 2, H - 9, W - M.l - M.r);
     c.save();
     c.translate(11, (M.t + H - M.b) / 2);
     c.rotate(-Math.PI / 2);
-    c.fillText(`${o.y?.label || ""}${sy.log ? " (log)" : ""}`, 0, 0);
+    c.fillText(`${o.y?.label || ""}${sy.log ? " (log)" : ""}`, 0, 0, H - M.t - M.b);
     c.restore();
     // reference lines
     c.save();

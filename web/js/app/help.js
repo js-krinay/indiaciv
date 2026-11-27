@@ -6,7 +6,7 @@ const MOD = isMac ? "⌘" : "Ctrl";
 
 const ROWS = [
   ["Move", [
-    [["Drag", "←↑→↓"], "Pan the map"],
+    [["Drag", "←↑→↓", "WASD"], "Pan the map"],
     [["Scroll", "+", "–"], "Zoom in and out"],
     [["Double-click"], "Zoom in on a spot"],
     [["Two fingers"], "Pinch to zoom, drag to pan (touch)"],
@@ -15,11 +15,10 @@ const ROWS = [
   ["Explore", [
     [["Click city"], "Open the city screen"],
     [["Click land"], "Open that state"],
-    [["/", `${MOD} K`], "Search cities, states and wonders"],
+    [["/", `${MOD} K`], "Search cities and states"],
     [["L", "Shift L"], "Next / previous lens"],
-    [["W"], "Show or hide wonders on the map"],
-    [["R"], "Show or hide resources on tiles"],
     [["Legend"], "Hover or drag the scale to show only that range"],
+    [["R"], "Show or hide resources"],
   ]],
   ["Panels", [
     [["?"], "This help"],

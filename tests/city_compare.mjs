@@ -1,31 +1,20 @@
 import assert from "node:assert/strict";
-import { compareRows } from "../web/js/ext/cityView/economy.js";
+import { compareTable } from "../web/js/ext/cityView/screen.js";
 
-const a = { city: { population: 100, projected_growth: 0, growth_period: "same", yields: { science: 0 },
-  provenance: { population: { period: "mid-2026", source: "un_wup_cities" } },
-  yield_meta: { science: { coverage: "Mapped urban footprint", period: "Snapshot" } } },
-  profile: { method: "ghsl", economy: { period: "FY", gdp_per_resident: 10 },
-    air: { aqi: { period: "same", source: "CPCB", calendar_days: 304, valid_days: 290, bad_days: 16 } },
-    citizens: { workforce: { period: "same", source: "PLFS", state_urban_wpr_all_ages: 0.5 } } } };
-const b = structuredClone(a);
-b.profile.air.aqi.valid_days = 300;
-assert.equal(compareRows(a, b).length, 6);
-b.city.yield_meta.science.period = "Other snapshot";
-assert.deepEqual(compareRows(a, b).map((row) => row.label),
-  ["Population", "Projected growth", "GDP per resident", "Bad-air days", "Employed share"]);
-b.city.yield_meta.science.period = "Snapshot";
-const otherPopulation = structuredClone(a);
-otherPopulation.city.provenance.population.period = "Different projection date";
-assert.deepEqual(compareRows(a, otherPopulation).map((row) => row.label), ["Bad-air days", "Employed share", "Science"]);
-b.city.growth_period = "different";
-b.city.yield_meta.science.coverage = "City centre hex proxy";
-b.profile.economy.period = "different";
-b.profile.air.aqi.period = "different";
-b.profile.citizens.workforce = null;
-assert.deepEqual(compareRows(a, b).map((row) => row.label), ["Population"]);
-
-a.profile.citizens.workforce.state_urban_unemployment_15_plus = 0.06;
-const sameRelease = structuredClone(a);
-assert.equal(compareRows(a, sameRelease).find((row) => row.label === "Urban unemployment benchmark (15+)").left, "6.0%");
-sameRelease.profile.citizens.workforce.period = "different";
-assert.ok(!compareRows(a, sameRelease).some((row) => row.label.includes("unemployment")));
+const city = { name: "City A", population: 100, gdp: 15000, growth: 0, unemployment: 0.06,
+  provenance: { population: { period: "mid-2026" }, gdp: { period: "FY 2025-26" },
+    growth: { period: "1 Jul 2025 – 1 Jul 2026" }, unemployment: { period: "1 Jul – 30 Sep 2026" } } };
+const peer = { id: "b", city_view: true, name: "City B", population: 80, growth: 0.01,
+  provenance: { population: { period: "Census 2011", vintage: "older" },
+    growth: { period: "1 Jul 2025 – 1 Jul 2026" } } };
+const model = { city, peers: [peer] };
+const size = compareTable(model);
+assert.match(size, /FY 2025-26/);
+assert.match(size, /Census 2011/);
+assert.match(size, /₹150/);
+assert.match(size, /data-peer="b"/);
+assert.doesNotMatch(size, /columnheader">Income</);
+const housing = compareTable(model, "housing");
+assert.match(housing, /6\.0%/);
+assert.match(housing, /1 Jul – 30 Sep 2026/);
+assert.doesNotMatch(housing, /columnheader">Home value</);

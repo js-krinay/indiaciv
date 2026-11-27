@@ -28,9 +28,8 @@ export function createTable(host, opts) {
   const root = document.createElement("div");
   root.className = "adv-table";
   root.innerHTML = `${opts.search ? `<div class="adv-tsearch"><input type="search" placeholder="${esc(opts.search)}" aria-label="${esc(opts.search)}" spellcheck="false"><span class="cnt"></span></div>` : ""}
-    ${opts.scrollColumns ? `<div class="adv-tclip" tabindex="0" aria-label="Scrollable columns"><div class="adv-tgrid">` : ""}
     <div class="adv-thead" role="row"></div>
-    <div class="adv-tbody" role="rowgroup" tabindex="-1"><div class="adv-tspace"></div></div>${opts.scrollColumns ? "</div></div>" : ""}`;
+    <div class="adv-tbody" role="rowgroup" tabindex="-1"><div class="adv-tspace"></div></div>`;
   root.setAttribute("role", "table");
   root.setAttribute("aria-label", opts.caption || "Data table");
   host.appendChild(root);
@@ -42,15 +41,15 @@ export function createTable(host, opts) {
   const input = root.querySelector(".adv-tsearch input");
   const cnt = root.querySelector(".adv-tsearch .cnt");
 
-  const template = () => `${opts.rank ? "26px " : ""}${cols.map((c) => c.width || (c.align === "l" ? "minmax(0,1.6fr)" : "minmax(0,1fr)")).join(" ")}`;
+  const rank = () => tableShowsRank(opts.rank, cols, sort);
+  const template = () => `${rank() ? "26px " : ""}${cols.map((c) => c.width || (c.align === "l" ? "minmax(0,1.6fr)" : "minmax(0,1fr)")).join(" ")}`;
 
   function renderHead() {
     root.style.setProperty("--cols", template());
-    if (opts.scrollColumns) root.style.setProperty("--columns-min", `${128 + (cols.length - 1) * 93}px`);
-    head.innerHTML = `${opts.rank ? `<span class="th r" role="columnheader">#</span>` : ""}${cols.map((c) => {
+    head.innerHTML = `${rank() ? `<span class="th r" role="columnheader">#</span>` : ""}${cols.map((c) => {
       const s = sort?.key === c.key ? sort.dir : null;
       return `<span class="th ${c.align === "l" ? "l" : "r"}" role="columnheader" aria-sort="${s === "asc" ? "ascending" : s === "desc" ? "descending" : "none"}">
-        <button type="button" data-sort="${esc(c.key)}" title="${esc(c.title || `Sort by ${c.label}`)}">${c.short ? c.short : esc(c.label)}${s ? `<span class="arr" aria-hidden="true">${s === "asc" ? "▲" : "▼"}</span>` : ""}</button></span>`;
+        <button type="button" ${c.sortable === false ? "disabled" : `data-sort="${esc(c.key)}"`} title="${esc(c.title || `Sort by ${c.label}`)}">${c.short ? c.short : esc(c.label)}${s ? `<span class="arr" aria-hidden="true">${s === "asc" ? "▲" : "▼"}</span>` : ""}</button></span>`;
     }).join("")}`;
   }
 
@@ -90,7 +89,7 @@ export function createTable(host, opts) {
       const r = view[i];
       const k = String(keyOf(r));
       const cls = `adv-tr${k === String(hot) ? " hot" : ""}${sel?.has(keyOf(r)) ? " sel" : ""}`;
-      html += `<div class="${cls}" role="row" data-i="${i}" data-key="${esc(k)}" tabindex="-1" style="top:${i * rowH}px;height:${rowH}px">${opts.rank ? `<span class="td r rk" role="cell">${i + 1}</span>` : ""}${cols.map((c) => {
+      html += `<div class="${cls}" role="row" data-i="${i}" data-key="${esc(k)}" tabindex="-1" style="top:${i * rowH}px;height:${rowH}px">${rank() ? `<span class="td r rk" role="cell">${i + 1}</span>` : ""}${cols.map((c) => {
         let inner = c.html ? c.html(r) : esc(c.text ? c.text(r) : r[c.key] ?? "–");
         if (c.bar) {
           const v = (c.value || ((x) => x[c.key]))(r);
@@ -98,7 +97,7 @@ export function createTable(host, opts) {
           inner = `<span class="tbar" style="width:${wpc.toFixed(1)}%;${c.bar.color ? `background:${esc(typeof c.bar.color === "function" ? c.bar.color(r) : c.bar.color)}` : ""}"></span><span class="tv">${inner}</span>`;
         }
         const tip = c.tip ? c.tip(r) : c.align === "l" ? (c.key === "name" && r.name ? `${r.full || r.name}${r.sub ? `, ${r.sub}` : ""}` : c.text ? c.text(r) : null) : null;
-        return `<span class="td ${c.align === "l" ? "l" : "r"}${c.bar ? " hasbar" : ""}" role="cell" data-field="${esc(c.key)}"${tip ? ` title="${esc(tip)}"` : ""}>${inner}</span>`;
+        return `<span class="td ${c.align === "l" ? "l" : "r"}${c.bar ? " hasbar" : ""}" role="cell"${tip ? ` title="${esc(tip)}"` : ""}>${inner}</span>`;
       }).join("")}</div>`;
     }
     space.innerHTML = html || `<div class="adv-empty pad">${esc(opts.empty || "No rows.")}</div>`;
@@ -137,12 +136,7 @@ export function createTable(host, opts) {
   });
   body.addEventListener("click", (e) => {
     const r = rowFromEvent(e);
-    if (!r) return;
-    if (opts.onInspect && (e.pointerType === "touch" || e.pointerType === "pen")) {
-      opts.onInspect(r, e.target.closest("[data-field]")?.dataset.field || "name");
-    } else {
-      opts.onClick?.(r);
-    }
+    if (r) opts.onClick?.(r);
   });
   // Keyboard: the body is focusable; arrows move the hot row, Enter opens it.
   body.tabIndex = 0;
@@ -199,4 +193,8 @@ export function createTable(host, opts) {
     get rows() { return view; },
     destroy() { stopW(); root.remove(); },
   };
+}
+
+export function tableShowsRank(rank, columns, sort) {
+  return Boolean(rank && !columns.find((column) => column.key === sort?.key)?.hideRank);
 }

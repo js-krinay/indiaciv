@@ -1,10 +1,22 @@
-import { buildModel } from "./model.js";
+// City View: a Civ-style city screen as an app mode ("city").
+//
+//   * Clicking a city on the map opens it directly; the quick city panel (search, reports, state lists) gets an
+//     "Open City View" button. Esc or the ✕ leaves it and flies back to the camera from before.
+//   * URL: #city=<id>&view=city round-trips (the "view" hash key); Back leaves the view.
+//   * Map: the metro footprint is outlined in its state colour with a glow, the rest is dimmed; each hex shows
+//     estimated residents and its main land use; the metro's resource sites are labelled; its real districts
+//     (districts.json, BLS QCEW, plus military.json's Encampment) stand on nearby hexes at schematic positions.
+//   * Screen: a right-hand dock (a bottom sheet on phones), see screen.js.
+//   * Banners: zoomed in, the banners that show their yield row also carry the city-type badge (districts.json),
+//     handed to render/banners.js as app.state.cityBadges; districts.json loads the first time the map is zoomed in
+//     that far (or a City View opens).
+import { buildModel, placeDistricts } from "./model.js";
+import { badgeOf } from "./districts.js";
 import { createMapLayer } from "./mapLayer.js";
 import { createBannerFocus } from "./bannerFocus.js";
-import { renderIndia } from "./indiaScreen.js";
+import { render, goToSection } from "./screen.js";
 import { icon } from "../../ui/icon.js";
 import { esc } from "../../format.js";
-import { indianNumber } from "../../ui/cityHeadlines.js";
 
 const MODE = "city";
 const CSS_HREF = new URL("../../../css/cityview.css", import.meta.url).href;
@@ -26,15 +38,12 @@ function injectCss() {
 }
 
 export async function install(app) {
-  const eligible = (city) => city?.city_view === true;
-  if (!app.data.cities.some(eligible)) return;
-  let profiles, pendingOpen = 0;
   await injectCss();
   const banners = createBannerFocus(app);
   const layer = createMapLayer(app, { focusRect: banners.focusRect });
   const cv = {
     city: null, model: null, dock: null, legend: null, highlight: null,
-    pinned: -1, prevCam: null, fromPreview: false, restoreCam: true, exiting: false, timer: 0,
+    pinned: -1, prevCam: null, fromPreview: false, restoreCam: true, exiting: false, resForced: false, timer: 0,
   };
   const origCityPanel = app.panels.city;
   let lastCtx = null;
@@ -43,26 +52,34 @@ export async function install(app) {
   function addOpenButton(city) {
     const panel = app.panels.element;
     const head = panel?.querySelector(".cp-head");
-    if (!eligible(city) || !head || head.querySelector(".cv-open")) return;
+    if (!head || head.querySelector(".cv-open")) return;
     const b = document.createElement("button");
     b.type = "button";
     b.className = "cv-open";
     b.innerHTML = `<span class="cv-open-ic" aria-hidden="true">${icon("layers", "▦", { size: 15 })}</span><span>Open City View</span><span class="cv-open-go" aria-hidden="true">›</span>`;
-    b.title = `Open ${city.name} in City View`;
+    b.title = `Open ${city.name} in the City View: its metro on the map, citizens, economy, workforce, resources and peers`;
     b.onclick = () => openCityView(city);
     head.appendChild(b);
+    addDistrictsLink(panel, city);
   }
 
+  // The quick panel's industry list (ACS C24030: where residents work) is not the City View's Districts (BLS QCEW:
+  // industries concentrated in the metro's own jobs). A line under it says so and opens the Districts tab.
+  function addDistrictsLink(panel, city) {
+    const sec = [...panel.querySelectorAll(".cp-section")].find((s) => /where (people|residents) work/i.test(s.querySelector("h3")?.textContent || ""));
+    if (!sec || sec.querySelector(".cv-plink")) return;
+    const p = document.createElement("p");
+    p.className = "cv-plink";
+    p.innerHTML = `The City View’s Districts tab shows dated workplace specialisations and verified sites where available. <button type="button">Districts ›</button>`;
+    p.querySelector("button").onclick = () => openCityView(city, { section: "districts" });
+    sec.appendChild(p);
+  }
   app.panels.city = (city, ctx) => {
     lastCtx = ctx;
     if (app.mode === MODE) {
-      if (eligible(city)) {
-        app.panels.close();
-        show(city);
-        return;
-      }
-      cv.restoreCam = false;
-      app.setMode(null);
+      app.panels.close(); // the City View replaces the quick panel while it is open
+      show(city);
+      return;
     }
     origCityPanel(city, ctx);
     addOpenButton(city);
@@ -72,25 +89,15 @@ export async function install(app) {
   const fallbackCtx = () => ({
     w: app.w, nation: app.data.nation, states: app.data.states, cities: app.data.cities,
     onClose: () => app.clearSelection(),
-    onPedia: (key) => app.pedia?.open?.(key),
-    pediaLink: app.pediaLink,
+    onPedia: () => app.pedia?.open?.("Yields"),
     onState: (idx) => app.selectState(idx, { fly: true }),
     onCity: (c) => app.selectCity(c, { fly: true }),
   });
 
-  function openCityView(city) {
-    if (!eligible(city)) return;
-    if (!profiles) {
-      const request = ++pendingOpen;
-      const selected = app.state.selectedCity;
-      const selectedState = app.state.selectedState;
-      return Promise.all([app.loadData("city_view"), app.loadData("lenses")]).then(([data]) => {
-        profiles = data?.profiles;
-        if (profiles && request === pendingOpen && !app.mode &&
-            selected === app.state.selectedCity && selectedState === app.state.selectedState) openCityView(city);
-      });
-    }
-    if (!Object.hasOwn(profiles, city.id)) return;
+  // opts.section (citizens, districts, economy, workforce, resources, compare) scrolls the dock to that section.
+  function openCityView(city, opts = {}) {
+    if (!city) return;
+    cv.section = opts.section || null;
     if (app.mode === MODE) app.selectCity(city, { fly: false });
     else app.setMode(MODE, { id: city.id });
   }
@@ -105,7 +112,9 @@ export async function install(app) {
     if (!city) return;
     const same = cv.city === city && cv.dock && !cv.dock.hidden;
     cv.city = city;
-    const m = buildModel(app, city, profiles[city.id]);
+    const m = buildModel(app, city);
+    m.cityList = app.data.cities;
+    m.landColor = layer.landColor;
     cv.model = m;
     layer.set(m); // a new model restarts the border animation
     banners.set(m);
@@ -114,13 +123,27 @@ export async function install(app) {
 
     cv.dock = app.ui.dock("right", { width: dockWidth(), label: `City View: ${city.name}` });
     if (!same) {
-      renderIndia(cv.dock, m, {
+      render(cv.dock, m, {
         onClose: () => leave(true),
+        onState: (idx) => { leave(false); app.selectState(idx, { fly: true }); },
+        onPeer: (id) => openCityView(app.cityById.get(id)),
         onSite: (s) => flyToSite(s),
-        pediaLink: app.pediaLink,
-        onPedia: app.pedia.open,
-      }, profiles, app.data.cities);
+        onSiteHover: (s) => layer.focus(s ? s.item.cell ?? -1 : cv.pinned),
+        onPedia: () => app.pedia?.open?.("Yields"),
+        loadCounties: () => app.loadCounties(),
+        loadData: (name) => app.loadData(name),
+        onDistricts: (list) => {
+          if (cv.model !== m) return;
+          placeDistricts(m, list);
+          updateLegend(m);
+          app.requestDraw();
+        },
+      });
       installSwipe(cv.dock);
+    }
+    if (cv.section) {
+      goToSection(cv.dock, cv.section);
+      cv.section = null;
     }
 
     cv.highlight = {
@@ -157,14 +180,15 @@ export async function install(app) {
   function flyToSite(s) {
     const it = s.item;
     const g = app.w.grid;
-    const x = it.site_x ?? it.x, y = it.site_y ?? it.y;
+    const x = it.cell != null ? g.cx(it.cell) : it.x, y = it.cell != null ? g.cy(it.cell) : it.y;
     app.flyTo(x, y, Math.max(app.cam.scale, 70 / g.R), 700);
     cv.pinned = it.cell ?? -1;
     layer.focus(cv.pinned);
   }
 
   // --- map legend (schematic note) --------------------------------------------------------------------------------
-  // The key explains the footprint and the displayed population estimates.
+  // One line (swatch · NAME · N hexes · ⓘ); the ⓘ opens the key and the note on the schematic districts. On
+  // desktop the "districts are schematic" line stays visible while folded; on phones only the one line shows.
   const LEGEND_KEY = "cityview.legendOpen";
   let legendOpen = null; // null: not chosen by the viewer yet
   try {
@@ -187,16 +211,16 @@ export async function install(app) {
     }
     const col = `rgb(${m.stateRGB.map((v) => v | 0).join(",")})`;
     const n = m.footprint.length;
-    const mapped = m.city.mapped_extent;
-    const extent = m.profile.method === "point" ? "Point location" :
-      `${n} hex${n === 1 ? "" : "es"}${mapped ? ` · ${indianNumber(mapped.km2)} km²` : ""}`;
+    const districts = [...new Set(m.districts.map((district) => district.caption))].join(" · ");
     cv.legend.setAttribute("aria-label", `${m.city.name} metro on the map`);
     cv.legend.innerHTML = `
-      <div class="cv-ml-t"><i class="cv-ml-sw" style="--sc:${col}"></i><b title="${esc(m.city.full || m.city.name)}">${esc(m.city.name)}</b><span class="cv-ml-k">· ${extent}</span><button type="button" class="cv-ml-i" aria-controls="cv-ml-body" title="Map key">i</button></div>
+      <div class="cv-ml-t"><i class="cv-ml-sw" style="--sc:${col}"></i><b title="${esc(m.city.full || m.city.name)}">${esc(m.city.name)}</b><span class="cv-ml-k">· ${n} hex${n === 1 ? "" : "es"}</span><button type="button" class="cv-ml-i" aria-controls="cv-ml-body" title="Map key">i</button></div>
+      <div class="cv-ml-sch">${icon("layers", "▦", { size: 11 })}District positions are schematic</div>
       <div class="cv-ml-body" id="cv-ml-body">
-        <p class="cv-ml-n">${m.profile.method === "point" ? "City location · footprint unavailable" :
-          "GHSL urban footprint. Mid-2026 residents are IndiaCiv estimates from WorldPop and the UN projection. Land-cover symbols use ESA WorldCover imagery."}</p>
-        ${mapped ? `<p class="cv-ml-n">Area · ${esc(mapped.period)} · IndiaCiv estimate · GHSL and Survey of India</p>` : ""}
+        <div class="cv-ml-r"><span class="cv-ml-pill">${icon("pop", "👥", { size: 11 })}≈</span>residents per hex <small>(district density × area · IndiaCiv estimate · 1 March 2026)</small></div>
+        <div class="cv-ml-r"><span class="cv-ml-pill">${icon("l-developed", "▦", { size: 11 })}%</span>main land use <small>(ESA WorldCover 2021)</small></div>
+        ${districts ? `<div class="cv-ml-r"><span class="cv-ml-hex" aria-hidden="true"></span>District plaques <small>${esc(districts)}</small></div>` : ""}
+        <p class="cv-ml-n">Each plaque is placed on a schematic agglomeration hex.</p>
       </div>`;
     setLegendOpen(legendOpen ?? false);
   }
@@ -218,7 +242,7 @@ export async function install(app) {
     el.addEventListener("pointerdown", (e) => {
       if (e.pointerType === "mouse" || !app.isMobile() || !el.classList.contains("cv-dock")) return;
       const fromHead = e.target.closest(".cv-grip, .cv-head");
-      if ((!fromHead && el.scrollTop > 0) || e.target.closest("button, a, input, select, summary")) return;
+      if ((!fromHead && el.scrollTop > 0) || e.target.closest("button, a, input, summary")) return;
       st = { y: e.clientY, id: e.pointerId, dy: 0, head: !!fromHead };
     });
     el.addEventListener("pointermove", (e) => {
@@ -271,7 +295,7 @@ export async function install(app) {
         const br = s.previousSibling;
         if (br && br.nodeName === "BR") br.remove();
         s.remove();
-      } else if (eligible(hoverCity)) {
+      } else {
         s.textContent = "Click to open its City View";
       }
     }
@@ -287,7 +311,7 @@ export async function install(app) {
   app.registerMode(MODE, {
     enter(p) {
       const city = (p?.id && app.cityById.get(String(p.id))) || app.state.selectedCity;
-      if (!eligible(city) || !profiles?.[city.id]) {
+      if (!city) {
         queueMicrotask(() => app.mode === MODE && app.setMode(null));
         return;
       }
@@ -296,6 +320,10 @@ export async function install(app) {
       cv.restoreCam = true;
       cv.city = null;
       document.body.classList.add("cv-on");
+      if (app.w.resources && !app.state.showResources) {
+        cv.resForced = true;
+        app.setShowResources(true);
+      }
       if (app.state.selectedCity !== city) app.selectCity(city, { fly: false }); // → app.panels.city → show()
       else {
         app.panels.close();
@@ -327,6 +355,10 @@ export async function install(app) {
         document.body.classList.remove("cv-on");
         if (app.state.highlight === cv.highlight) app.setHighlight(null);
         cv.highlight = null;
+        if (cv.resForced) {
+          cv.resForced = false;
+          if (app.state.showResources) app.setShowResources(false);
+        }
         if (cv.restoreCam && cv.prevCam) {
           const p = cv.prevCam;
           app.cam.flyTo(p.x, p.y, p.scale, 700);
@@ -359,28 +391,26 @@ export async function install(app) {
   app.on("mapclick", (e) => {
     if (app.mode && app.mode !== MODE) return false; // another extension's mode owns the clicks
     if (app.mode !== MODE) {
-      if (eligible(e.city)) {
+      if (e.city) {
         openCityView(e.city);
         return true;
       }
       return false;
     }
     if (e.city) {
-      if (eligible(e.city)) {
-        if (e.city !== cv.city) openCityView(e.city);
-        return true;
-      }
-      cv.restoreCam = false;
-      app.setMode(null);
-      return false;
+      if (e.city !== cv.city) openCityView(e.city);
+      return true;
     }
     const m = cv.model;
-    if (e.resource && m && m.sites.some((s) => s.item === e.resource)) {
+    if (e.resource && m && e.resource.cbsa === m.city.id) {
       const s = m.sites.find((x) => x.item === e.resource);
       if (s) {
         cv.pinned = s.item.cell ?? -1;
         layer.focus(cv.pinned);
-
+        const row = cv.dock?.querySelector(`[data-site="${m.sites.indexOf(s)}"]`);
+        row?.scrollIntoView({ block: "center", behavior: "smooth" });
+        row?.classList.add("flash");
+        setTimeout(() => row?.classList.remove("flash"), 1200);
       }
       return true;
     }
@@ -397,8 +427,8 @@ export async function install(app) {
     set(v) {
       if (v === "city") {
         const city = app.state.selectedCity;
-        if (!eligible(city)) return;
-        if (app.mode !== MODE) openCityView(city);
+        if (!city) return;
+        if (app.mode !== MODE) app.setMode(MODE, { id: city.id });
         else if (cv.city !== city) show(city);
       } else if (app.mode === MODE) {
         cv.restoreCam = false; // the URL's own camera ("at") wins
@@ -420,6 +450,28 @@ export async function install(app) {
   if (app.state.selectedCity && app.panels.element && !app.panels.element.hidden && app.panels.element.dataset.kind === "city") {
     addOpenButton(app.state.selectedCity);
   }
+
+  // --- city-type badges on the map banners ------------------------------------------------------------------------
+  // render/banners.js draws a badge on banners that show their yield row (zoomed in) when app.state.cityBadges
+  // (Map id → {label, color}) has one. districts.json is big, so it loads only once the map is zoomed in that far.
+  const BADGE_RPX = 24; // banners.js shows yield rows above this hex radius
+  function setBadges(dd) {
+    if (!dd?.cities) return;
+    const map = new Map();
+    for (const c of app.data.cities) {
+      const b = badgeOf(dd, c.id);
+      if (b?.district) map.set(c.id, { label: b.label, color: b.color });
+    }
+    app.state.cityBadges = map;
+    app.requestDraw();
+  }
+  const wantBadges = (Rpx) => {
+    if (Rpx > BADGE_RPX && app.data.districts === undefined) app.loadData("districts").catch(() => {});
+  };
+  app.on("data", (e) => { if (e?.name === "districts") setBadges(e.data); });
+  app.on("camera", (e) => wantBadges(e?.Rpx ?? 0));
+  if (app.data.districts) setBadges(app.data.districts);
+  else wantBadges(app.w.grid.R * app.cam.scale);
 
   app.cityView = { open: openCityView, close: () => leave(true), get city() { return cv.city; }, get model() { return cv.model; } };
 }
