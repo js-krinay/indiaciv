@@ -8,7 +8,7 @@
 // name plates 68 (forts and wonders laid out together, clear of city banners and City View district plaques), trade
 // routes 85 (above resources, under state names). Everything is drawn into the cached static map; nothing animates.
 import { drawRoads, drawRail, drawPort, drawAirport, drawTradeRoutes, hitRoute, TRANSPORT_MIN_RPX } from "../../render/art/improvements.js";
-import { drawProtected, drawWonder, drawPlaque } from "../../render/art/sites.js";
+import { drawFort, drawRestricted, drawProtected, drawWonder, drawPlaque } from "../../render/art/sites.js";
 import { visibleSites, siteSize, hitSites } from "./model.js";
 import { esc } from "../../format.js";
 
@@ -69,6 +69,22 @@ export function makeLayers(model, on, { tips = {}, app = null } = {}) {
     hit: (x, y, Rpx) => m.parks[0]?.hit?.(x, y, Rpx),
     tooltip: (records) => tips.protected?.(records),
   };
+  const restricted = {
+    id: "restricted", z: 58, minRpx: 3,
+    visible: () => !!on.military && m.ranges.length > 0,
+    sig: ver,
+    draw(ctx, vp, w, o) {
+      drawRestricted(ctx, m.ranges, vp, o);
+    },
+    hit(x, y, Rpx) {
+      const cell = grid().cellAt(x, y);
+      if (cell < 0) return null;
+      // forts on top get their own hit first (higher z); here, the range whose hexes hold the pointer
+      for (const r of m.ranges) if (r.cells.has(cell)) return { kind: "range", data: r.range };
+      return null;
+    },
+    tooltip: (it) => tips.range?.(it.data, m) ?? null,
+  };
   const hubs = {
     id: "hubs", z: 65, minRpx: 3,
     visible: () => !!on.hubs && (m.ports.length > 0 || m.airports.length > 0),
@@ -83,6 +99,20 @@ export function makeLayers(model, on, { tips = {}, app = null } = {}) {
     warm(ctx, vp, w, o) { hubs.draw(ctx, vp, w, o); },
     hit: (x, y, Rpx) => hitSites(hubs.list(Rpx), x, y, Rpx, grid()),
     tooltip: (it) => moved(it, (it.kind === "port" ? tips.port?.(it.data, m) : tips.airport?.(it.data, m)) ?? null),
+  };
+  const forts = {
+    id: "forts", z: 66, minRpx: 8,
+    visible: () => !!on.military && m.installations.length > 0,
+    sig: ver,
+    list: (Rpx) => visibleSites(m, "forts", m.installations, Rpx),
+    draw(ctx, vp, w, o) {
+      drawSites(ctx, vp, o, forts.list(o.Rpx), (it, size) => {
+        drawFort(ctx, it.fort, it.x, it.y, size, { tier: it.tier, joint: !!it.data.joint, muted: !!it.muted, coastal: it.coastal, airfield: !!it.airfield });
+      });
+    },
+    warm(ctx, vp, w, o) { forts.draw(ctx, vp, w, o); },
+    hit: (x, y, Rpx) => hitSites(forts.list(Rpx), x, y, Rpx, grid()),
+    tooltip: (it) => moved(it, tips.fort?.(it.data, m) ?? null),
   };
   const wonders = {
     id: "wonders", z: app?.layerZ ? app.layerZ.RESOURCES + 1 : 67, minRpx: 1.5,
@@ -124,11 +154,12 @@ export function makeLayers(model, on, { tips = {}, app = null } = {}) {
   };
   const plates = {
     id: "plates", z: app?.layerZ ? app.layerZ.LABELS + 1 : 68, minRpx: 30,
-    visible: () => (!!on.wonders && m.wonders.length > 0),
-    sig: () => `v${m.version}|${on.wonders ? 1 : 0}|${cvKey()}`,
+    visible: () => (!!on.wonders && m.wonders.length > 0) || (!!on.military && m.installations.length > 0),
+    sig: () => `v${m.version}|${on.wonders ? 1 : 0}${on.military ? 1 : 0}|${cvKey()}`,
     draw(ctx, vp, w, o) {
       const list = [];
       if (on.wonders) list.push(...wonders.list(o.Rpx));
+      if (on.military && o.Rpx >= 60) list.push(...forts.list(o.Rpx).filter((it) => it.tier === "major"));
       if (list.length) plaques(ctx, vp, o, list);
     },
   };
@@ -191,5 +222,5 @@ export function makeLayers(model, on, { tips = {}, app = null } = {}) {
     o.world();
   }
 
-  return [roads, rail, protectedLand, hubs, wonders, plates, trade];
+  return [roads, rail, protectedLand, restricted, hubs, forts, wonders, plates, trade];
 }

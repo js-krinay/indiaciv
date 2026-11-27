@@ -126,7 +126,10 @@ class ReleaseTests(unittest.TestCase):
                 self.assertTrue((out / f"data/{name}.json").is_file())
             military = json.loads((out / "data/military.json").read_text())
             report = Report()
-            check_military(report, military)
+            from pipeline.build.military import civil_installations, optional_interim
+
+            world = json.loads((out / "data/world.json").read_text())
+            check_military(report, military, civil_installations(world, optional_interim))
             self.assertFalse(report.failed)
             for script in out.rglob("*.js"):
                 name = script.relative_to(out).as_posix()

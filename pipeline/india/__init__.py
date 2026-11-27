@@ -6,6 +6,7 @@ Each step writes data/interim/<id>.json. LOCAL_SOURCES describes them for the Al
 from ..core.source import SourceInfo
 from .city_sources import ANNUAL_LABOUR_INFO, GOVERNMENT_SITE_INFO
 from .advisor_sources import SOURCES as ADVISOR_SOURCES
+from .military_sources import SOURCES as MILITARY_SOURCES
 from .census_civic_sources import SOURCES as CENSUS_CIVIC_SOURCES
 from .census_work_sources import PCA_SOURCE, SOURCES as CENSUS_WORK_SOURCES
 from .city_economy_sources import SOURCES as GSVA_SOURCES
@@ -245,7 +246,7 @@ LOCAL_SOURCES = [
         "then clipped to the Survey of India outline and intersected with the grid and DataMeet districts. "
         "The 2025 reference epoch serves as a spatial proxy for the 2026 urban areas. "
         f"Central and Southern Asia archive SHA-256 {GHSL_CHECKSUM}.",
-        used_for=["City View urban footprint proxy and district overlap"],
+        used_for=["City View urban footprint proxy and district overlap", "Military layer civil town centroids"],
     ),
     SourceInfo(
         id=CITY_POPULATION_GRID,
@@ -414,6 +415,7 @@ TERRAIN_SOURCES = [
 ]
 LOCAL_SOURCES.extend(TERRAIN_SOURCES)
 LOCAL_SOURCES.extend(ADVISOR_SOURCES)
+LOCAL_SOURCES.extend(MILITARY_SOURCES)
 LOCAL_SOURCES.extend(EXPLORER_SOURCES)
 LOCAL_SOURCES.extend(CIVIC_SOURCES)
 LOCAL_SOURCES.extend(CENSUS_CIVIC_SOURCES)

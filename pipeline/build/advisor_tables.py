@@ -7,14 +7,17 @@ from collections import Counter
 from ..core.lens_values import decode as decode_lens_values
 from ..core.paths import WEB_DATA
 from ..core.store import write_web
+from ..india.advisor_sources import BOARDS_PERIOD
 from .advisor_inventory import FY, SNAPSHOT, column, index_inventory, inventory_columns
 from .advisor_observations import city_district_observations, path_value, place_columns
 from .counties import field
+from .military import BOARD_SOURCE, CIVIC
 from .state_metrics import QUARTER
 
 REQUIRES = [
     "world.json", "lenses.json", "workplace.json", "cities.json", "city_view.json", "states.json", "nation.json", "counties.json",
     "resources.json", "wonders.json", "infrastructure.json", "protected_land.json", "protected_ramsar.json",
+    "military.json",
 ]
 PRODUCES = ["advisor_tables.json"]
 
@@ -27,7 +30,8 @@ def column_table(places, id_key):
             definitions.setdefault(key, {**base, "estimated": False,
                                          **{k: v for k, v in observation.items() if k != "value"}})
             vintage = observation.get("vintage")
-            if (vintage == "older" and key in ("median_age", "unemployment", "state_urban_unemployment_15_plus")
+            if (vintage == "older" and key in ("median_age", "unemployment", "state_urban_unemployment_15_plus",
+                                               "registered_veterans", "veterans", "veteran_share", "veterans_pct")
                     or key == "city_bad_air" and vintage == "2026 observed"):
                 definitions[key]["hide_rank"] = True
     columns = list(definitions)
@@ -91,8 +95,11 @@ DISTRICT_COLUMNS = {
 
 
 def advisor_tables(world, lenses, workplace, cities, city_view, states, nation, counties,
-                   resources, wonders, infrastructure, protected, ramsar):
+                   resources, wonders, infrastructure, protected, ramsar, military=None):
     districts = lenses["places"]["counties"]
+    boards = [row for row in (military or {}).get("installations", []) if row["tier"] == CIVIC]
+    board_counts = {level: Counter(row[place_key] for row in boards if row[place_key] is not None)
+                    for level, place_key in (("counties", "county"), ("metros", "cbsa"))}
     profiles = city_view["profiles"]
     indexes, gateways = index_inventory(world, cities, profiles, districts, resources, wonders,
                                        infrastructure, protected, ramsar)
@@ -144,6 +151,11 @@ def advisor_tables(world, lenses, workplace, cities, city_view, states, nation, 
                                     protected.get("shares", {}).get(level, {}).get(key),
                                     (memberships[key], populations.get(key), plaques[key]), hex_area)
             columns.update(inventory_columns(sites, names, resources.get("advisor_fields", [])))
+            if count := board_counts.get(level, {}).get(key):
+                columns["cantonment_boards"] = column(
+                    "Matched cantonment boards", "int", "civic boards", "Defence & veterans",
+                    BOARDS_PERIOD, BOARD_SOURCE, count, sparse=True,
+                    coverage="Boards with a unique civil town joined to this district or verified urban footprint.")
             place = {"hazardSummary": profile.get("hazard_summary") if level == "metros" else observations_by_place.get(key)}
             if level == "states":
                 place["state"] = row
@@ -232,7 +244,8 @@ def advisor_tables(world, lenses, workplace, cities, city_view, states, nation, 
             else:
                 aliases.update(veterans="registered_veterans", veterans_pct="veteran_share")
             for alias, original in aliases.items():
-                columns[alias] = {"hidden": True, "value": columns.get(original, {}).get("value")}
+                record = columns.get(original, {})
+                columns[alias] = {"hidden": True, "value": record.get("value"), "vintage": record.get("vintage")}
             growth = row.get("growth")
             columns["growth"] = {"hidden": True, "value": growth if growth is not None else
                                  columns.get("projected_growth", {}).get("value")}

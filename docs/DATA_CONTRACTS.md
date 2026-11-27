@@ -42,7 +42,16 @@ code and column key. Each observation carries its own period where applicable.
 
 `military.json` carries public national budget, veteran registration, civic board,
 school and aggregate defence PSU turnover figures. Turnover is in rupees.
-Its `vintage` object labels each observation independently.
+Its `vintage` object labels each headline observation. `national.personnel.active`
+carries dated national cohorts, with per-key period, scope and source in
+`personnel_provenance`. `installations` carries public DGDE Cantonment Board
+towns and command HQ cities. Each point carries `gazetteer.source` and
+`gazetteer.id`, plus `gazetteer.district_source` where an administrative
+reference resolves a same-name match. The checker reconstructs the point and
+its projected cell from the prepared civil gazetteer. District and urban
+agglomeration memberships require unique spatial joins. `flagships`
+lists published home-port city names, with the ship, period and source in
+`flagship_provenance`. A home-port observation does not classify an installation.
 The state and district tables carry registered veteran measurements or estimates
 with their own provenance. The Almanac source entries carry welfare rates and
 public civic board references.

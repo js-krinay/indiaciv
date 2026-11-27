@@ -12,7 +12,7 @@ from .projection import NORTH_EAST
 
 REQUIRES = ["world.json", "states.json", "cities.json", "nation.json", "lens_catalog.json",
             "resources.json", "wonders.json", "infrastructure.json", "protected_land.json",
-            "protected_ramsar.json", "sources.json"]
+            "protected_ramsar.json", "sources.json", "military.json"]
 PRODUCES = ["almanac.json"]
 RUN_LAST = True
 
@@ -33,7 +33,7 @@ def number(value, digits=2):
 
 
 def make_entries(*, world, states=(), cities=(), wonders=None, lenses=None, nation=None,
-                 resources=None, infrastructure=None, protected=(), sources=()):
+                 resources=None, infrastructure=None, protected=(), sources=(), military=None):
     pages = {}
     source_names = {row["id"]: row["title"] for row in sources}
     lens_names = {row["id"]: row for row in (lenses or {}).get("lenses", [])}
@@ -250,6 +250,25 @@ def make_entries(*, world, states=(), cities=(), wonders=None, lenses=None, nati
                 f"{number(100 * value / total)}% of nominal GVA · {gva['period']}",
                 sources=(gva["source"],))
 
+    if military:
+        national = military["national"]
+        for key, label, source, unit in (
+            ("cantonment_boards", "Cantonment Boards", "cantonment_boards", "civic boards"),
+            ("legacy_sainik_schools", "Traditional Sainik Schools", "sainik_schools_2026", "schools"),
+            ("sainik_schools", "Partnership Sainik Schools", "sainik_schools_2026", "schools"),
+            ("rashtriya_military_schools", "Rashtriya Military Schools", "rashtriya_military_schools_2026", "schools"),
+            ("defence_psu_turnover", "Defence PSU turnover", "dpsu_turnover_fy26", "INR"),
+        ):
+            if key in national:
+                add("Yields", "Public defence statistics", label,
+                    figure(label, national[key], unit, {"period": military["vintage"][key], "source": source}),
+                    sources=(source,))
+        for key, observation in military.get("personnel_provenance", {}).items():
+            label = observation["label"]
+            add("Yields", "Public defence statistics", label,
+                figure(label, national["personnel"]["active"][key], "people", observation),
+                observation["description"], sources=(observation["source"],))
+
     network_period = infrastructure.get("vintage", {}).get("network")
     for key, heading in (("roads", "Highways"), ("rail", "Railway lines")):
         lines = Counter()
@@ -359,7 +378,7 @@ def read_entries(web_dir):
         wonders=read("wonders"), lenses=read("lens_catalog"), nation=read("nation"),
         resources=read("resources"), infrastructure=read("infrastructure"),
         protected=(read("protected_land"), read("protected_ramsar")),
-        sources=read("sources", []),
+        sources=read("sources", []), military=read("military"),
     )
     tables, labels = terrain_captions(world)
     return {"sections": sections, "terrain_relief": tables.get("relief"), "cell_features": labels}

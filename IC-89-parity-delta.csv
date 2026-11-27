@@ -1,0 +1,22 @@
+surface,field,before,after,implementation
+Lens,veterans,partial,partial,State registration counts use 30 Jun 2026 IndiaCiv estimates plus the dated 30 Jun 2024 Manipur and Punjab fallback.
+Military layer,installation_name,not shown,civic partial,58 joined board towns; 18 published HQ cities. The label distinguishes the civic boards.
+Military layer,component,not shown,public civic and HQ labels,Board component Army and tier Cantonment Board (civic body). HQ component and tier Command HQ.
+Military layer,tier,not shown,public civic and HQ labels,Board component Army and tier Cantonment Board (civic body). HQ component and tier Command HQ.
+Military layer,installation_count,not shown,civic partial,58 joined town markers. State counts use the full DGDE register. Districts and UAs use exact town joins.
+Military layer,flagships,not shown,not shown,Three dated PIB home-port city observations in the payload. No upstream browser view reads the slot.
+Explorer States/UTs,veterans,partial,partial,Comparable states retain the 30 Jun 2026 estimate. Manipur and Punjab retain the 30 Jun 2024 count and its date.
+Explorer States/UTs,veterans_pct,partial,partial,Dated registrations per 100 mid-2026 residents. Manipur and Punjab use the 30 Jun 2024 numerator.
+Explorer States/UTs,installations,not shown,civic partial,61 listed boards across 19 states and UTs in the existing civic field.
+Explorer Urban agglomerations,installations,not shown,civic partial,35 board towns in 32 verified urban footprints. Unmatched values are blank.
+Explorer Districts,veterans,partial,partial,"Keep HP district registrations in `counties.json` and the Explorer alias via `advisor_tables.json`. Source counts registrants, not all Census-style veteran residents."
+Explorer Districts,veterans_pct,partial,partial,Existing IndiaCiv estimate divides HP registrations by mid-2026 projected total residents; publish as registrations per 100 residents.
+Advisor Military,veterans,partial,partial,Comparable states retain the 30 Jun 2026 estimate. Manipur and Punjab retain the labelled 30 Jun 2024 count.
+Advisor Military,veterans_pct,partial,partial,Dated registrations per 100 mid-2026 residents. Manipur and Punjab use the 30 Jun 2024 numerator.
+Advisor Military,installations,not shown,civic partial,58 joined town markers. State counts use the full DGDE register. Districts and UAs use exact town joins.
+Advisor Military,name,not shown,civic partial,58 joined board towns; 18 published HQ cities. The label distinguishes the civic boards.
+Advisor Military,state,not shown,civic partial,58 joined board towns; 18 published HQ cities. The label distinguishes the civic boards.
+Advisor Military,troops_by_service,not shown,older partial,Four independently dated national cohorts in military.json and existing Almanac entries.
+Advisor Military,veterans_by_state,partial,partial,Comparable states retain the 30 Jun 2026 estimate. Manipur and Punjab retain the labelled 30 Jun 2024 count.
+Explorer Districts,cantonment_boards,not shown,civic partial,48 Census districts have a uniquely matched board town. Unmatched values are blank.
+Military layer,command_hq,not shown,partial,18 GoI-published command HQ cities resolved to a civil town centre.

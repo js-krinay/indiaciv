@@ -14,7 +14,8 @@ from ..core.hexgrid import HexGrid
 from ..core.paths import WEB_DATA
 from ..core.store import load_interim, write_web
 from ..india import WUP_SOURCE
-from ..india.advisor_sources import HP_REGISTRATIONS, VETERAN_METHOD, VETERAN_PERIOD, VETERAN_POPULATION, VETERAN_SOURCES
+from ..india.advisor_sources import (HP_REGISTRATIONS, OLDER_REGISTRATION_PERIOD, VETERAN_METHOD,
+                                    VETERAN_PERIOD, VETERAN_POPULATION, VETERAN_SOURCES)
 from ..india.city_conditions_sources import EVENTS
 from ..india.city_sources import DISTRICT_AGE_SOURCE
 from ..india.census_work_sources import CULTIVATION_INTERIM
@@ -275,6 +276,10 @@ def build() -> None:
     veterans = [row.get("advisor_statistics", {}).get("registered_veterans") for row in state_rows]
     if any(value is not None for value in veterans):
         values = [veterans[o] if o >= 0 and not water else None for o, water in zip(owner, world["water"])]
+        state_details = {str(i): {"period": OLDER_REGISTRATION_PERIOD, "vintage": "older",
+                                  "estimated": False, "source": VETERAN_SOURCES[0]}
+                         for i, row in enumerate(state_rows)
+                         if row.get("advisor_statistics", {}).get("veteran_vintage") == "older"}
         lenses.append({
             "id": "registered_veterans", "group": "states", "name": "Registered ex-servicemen",
             "icon": "l-people", "emoji": "", "unit": "people", "format": "int", "scale": "linear",
@@ -283,7 +288,8 @@ def build() -> None:
             "period": VETERAN_PERIOD, "estimated": True,
             "source_line": f"IndiaCiv estimate · {VETERAN_PERIOD} · KSB and Ministry of Defence via PIB",
             "description": VETERAN_METHOD,
-            "note": "Each hex shows its State/UT registration estimate where comparable snapshots exist.",
+            "note": "Each hex shows its State/UT registration count with its observation period.",
+            "state_details": state_details,
             "values": values,
         })
     profiles = [st["profile"] for st in state_rows]

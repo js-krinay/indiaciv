@@ -6,6 +6,7 @@ or every manifest entry if it did not say.
 
 import json
 import math
+from decimal import Decimal
 from pathlib import Path
 
 from ..core.fetch import read_manifest
@@ -16,7 +17,7 @@ from ..india import ESTUARY_SOURCES, FEATURED_PORT_REFERENCES, LOCAL_SOURCES, SO
 from ..india import TRANSPORT_REFERENCE_FILES, TRANSPORT_SOURCES
 from ..india.city_sources import (ANNUAL_LABOUR_INFO, ANNUAL_LABOUR_PERIOD, CITY_PEOPLE_SOURCES, CLUSTER_REPORTS,
                                   CLUSTER_SOURCES, GOVERNMENT_SITE_INFO)
-from ..india.advisor_sources import SOURCES as ADVISOR_SOURCES
+from ..india.advisor_sources import OLDER_REGISTRATIONS, OLDER_REGISTRATION_PERIOD, SOURCES as ADVISOR_SOURCES
 from ..india.census_work_sources import INTERIM as CENSUS_WORK
 from ..india.census_work_sources import SOURCES as WORK_SOURCES, workbook_manifest as work_manifest
 from ..india.civic_sources import SOURCES as CIVIC_SOURCES
@@ -27,6 +28,7 @@ from ..india.disaster_sources import SOURCES as DISASTER_SOURCES
 from ..india.explorer_sources import SOURCES as EXPLORER_SOURCES
 from ..india.household_cost_sources import INTERIM as HOUSEHOLD_COSTS, PERIODS as HOUSEHOLD_PERIODS
 from ..india.household_cost_sources import PILOT, PILOT_INTERIM, REPORTS as HOUSEHOLD_REPORTS
+from ..india.military_sources import SOURCES as MILITARY_SOURCES, STRENGTH, STRENGTH_SOURCE
 from ..india.city_economy_sources import SOURCES as GSVA_SOURCES
 from ..india.city_economy_sources import HISTORICAL_DETAIL_PERIODS
 from ..india.protected_land_catalog import MANIFEST as PROTECTED_MANIFEST, PERIODS as PROTECTED_PERIODS
@@ -39,6 +41,7 @@ from ..india.historical_sources import VILLAGE_LAND_PERIOD, VILLAGE_LAND_SOURCE
 from ..sources import SOURCES
 from ..sources.resource_references import REFERENCES as RESOURCE_REFERENCES
 from .city_people import REGISTRATION_METHOD
+from .advisor_inventory import indian_number
 from .state_metrics import FY
 from .protected_land import SOURCE as PROTECTED_SOURCE
 
@@ -202,7 +205,7 @@ def build() -> None:
                          if kind in kinds]
                 out.append({**info.to_dict(), "vintage": "older", "period": CENSUS_PERIOD, "files": files})
                 continue
-            elif info in (*YIELD_SOURCES, *ADVISOR_SOURCES, *CIVIC_SOURCES, *EXPLORER_SOURCES):
+            elif info in (*YIELD_SOURCES, *ADVISOR_SOURCES, *CIVIC_SOURCES, *EXPLORER_SOURCES, *MILITARY_SOURCES):
                 vintage = None  # The pinned edition and period are in the source description.
             elif info in TERRAIN_SOURCES:
                 load_interim_payload("india_layered_terrain")
@@ -286,6 +289,12 @@ def build() -> None:
     nation_path = WEB_DATA / "nation.json"
     nation = json.loads(nation_path.read_text()) if nation_path.exists() else {}
     notes = advisor_notes(nation.get("advisor_statistics", {}))
+    older_counts = ", ".join(f"{name} {indian_number(Decimal(OLDER_REGISTRATIONS[code]))}"
+                             for code, name in (("MN", "Manipur"), ("PB", "Punjab")))
+    notes["registered_veterans_pib"] = f"Reported registrations as of {OLDER_REGISTRATION_PERIOD}: {older_counts}."
+    notes[STRENGTH_SOURCE] = " ".join(
+        f"{label} ({period}) had {indian_number(Decimal(value))} personnel. {description}"
+        for value, label, period, description in STRENGTH.values())
     if freight := (transport or {}).get("freight"):
         zones = ", ".join(f"{label} {value:g}" for _, label, value in freight["rows"])
         notes[freight["source_id"]] = (

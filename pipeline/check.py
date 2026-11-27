@@ -425,7 +425,10 @@ def check_periods(r: Report, docs: dict) -> None:
     def visit(value, path, nested=False):
         if isinstance(value, dict):
             older = value.get("vintage") == "older"
-            if older and not valid_older_period(value.get("period")):
+            observed = value.get("period")
+            if older and path.endswith(".veteran_share") and isinstance(observed, str):
+                observed = observed.removesuffix(" registrations · mid-2026 residents")
+            if older and not valid_older_period(observed):
                 r.fail(f"{path}.period: an older value needs its actual pre-2026 year")
             for key, period in value.items():
                 if older and key in {"vintage", "period"}:
@@ -1005,15 +1008,20 @@ def check_counties(r: Report, doc, ctx: dict | None, city_ids: set | None) -> No
         r.ok(f"counties.json: {len(rows)} districts × {len(cols)} columns ({doc['vintage']})")
 
 
-def check_military(r: Report, doc) -> None:
-    from .build.military import PUBLIC_INDICATORS
+def check_military(r: Report, doc, civil_records=()) -> None:
+    from .build.military import (BOARD_SOURCE, CAVEATS, CIVIC, COMPONENTS, HQ, PUBLIC_INDICATORS,
+                                 RULES, VETERANS_NOTE, home_port_records)
+    from .india.advisor_sources import BOARDS, BOARDS_PERIOD
+    from .india.military_sources import COMMANDS, STRENGTH, STRENGTH_SOURCE
 
     what = "military.json"
     if not need_keys(r, what, doc, ["national", "vintage", "sources"]):
         return
     national = doc["national"]
-    if (set(doc) - {"national", "states", "vintage", "sources"} or not isinstance(national, dict)
-            or set(national) - {"spending", "veterans", *PUBLIC_INDICATORS}):
+    if (set(doc) - {"national", "states", "vintage", "sources", "personnel_provenance",
+                    "installations", "components", "rules", "caveats", "veterans_note", "flagships", "flagship_provenance"}
+            or not isinstance(national, dict)
+            or set(national) - {"spending", "veterans", "personnel", *PUBLIC_INDICATORS}):
         r.fail(f"{what}: only approved public aggregates are permitted")
         return
     spending = national.get("spending", {})
@@ -1037,7 +1045,7 @@ def check_military(r: Report, doc) -> None:
         r.fail(f"{what}: registrations must be non-negative integer totals")
         return
     vintage, sources = doc["vintage"], doc["sources"]
-    if (not isinstance(vintage, dict) or set(vintage) - {"spending", "veterans", *PUBLIC_INDICATORS}
+    if (not isinstance(vintage, dict) or set(vintage) - {"spending", "veterans", "installations", *PUBLIC_INDICATORS}
             or any(not isinstance(value, str) for value in vintage.values())
             or not isinstance(sources, list) or any(not isinstance(source, str) for source in sources)):
         r.fail(f"{what}: invalid public aggregate provenance")
@@ -1046,7 +1054,57 @@ def check_military(r: Report, doc) -> None:
         if not is_int(national[key]) or national[key] < 0 or not vintage.get(key, "").strip():
             r.fail(f"{what}: {key} requires a non-negative integer total and an observation period")
             return
-    r.ok(f"{what}: approved public aggregates only")
+    if "personnel" in national or "personnel_provenance" in doc:
+        active = {key: value for key, (value, _, _, _) in STRENGTH.items()}
+        metadata = {key: {"label": label, "period": period, "description": desc,
+                          "vintage": "older", "source": STRENGTH_SOURCE}
+                    for key, (_, label, period, desc) in STRENGTH.items()}
+        if (national.get("personnel") != {"active": active} or doc.get("personnel_provenance") != metadata
+                or STRENGTH_SOURCE not in sources):
+            r.fail(f"{what}: expected only the dated national held-strength cohorts")
+            return
+    approved = {(f"{town} Cantonment Board", state, town, "army", CIVIC, BOARDS_PERIOD, BOARD_SOURCE)
+                for state, towns in BOARDS.items() for town in towns}
+    approved.update((name, state, town, HQ, HQ, period, f"command_hq_{release}")
+                    for name, state, town, release, period in COMMANDS)
+    fields = ("name", "state", "town", "component", "tier", "period", "source")
+    seen = set()
+    expected = {row["id"]: row for row in civil_records}
+    installations = doc.get("installations", [])
+    if not isinstance(installations, list):
+        r.fail(f"{what}: installations must be a list of public town markers")
+        return
+    for row in installations:
+        if (not isinstance(row, dict) or set(row) - {"vintage"} != {*fields, "id", "x", "y", "cell", "county", "cbsa", "gazetteer"}
+                or any(not isinstance(row[key], str) for key in (*fields, "id"))
+                or tuple(row[key] for key in fields) not in approved or row["source"] not in sources
+                or row.get("vintage") != (None if "2026" in row["period"] else "older")
+                or row["id"] in seen or any(not is_num(row[key]) for key in ("x", "y"))
+                or not is_int(row["cell"]) or row["cell"] < 0
+                or any(row[key] is not None and not isinstance(row[key], str) for key in ("county", "cbsa"))):
+            r.fail(f"{what}: invalid public town marker")
+            return
+        seen.add(row["id"])
+        if row != expected.get(row["id"]):
+            r.fail(f"{what}: {row['id']} does not match its civil gazetteer point, state and projected cell")
+            return
+        provenance = row["gazetteer"]
+        if provenance["source"] not in sources or (
+                "district_source" in provenance and provenance["district_source"] not in sources):
+            r.fail(f"{what}: {row['id']} is missing its civil gazetteer or district credit")
+            return
+    if "flagships" in doc or "flagship_provenance" in doc:
+        home_ports = home_port_records()
+        if (doc.get("flagships") != list(home_ports) or doc.get("flagship_provenance") != home_ports
+                or any(row["source"] not in sources for row in home_ports.values())):
+            r.fail(f"{what}: expected only published, dated home-port observations")
+            return
+    if any(doc.get(key, expected) != expected
+           for key, expected in (("components", COMPONENTS), ("rules", RULES), ("caveats", CAVEATS),
+                                 ("veterans_note", VETERANS_NOTE))):
+        r.fail(f"{what}: invalid public marker labels")
+        return
+    r.ok(f"{what}: approved public aggregates and {len(seen)} town markers")
 
 
 def check_sources(r: Report, doc) -> set | None:
@@ -1455,7 +1513,19 @@ def run(web_dir: Path = WEB_DATA, interim_dir: Path = INTERIM, quiet: bool = Fal
     if docs["counties.json"] is not None:
         check_counties(r, docs["counties.json"], ctx, city_ids)
     if docs["military.json"] is not None:
-        check_military(r, docs["military.json"])
+        from .build.military import civil_installations
+
+        military = docs["military.json"]
+        civil_records = []
+        if isinstance(military, dict) and military.get("installations"):
+            def read_military_interim(name):
+                return (_interim(interim_dir, name) or {}).get("data", {})
+
+            try:
+                civil_records = civil_installations(docs["world.json"], read_military_interim)
+            except (KeyError, TypeError, ValueError) as error:
+                r.fail(f"military.json: unable to verify civil gazetteer: {error}")
+        check_military(r, military, civil_records)
     check_growth(r, docs)
     check_periods(r, docs | {path.name: _load(r, web_dir, path.name, False)
                              for path in web_dir.glob("*.json") if path.name not in docs})

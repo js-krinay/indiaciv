@@ -34,7 +34,7 @@ export async function mount(ctx) {
   const { app, data, el, link } = ctx;
   const mil = await app.loadData("military");
   if (!mil) {
-    el.innerHTML = `<p class="adv-empty pad">Military advisor data is unavailable.</p>`;
+    el.innerHTML = `<p class="adv-empty pad">military.json is not built, so the General has nothing to report.</p>`;
     return {};
   }
   const { states: stLevel, metros, counties } = data.levels;
@@ -53,7 +53,7 @@ export async function mount(ctx) {
   const cellRange = new Map();
   for (const r of mil.ranges || []) for (const c of r.cells || []) if (!cellRange.has(c)) cellRange.set(c, r);
 
-  const st = { comps: new Set(comps.map((c) => c.id)), tier: "big", state: null };
+  const st = { comps: new Set(comps.map((c) => c.id)), tier: insts.some((it) => fin(it.area_km2)) ? "big" : "all", state: null };
 
   // --- headline -------------------------------------------------------------------------------------------------
   const P = nat.personnel || {}, S = nat.spending || {};
@@ -61,11 +61,6 @@ export async function mount(ctx) {
     ...(fin(P.active?.total) ? [{ label: "Active duty", value: count3(P.active.total), sub: vint.personnel, color: "#a9c3d6" }] : []),
     ...(fin(S.total) ? [{ label: "Union defence allocation", value: money(S.total), sub: `${fin(S.pct_gdp) ? `≈${pct(S.pct_gdp)} of GDP · ` : ""}${vint.spending || ""}` }] : []),
     ...(fin(nat.veterans) ? [{ label: "Registered ex-servicemen", value: `≈${count3(nat.veterans)}`, sub: `IndiaCiv estimate · ${vint.veterans || ""}` }] : []),
-    ...(fin(nat.cantonment_boards) ? [{ label: "Cantonment Boards", value: int(nat.cantonment_boards), sub: vint.cantonment_boards }] : []),
-    ...(fin(nat.legacy_sainik_schools) ? [{ label: "Sainik Schools", value: int(nat.legacy_sainik_schools), sub: `Traditional · ${vint.legacy_sainik_schools}` }] : []),
-    ...(fin(nat.sainik_schools) ? [{ label: "Sainik Schools", value: int(nat.sainik_schools), sub: `Partnership · ${vint.sainik_schools}` }] : []),
-    ...(fin(nat.rashtriya_military_schools) ? [{ label: "RMS", value: int(nat.rashtriya_military_schools), sub: `Rashtriya Military Schools · ${vint.rashtriya_military_schools}` }] : []),
-    ...(fin(nat.defence_psu_turnover) ? [{ label: "Defence PSU turnover", value: money(nat.defence_psu_turnover), sub: vint.defence_psu_turnover }] : []),
   ]));
 
   // --- map colour -----------------------------------------------------------------------------------------------
@@ -92,57 +87,59 @@ export async function mount(ctx) {
   // --- installations --------------------------------------------------------------------------------------------
   let stateChip, instTable;
   if (insts.length) {
-    const iBody = section(el, {
-      title: "Installations", kicker: esc(vint.installations || "DoD MIRTA"),
-      note: `Every active DoD site in the lower 48: circle area follows the land inside its boundary (capped at ${int(AREA_CAP)} km²; sites without a boundary are dots). ${esc(mil.rules?.tier || "")}`,
-    });
-    const counts = new Map();
-    for (const it of insts) counts.set(it.component, (counts.get(it.component) || 0) + 1);
-    const compChips = chips(iBody, {
-      label: "Components",
-      items: comps.filter((c) => counts.get(c.id)).map((c) => ({ key: c.id, label: c.short, color: c.color, count: counts.get(c.id) })),
-      onChange: (on) => { st.comps = on; apply(); },
-    });
-    const qRow = mk("div", "adv-row");
-    qRow.innerHTML = COMP_GROUPS.map((g) => `<button type="button" class="adv-mini" data-g="${g.id}">${esc(g.label)}</button>`).join("") + `<button type="button" class="adv-mini" data-g="all">All</button>`;
-    iBody.appendChild(qRow);
-    qRow.addEventListener("click", (e) => {
-      const g = e.target.closest("[data-g]")?.dataset.g;
-      if (!g) return;
-      st.comps = g === "all" ? new Set(comps.map((c) => c.id)) : new Set(COMP_GROUPS.find((x) => x.id === g).ids);
-      compChips.set(st.comps);
-      apply();
-    });
-    const tRow = mk("div", "adv-row");
-    iBody.appendChild(tRow);
-    segmented(tRow, {
-      label: "Size", value: st.tier,
-      options: [{ value: "major", label: "Major" }, { value: "big", label: "Major & bases" }, { value: "all", label: "Every site" }],
-      onChange: (v) => { st.tier = v; apply(); },
-    });
+  const iBody = section(el, {
+    title: "Installations", kicker: esc(vint.installations || "DoD MIRTA"),
+      note: esc(mil.rules?.tier || ""),
+  });
+  const counts = new Map();
+  for (const it of insts) counts.set(it.component, (counts.get(it.component) || 0) + 1);
+  const compChips = chips(iBody, {
+    label: "Components",
+    items: comps.filter((c) => counts.get(c.id)).map((c) => ({ key: c.id, label: c.short, color: c.color, count: counts.get(c.id) })),
+    onChange: (on) => { st.comps = on; apply(); },
+  });
+    if (insts.some((it) => fin(it.area_km2))) {
+  const qRow = mk("div", "adv-row");
+  qRow.innerHTML = COMP_GROUPS.map((g) => `<button type="button" class="adv-mini" data-g="${g.id}">${esc(g.label)}</button>`).join("") + `<button type="button" class="adv-mini" data-g="all">All</button>`;
+  iBody.appendChild(qRow);
+  qRow.addEventListener("click", (e) => {
+    const g = e.target.closest("[data-g]")?.dataset.g;
+    if (!g) return;
+    st.comps = g === "all" ? new Set(comps.map((c) => c.id)) : new Set(COMP_GROUPS.find((x) => x.id === g).ids);
+    compChips.set(st.comps);
+    apply();
+  });
+  const tRow = mk("div", "adv-row");
+  iBody.appendChild(tRow);
+  segmented(tRow, {
+    label: "Size", value: st.tier,
+    options: [{ value: "major", label: "Major" }, { value: "big", label: "Major & bases" }, { value: "all", label: "Every site" }],
+    onChange: (v) => { st.tier = v; apply(); },
+  });
+    }
     stateChip = mk("div", "adv-row adv-filterbar");
-    iBody.appendChild(stateChip);
-    stateChip.addEventListener("click", (e) => { if (e.target.closest("[data-clear-state]")) setState(null); });
-    const legend = mk("div");
-    legend.innerHTML = sizeLegend([100, 1000, AREA_CAP], (v) => 14 * Math.sqrt(v / AREA_CAP), (v) => `${int(v)} km²`, "Circle area = land inside the boundary");
-    iBody.appendChild(legend);
+  iBody.appendChild(stateChip);
+  stateChip.addEventListener("click", (e) => { if (e.target.closest("[data-clear-state]")) setState(null); });
+  const legend = mk("div");
+  legend.innerHTML = sizeLegend([100, 1000, AREA_CAP], (v) => 14 * Math.sqrt(v / AREA_CAP), (v) => `${int(v)} km²`, "Circle area = land inside the boundary");
+    if (insts.some((it) => fin(it.area_km2))) iBody.appendChild(legend);
     instTable = createTable(iBody, {
-      caption: "DoD installations", search: "Search installations, states", rank: true, maxHeight: 280,
-      searchText: (r) => `${r.name} ${r.state} ${compById.get(r.component)?.name || ""}`,
-      columns: [
-        { key: "name", label: "Installation", align: "l", width: "minmax(0,1.9fr)", value: (r) => r.name, html: (r) => `<i class="dot" style="background:${esc(compById.get(r.component)?.color || "#999")}"></i>${esc(r.name)}${r.joint ? ` <span class="sub">joint</span>` : ""}`, tip: (r) => `${r.name} · ${compById.get(r.component)?.name || r.component}${r.status !== "act" ? ` · ${STATUS[r.status] || r.status}` : ""}` },
-        { key: "component", label: "Service", align: "l", width: "minmax(0,.9fr)", hideBelow: 400, value: (r) => compById.get(r.component)?.short, text: (r) => compById.get(r.component)?.short || r.component },
-        { key: "tier", label: "Tier", align: "l", width: "46px", value: (r) => ({ major: 0, base: 1, site: 2 })[r.tier], text: (r) => TIER_LABEL[r.tier] || r.tier },
-        { key: "state", label: "State", align: "l", width: "40px", value: (r) => r.state, text: (r) => r.state || "–" },
-        { key: "area", label: "Area", width: "minmax(0,.8fr)", value: (r) => r.area_km2, text: (r) => (fin(r.area_km2) ? `${count3(r.area_km2)} km²` : "–"), title: "Land inside the boundary (null: no boundary published)" },
-      ],
-      rows: [], sort: { key: "area", dir: "desc" },
-      onHover: (r) => {
-        link.hover(r ? { cells: new Set(instCells(r)), label: r.name } : null);
-        bubbles.setHot(r ? r.key : null);
-      },
-      onClick: (r) => flyTo(r),
-    });
+      caption: "Cantonment Boards and Command HQs", search: "Search installations, states", rank: true, maxHeight: 280,
+    searchText: (r) => `${r.name} ${r.state} ${compById.get(r.component)?.name || ""}`,
+    columns: [
+        { key: "name", label: "Installation", align: "l", width: "minmax(0,1.9fr)", value: (r) => r.name, html: (r) => `<i class="dot" style="background:${esc(compById.get(r.component)?.color || "#999")}"></i>${esc(r.name)}${r.joint ? ` <span class="sub">joint</span>` : ""}`, tip: (r) => `${r.name} · ${compById.get(r.component)?.name || r.component}${r.status && r.status !== "act" ? ` · ${STATUS[r.status] || r.status}` : ""}${r.period ? ` · ${r.town} · ${r.period}` : ""}` },
+      { key: "component", label: "Service", align: "l", width: "minmax(0,.9fr)", hideBelow: 400, value: (r) => compById.get(r.component)?.short, text: (r) => compById.get(r.component)?.short || r.component },
+        { key: "tier", label: "Tier", align: "l", width: "46px", value: (r) => ({ major: 0, base: 1, site: 2 })[r.tier] ?? r.tier, text: (r) => TIER_LABEL[r.tier] || r.tier, tip: (r) => TIER_LABEL[r.tier] || r.tier },
+      { key: "state", label: "State", align: "l", width: "40px", value: (r) => r.state, text: (r) => r.state || "–" },
+        ...(insts.some((it) => fin(it.area_km2)) ? [{ key: "area", label: "Area", width: "minmax(0,.8fr)", value: (r) => r.area_km2, text: (r) => (fin(r.area_km2) ? `${count3(r.area_km2)} km²` : "–"), title: "Land inside the boundary (null: no boundary published)" }] : []),
+    ],
+    rows: [], sort: { key: "area", dir: "desc" },
+    onHover: (r) => {
+      link.hover(r ? { cells: new Set(instCells(r)), label: r.name } : null);
+      bubbles.setHot(r ? r.key : null);
+    },
+    onClick: (r) => flyTo(r),
+  });
   }
 
   function flyTo(r) {
@@ -156,143 +153,142 @@ export async function mount(ctx) {
   // --- by state -------------------------------------------------------------------------------------------------
   let stacks, drawStates, drawDetail;
   if (Object.keys(mil.states || {}).length) {
-    const sBody = section(el, {
-      title: "Troops and dollars by state",
-      note: `Personnel by duty state (${esc(vint.personnel || "DMDC")}); spending by place of performance (${esc(vint.spending || "OLDCC")}). Click a state to see its detail and filter the bases to it.`,
-    });
-    const sCtl = mk("div", "adv-row");
-    sBody.appendChild(sCtl);
-    let metric = "troops", showAll = false;
-    segmented(sCtl, {
-      label: "Measure", value: metric,
-      options: [{ value: "troops", label: "Troops" }, { value: "dollars", label: "Dollars" }, { value: "perres", label: "Per resident" }, { value: "gdp", label: "% of GDP" }],
-      onChange: (v) => { metric = v; drawStates(); },
-    });
-    const allBtn = mk("button", "adv-mini");
-    allBtn.type = "button";
-    sCtl.appendChild(allBtn);
-    allBtn.addEventListener("click", () => { showAll = !showAll; drawStates(); });
-    const sHost = mk("div");
-    sBody.appendChild(sHost);
-    const sLegend = mk("div");
-    sBody.appendChild(sLegend);
-    const detail = mk("div", "adv-detail");
-    sBody.appendChild(detail);
-    stacks = null;
-    const METRICS = {
-      troops: {
-        keys: [{ key: "active", label: "Active duty", color: "#6f91ad" }, { key: "guard", label: "Guard & Reserve", color: "#d6b04a" }, { key: "civ", label: "DoD civilians", color: "#9a9aa8" }],
-        parts: (s) => ({ active: s.personnel?.active?.total, guard: s.personnel?.guard_reserve?.total, civ: s.personnel?.civilian?.total }),
-        total: (s) => s.personnel?.total, fmt: count3,
-      },
-      dollars: {
-        keys: [{ key: "contracts", label: "Contracts", color: "#d9a457" }, { key: "payroll", label: "Payroll", color: "#6f91ad" }, { key: "grants", label: "Grants", color: "#8fcbb8" }],
-        parts: (s) => ({ contracts: s.spending?.contracts, payroll: s.spending?.payroll, grants: s.spending?.grants }),
-        total: (s) => s.spending?.total, fmt: money,
-      },
-      perres: { keys: [{ key: "v", label: "$ per resident", color: "#d9a457" }], parts: (s) => ({ v: s.spending?.per_resident }), total: (s) => s.spending?.per_resident, fmt: dollars },
-      gdp: { keys: [{ key: "v", label: "Share of state GDP", color: "#c46a4f" }], parts: (s) => ({ v: s.spending?.pct_gdp }), total: (s) => s.spending?.pct_gdp, fmt: (v) => pct(v) },
-    };
-    const milStates = Object.entries(mil.states || {}).filter(([, s]) => s);
+  const sBody = section(el, {
+    title: "Troops and dollars by state",
+    note: `Personnel by duty state (${esc(vint.personnel || "DMDC")}); spending by place of performance (${esc(vint.spending || "OLDCC")}). Click a state to see its detail and filter the bases to it.`,
+  });
+  const sCtl = mk("div", "adv-row");
+  sBody.appendChild(sCtl);
+  let metric = "troops", showAll = false;
+  segmented(sCtl, {
+    label: "Measure", value: metric,
+    options: [{ value: "troops", label: "Troops" }, { value: "dollars", label: "Dollars" }, { value: "perres", label: "Per resident" }, { value: "gdp", label: "% of GDP" }],
+    onChange: (v) => { metric = v; drawStates(); },
+  });
+  const allBtn = mk("button", "adv-mini");
+  allBtn.type = "button";
+  sCtl.appendChild(allBtn);
+  allBtn.addEventListener("click", () => { showAll = !showAll; drawStates(); });
+  const sHost = mk("div");
+  sBody.appendChild(sHost);
+  const sLegend = mk("div");
+  sBody.appendChild(sLegend);
+  const detail = mk("div", "adv-detail");
+  sBody.appendChild(detail);
+  const METRICS = {
+    troops: {
+      keys: [{ key: "active", label: "Active duty", color: "#6f91ad" }, { key: "guard", label: "Guard & Reserve", color: "#d6b04a" }, { key: "civ", label: "DoD civilians", color: "#9a9aa8" }],
+      parts: (s) => ({ active: s.personnel?.active?.total, guard: s.personnel?.guard_reserve?.total, civ: s.personnel?.civilian?.total }),
+      total: (s) => s.personnel?.total, fmt: count3,
+    },
+    dollars: {
+      keys: [{ key: "contracts", label: "Contracts", color: "#d9a457" }, { key: "payroll", label: "Payroll", color: "#6f91ad" }, { key: "grants", label: "Grants", color: "#8fcbb8" }],
+      parts: (s) => ({ contracts: s.spending?.contracts, payroll: s.spending?.payroll, grants: s.spending?.grants }),
+      total: (s) => s.spending?.total, fmt: money,
+    },
+    perres: { keys: [{ key: "v", label: "$ per resident", color: "#d9a457" }], parts: (s) => ({ v: s.spending?.per_resident }), total: (s) => s.spending?.per_resident, fmt: dollars },
+    gdp: { keys: [{ key: "v", label: "Share of state GDP", color: "#c46a4f" }], parts: (s) => ({ v: s.spending?.pct_gdp }), total: (s) => s.spending?.pct_gdp, fmt: (v) => pct(v) },
+  };
+  const milStates = Object.entries(mil.states || {}).filter(([, s]) => s);
     drawStates = () => {
-      const M = METRICS[metric];
-      const rows = milStates
-        .map(([abbr, s]) => ({ key: abbr, label: stateName(abbr), sub: stateIdx(abbr) == null ? "off map" : "", parts: M.parts(s), total: M.total(s), text: M.fmt(M.total(s)) }))
-        .filter((r) => fin(r.total))
-        .sort((a, b) => b.total - a.total);
-      const shown = showAll ? rows : rows.slice(0, 15);
-      allBtn.textContent = showAll ? "Top 15" : `All ${rows.length}`;
-      sHost.innerHTML = "";
-      stacks = stackedBars(sHost, {
-        rows: shown, keys: M.keys, fmt: (v) => M.fmt(v), ariaLabel: "Defense by state",
-        onHover: (x) => {
-          if (!x) return link.hover(null);
-          const i = stateIdx(x.row.key);
-          link.hover(i != null ? { states: new Set([i]), dimOthers: true, label: x.row.label } : null);
-        },
-        onClick: (x) => setState(st.state === x.row.key ? null : x.row.key, true),
-      });
-      if (st.state) stacks.setSelected(st.state);
-      sLegend.innerHTML = M.keys.length > 1 ? swatchLegend(M.keys) : "";
-    }
+    const M = METRICS[metric];
+    const rows = milStates
+      .map(([abbr, s]) => ({ key: abbr, label: stateName(abbr), sub: stateIdx(abbr) == null ? "off map" : "", parts: M.parts(s), total: M.total(s), text: M.fmt(M.total(s)) }))
+      .filter((r) => fin(r.total))
+      .sort((a, b) => b.total - a.total);
+    const shown = showAll ? rows : rows.slice(0, 15);
+    allBtn.textContent = showAll ? "Top 15" : `All ${rows.length}`;
+    sHost.innerHTML = "";
+    stacks = stackedBars(sHost, {
+      rows: shown, keys: M.keys, fmt: (v) => M.fmt(v), ariaLabel: "Defense by state",
+      onHover: (x) => {
+        if (!x) return link.hover(null);
+        const i = stateIdx(x.row.key);
+        link.hover(i != null ? { states: new Set([i]), dimOthers: true, label: x.row.label } : null);
+      },
+      onClick: (x) => setState(st.state === x.row.key ? null : x.row.key, true),
+    });
+    if (st.state) stacks.setSelected(st.state);
+    sLegend.innerHTML = M.keys.length > 1 ? swatchLegend(M.keys) : "";
+  }
 
     drawDetail = () => {
-      const abbr = st.state;
-      const s = abbr ? mil.states?.[abbr] : null;
-      if (!abbr) { detail.innerHTML = ""; return; }
-      if (!s) { detail.innerHTML = `<p class="adv-empty">No defense figures for ${esc(stateName(abbr))}.</p>`; return; }
-      const p = s.personnel, sp = s.spending;
-      const branch = p ? [["Army", p.active?.army], ["Navy", p.active?.navy], ["Marine Corps", p.active?.marines], ["Air Force", p.active?.air_force], ["Space Force", p.active?.space_force], ["Coast Guard", p.active?.coast_guard]] : [];
-      const nInst = insts.filter((it) => it.state === abbr).length;
-      detail.innerHTML = `<div class="adv-card-detail">
-        <h4 class="adv-h4">${esc(stateName(abbr))}</h4>
-        ${tiles([
-          { label: "Active duty", value: p ? int(p.active?.total) : "–", sub: p ? `${int(p.guard_reserve?.total)} Guard & Reserve` : "no DMDC figure" },
-          { label: "Defense $", value: sp ? money(sp.total) : "–", sub: sp ? `${pct(sp.pct_gdp)} of GDP · ${dollars(sp.per_resident)}/resident` : "no OLDCC figure" },
-          { label: "Installations", value: int(nInst), sub: "MIRTA sites filed here" },
-        ])}
-        ${p ? `<p class="adv-note"><b>Active duty by service:</b> ${branch.filter(([, v]) => fin(v) && v > 0).map(([k, v]) => `${esc(k)} ${int(v)}`).join(" · ")}. DoD civilians: ${int(p.civilian?.total)}.</p>` : ""}
-        ${sp ? `<p class="adv-note"><b>Where the money goes:</b> contracts ${money(sp.contracts)}, payroll ${money(sp.payroll)}, grants ${money(sp.grants)}.</p>` : ""}
-        ${sp?.top_vendors?.length ? `<p class="adv-note"><b>Top contractors:</b> ${sp.top_vendors.map((v) => `${esc(v.name)} ${money(v.contracts)}`).join(" · ")}</p>` : ""}
-        ${sp?.top_counties?.length ? `<h4 class="adv-h4">Contract dollars by county</h4><div class="adv-chiplist">${sp.top_counties.map((c, i) => `<button type="button" class="adv-mini" data-county="${i}"${c.county ? "" : " disabled title=\"Not a county on the map (old Connecticut counties, Alaska, Hawaii)\""}>${esc(c.name)} <b>${money(c.contracts)}</b></button>`).join("")}</div>` : ""}
-      </div>`;
-      detail.querySelectorAll("[data-county]").forEach((b) => {
-        const c = sp.top_counties[+b.dataset.county];
-        const row = c.county ? counties?.byKey.get(c.county) : null;
-        if (!row) return;
-        b.addEventListener("pointerenter", () => link.hover(rowsHighlight(counties, [row])));
-        b.addEventListener("pointerleave", () => link.hover(null));
-        b.addEventListener("click", () => counties.focus(row));
-      });
-    }
+    const abbr = st.state;
+    const s = abbr ? mil.states?.[abbr] : null;
+    if (!abbr) { detail.innerHTML = ""; return; }
+    if (!s) { detail.innerHTML = `<p class="adv-empty">No defense figures for ${esc(stateName(abbr))}.</p>`; return; }
+    const p = s.personnel, sp = s.spending;
+    const branch = p ? [["Army", p.active?.army], ["Navy", p.active?.navy], ["Marine Corps", p.active?.marines], ["Air Force", p.active?.air_force], ["Space Force", p.active?.space_force], ["Coast Guard", p.active?.coast_guard]] : [];
+    const nInst = insts.filter((it) => it.state === abbr).length;
+    detail.innerHTML = `<div class="adv-card-detail">
+      <h4 class="adv-h4">${esc(stateName(abbr))}</h4>
+      ${tiles([
+        { label: "Active duty", value: p ? int(p.active?.total) : "–", sub: p ? `${int(p.guard_reserve?.total)} Guard & Reserve` : "no DMDC figure" },
+        { label: "Defense $", value: sp ? money(sp.total) : "–", sub: sp ? `${pct(sp.pct_gdp)} of GDP · ${dollars(sp.per_resident)}/resident` : "no OLDCC figure" },
+        { label: "Installations", value: int(nInst), sub: "MIRTA sites filed here" },
+      ])}
+      ${p ? `<p class="adv-note"><b>Active duty by service:</b> ${branch.filter(([, v]) => fin(v) && v > 0).map(([k, v]) => `${esc(k)} ${int(v)}`).join(" · ")}. DoD civilians: ${int(p.civilian?.total)}.</p>` : ""}
+      ${sp ? `<p class="adv-note"><b>Where the money goes:</b> contracts ${money(sp.contracts)}, payroll ${money(sp.payroll)}, grants ${money(sp.grants)}.</p>` : ""}
+      ${sp?.top_vendors?.length ? `<p class="adv-note"><b>Top contractors:</b> ${sp.top_vendors.map((v) => `${esc(v.name)} ${money(v.contracts)}`).join(" · ")}</p>` : ""}
+      ${sp?.top_counties?.length ? `<h4 class="adv-h4">Contract dollars by county</h4><div class="adv-chiplist">${sp.top_counties.map((c, i) => `<button type="button" class="adv-mini" data-county="${i}"${c.county ? "" : " disabled title=\"Not a county on the map (old Connecticut counties, Alaska, Hawaii)\""}>${esc(c.name)} <b>${money(c.contracts)}</b></button>`).join("")}</div>` : ""}
+    </div>`;
+    detail.querySelectorAll("[data-county]").forEach((b) => {
+      const c = sp.top_counties[+b.dataset.county];
+      const row = c.county ? counties?.byKey.get(c.county) : null;
+      if (!row) return;
+      b.addEventListener("pointerenter", () => link.hover(rowsHighlight(counties, [row])));
+      b.addEventListener("pointerleave", () => link.hover(null));
+      b.addEventListener("click", () => counties.focus(row));
+    });
+  }
   }
 
   // --- garrisons ------------------------------------------------------------------------------------------------
   let gTable;
   if (Object.keys(mil.cities || {}).length) {
-    const gBody = section(el, {
-      title: "Garrison cities",
-      note: `${esc(mil.rules?.encampment || mil.rule || "")}`,
-    });
-    const garrisons = Object.entries(mil.cities || {}).map(([id, c]) => ({ ...c, key: id, row: metros.byKey.get(id) })).filter((g) => g.row);
+  const gBody = section(el, {
+    title: "Garrison cities",
+    note: `${esc(mil.rules?.encampment || mil.rule || "")}`,
+  });
+  const garrisons = Object.entries(mil.cities || {}).map(([id, c]) => ({ ...c, key: id, row: metros.byKey.get(id) })).filter((g) => g.row);
     gTable = createTable(gBody, {
-      caption: "Garrison cities", rank: true, maxHeight: 250, search: "Search metros",
-      searchText: (g) => g.row.name,
-      columns: [
-        { key: "name", label: "Metro", align: "l", width: "minmax(0,1.8fr)", value: (g) => g.row.name, html: (g) => `${esc(g.row.name)} <span class="sub">${esc(g.row.sub)}</span>`, tip: (g) => `${g.row.name}: ${(g.installations || []).map((id) => instByKey.get(id)?.name || id).join(", ")}` },
-        { key: "tier", label: "Tier", align: "l", width: "minmax(0,.8fr)", value: (g) => (g.tier === "fortress" ? 0 : 1), text: (g) => `${g.tier === "fortress" ? "Fortress" : "Garrison"}${g.naval ? " ⚓" : ""}` },
-        { key: "af", label: "In uniform", value: (g) => g.armed_forces, text: (g) => count3(g.armed_forces), title: "Armed-forces residents 16+ (ACS 5-year, where they live)" },
-        { key: "share", label: "Share", value: (g) => g.share, text: (g) => pct(g.share), title: "Share of residents 16+ on active duty", bar: { max: Math.max(...garrisons.map((g) => g.share || 0), 0.01), color: "rgba(135,150,171,.35)" } },
-      ],
-      rows: garrisons, sort: { key: "share", dir: "desc" },
-      onHover: (g) => link.hover(g ? rowsHighlight(metros, [g.row]) : null),
-      onClick: (g) => metros.focus(g.row),
-    });
-    gBody.insertAdjacentHTML("beforeend", `<p class="adv-note">⚓ naval: the metro's qualifying Navy and Marine Corps installations outweigh its Army and Air Force ones (a major installation counts 4, a base 1). A big metro qualifies on headcount only when at least 2,000 residents and 0.3% of its residents 16+ serve: read the share column.</p>`);
+    caption: "Garrison cities", rank: true, maxHeight: 250, search: "Search metros",
+    searchText: (g) => g.row.name,
+    columns: [
+      { key: "name", label: "Metro", align: "l", width: "minmax(0,1.8fr)", value: (g) => g.row.name, html: (g) => `${esc(g.row.name)} <span class="sub">${esc(g.row.sub)}</span>`, tip: (g) => `${g.row.name}: ${(g.installations || []).map((id) => instByKey.get(id)?.name || id).join(", ")}` },
+      { key: "tier", label: "Tier", align: "l", width: "minmax(0,.8fr)", value: (g) => (g.tier === "fortress" ? 0 : 1), text: (g) => `${g.tier === "fortress" ? "Fortress" : "Garrison"}${g.naval ? " ⚓" : ""}` },
+      { key: "af", label: "In uniform", value: (g) => g.armed_forces, text: (g) => count3(g.armed_forces), title: "Armed-forces residents 16+ (ACS 5-year, where they live)" },
+      { key: "share", label: "Share", value: (g) => g.share, text: (g) => pct(g.share), title: "Share of residents 16+ on active duty", bar: { max: Math.max(...garrisons.map((g) => g.share || 0), 0.01), color: "rgba(135,150,171,.35)" } },
+    ],
+    rows: garrisons, sort: { key: "share", dir: "desc" },
+    onHover: (g) => link.hover(g ? rowsHighlight(metros, [g.row]) : null),
+    onClick: (g) => metros.focus(g.row),
+  });
+  gBody.insertAdjacentHTML("beforeend", `<p class="adv-note">⚓ naval: the metro's qualifying Navy and Marine Corps installations outweigh its Army and Air Force ones (a major installation counts 4, a base 1). A big metro qualifies on headcount only when at least 2,000 residents and 0.3% of its residents 16+ serve: read the share column.</p>`);
   }
 
   // --- ranges ---------------------------------------------------------------------------------------------------
   let rTable;
   if (mil.ranges?.length) {
-    const rBody = section(el, { title: "Ranges and restricted ground", note: esc(mil.rules?.ranges || "") });
-    const ranges = (mil.ranges || []).map((r) => ({ ...r, key: r.id }));
+  const rBody = section(el, { title: "Ranges and restricted ground", note: esc(mil.rules?.ranges || "") });
+  const ranges = (mil.ranges || []).map((r) => ({ ...r, key: r.id }));
     rTable = createTable(rBody, {
-      caption: "Largest military ranges", rank: true, maxHeight: 240,
-      columns: [
-        { key: "name", label: "Range", align: "l", width: "minmax(0,2fr)", value: (r) => r.name, html: (r) => `<i class="dot" style="background:${esc(compById.get(r.component)?.color || "#999")}"></i>${esc(r.name)}` },
-        { key: "state", label: "State", align: "l", width: "40px", value: (r) => r.state, text: (r) => r.state || "–" },
-        { key: "area", label: "Area", width: "minmax(0,.9fr)", value: (r) => r.area_km2, text: (r) => `${count3(r.area_km2)} km²`, bar: { max: Math.max(...ranges.map((r) => r.area_km2 || 0), 1), color: "rgba(194,74,62,.3)" } },
-      ],
-      rows: ranges, sort: { key: "area", dir: "desc" },
-      onHover: (r) => link.hover(r ? { cells: new Set(r.cells || []), dimOthers: true, color: "#f09a7f", label: r.name } : null),
-      onClick: (r) => { const b = app.highlightBounds({ cells: new Set(r.cells || []) }); if (b) frameBox(app, b, { pad: 60, maxScale: 2.6 }); },
-    });
+    caption: "Largest military ranges", rank: true, maxHeight: 240,
+    columns: [
+      { key: "name", label: "Range", align: "l", width: "minmax(0,2fr)", value: (r) => r.name, html: (r) => `<i class="dot" style="background:${esc(compById.get(r.component)?.color || "#999")}"></i>${esc(r.name)}` },
+      { key: "state", label: "State", align: "l", width: "40px", value: (r) => r.state, text: (r) => r.state || "–" },
+      { key: "area", label: "Area", width: "minmax(0,.9fr)", value: (r) => r.area_km2, text: (r) => `${count3(r.area_km2)} km²`, bar: { max: Math.max(...ranges.map((r) => r.area_km2 || 0), 1), color: "rgba(194,74,62,.3)" } },
+    ],
+    rows: ranges, sort: { key: "area", dir: "desc" },
+    onHover: (r) => link.hover(r ? { cells: new Set(r.cells || []), dimOthers: true, color: "#f09a7f", label: r.name } : null),
+    onClick: (r) => { const b = app.highlightBounds({ cells: new Set(r.cells || []) }); if (b) frameBox(app, b, { pad: 60, maxScale: 2.6 }); },
+  });
   }
 
   // --- veterans -------------------------------------------------------------------------------------------------
   const vBody = section(el, {
     title: "Veterans",
-    note: "State and UT registrations are estimated for 30 Jun 2026. Himachal Pradesh district registrations are reported for 31 Mar 2026. Shares use mid-2026 population.",
+    note: mil.veterans_note,
   });
   let vLevel = "states";
   const vCtl = mk("div", "adv-row");
@@ -304,10 +300,11 @@ export async function mount(ctx) {
   });
   const vRows = () => data.levels[vLevel].rows.filter((r) => fin(r.v.veterans_pct) && (vLevel !== "counties" || (r.v.population || 0) >= 10000));
   const veteranTip = (row, key) => fieldContext(data, data.levels[row.level], data.levels[row.level].field(key), row);
+  const veteranDate = (r) => r.level === "states" ? stLevel.meta(stLevel.field("registered_veterans"), r) : null;
   const vTable = createTable(vBody, {
-    caption: "Registered ex-servicemen", rank: true, maxHeight: 260, search: "Search places",
+    caption: "Registered ex-servicemen", rank: !stLevel.field("registered_veterans")?.hideRank, maxHeight: 260, search: "Search places",
     columns: [
-      { key: "name", label: "Place", align: "l", width: "minmax(0,1.7fr)", value: (r) => r.name, html: (r) => `${esc(r.name)}${r.level !== "states" && r.sub ? ` <span class="sub">${esc(r.sub)}</span>` : ""}` },
+      { key: "name", label: "Place", align: "l", width: "minmax(0,1.7fr)", value: (r) => r.name, html: (r) => `${esc(r.name)}${veteranDate(r)?.vintage === "older" ? ` <span class="sub">${esc(veteranDate(r).period)}</span>` : r.level !== "states" && r.sub ? ` <span class="sub">${esc(r.sub)}</span>` : ""}` },
       { key: "veterans", label: "Veterans", value: (r) => r.v.veterans, text: (r) => count3(r.v.veterans), tip: (r) => veteranTip(r, "registered_veterans") },
       { key: "veterans_pct", label: "Share", value: (r) => r.v.veterans_pct, text: (r) => pct(r.v.veterans_pct), bar: { max: 0.2, color: "rgba(135,150,171,.35)" }, title: "Registered ex-servicemen as a share of mid-2026 residents", tip: (r) => veteranTip(r, "veteran_share") },
       ...(stLevel.rows.some((r) => fin(r.v.armed_forces_pct)) ? [{ key: "armed_forces_pct", label: "In uniform", value: (r) => r.v.armed_forces_pct, text: (r) => pct(r.v.armed_forces_pct), title: "Active duty among residents 16+" }] : []),
@@ -316,18 +313,17 @@ export async function mount(ctx) {
     onHover: (r) => link.hover(r ? rowsHighlight(data.levels[vLevel], [r]) : null),
     onClick: (r) => data.levels[vLevel].focus(r),
   });
-  vBody.insertAdjacentHTML("beforeend", `<p class="adv-note">District table includes districts with at least 10,000 people.</p>`);
 
-  el.insertAdjacentHTML("beforeend", sourcesHtml(data, mil.sources || [], [
-    "National veteran registrations cover states and union territories with comparable snapshots.",
-  ]));
+  el.insertAdjacentHTML("beforeend", sourcesHtml(data, mil.sources || ["mirta", "dmdc_personnel", "oldcc_spending", "acs_5yr"], [
+    esc(mil.caveats || ""),
+  ].filter(Boolean)));
 
   // --- map ------------------------------------------------------------------------------------------------------
   const bubbles = insts.length ? ctx.bubbles("bases", {
     rMax: 14, minR: 2.6, alpha: 0.6,
     tip: (b) => {
       const it = b.it, c = compById.get(it.component);
-      return `<b>${esc(it.name)}</b><br>${esc(c?.name || it.component)} · ${esc(TIER_LABEL[it.tier] || it.tier)}${fin(it.area_km2) ? ` · ${count3(it.area_km2)} km²` : ""}${it.state ? ` · ${esc(it.state)}` : ""}${it.status !== "act" ? `<br><span class="sub">${esc(STATUS[it.status] || it.status)}</span>` : ""}`;
+      return `<b>${esc(it.name)}</b><br>${esc(c?.name || it.component)} · ${esc(TIER_LABEL[it.tier] || it.tier)}${fin(it.area_km2) ? ` · ${count3(it.area_km2)} km²` : ""}${it.state ? ` · ${esc(it.state)}` : ""}${it.status && it.status !== "act" ? `<br><span class="sub">${esc(STATUS[it.status] || it.status)}</span>` : ""}${it.period ? `<br><span class="sub">${esc(it.town)} · ${esc(it.period)}</span>` : ""}`;
     },
     onHover: (b) => {
       instTable.setHot(b ? b.key : null);
@@ -365,27 +361,26 @@ export async function mount(ctx) {
   apply();
 
   return {
-    destroy() { vTable.destroy(); instTable?.destroy(); rTable?.destroy(); gTable?.destroy(); },
     onMapHover(h) {
-      const owner = h?.cell >= 0 ? app.w.raw.owner[h.cell] : -1;
+      const owner = h.cell >= 0 ? app.w.raw.owner[h.cell] : -1;
       const abbr = owner >= 0 ? stLevel.rows[owner]?.key : null;
       stacks?.setHot(abbr || null);
-      const r = h?.cell >= 0 ? cellRange.get(h.cell) : null;
+      const r = h.cell >= 0 ? cellRange.get(h.cell) : null;
       rTable?.setHot(r ? r.id : null, !!r);
       // A fort or range drawn by the map-art layer names its record; otherwise the boundary under the pointer.
-      const inst = h?.item?.kind === "fort" ? instByKey.get(h.item.data?.id) : h?.cell >= 0 ? cellInst.get(h.cell) : null;
+      const inst = h.item?.kind === "fort" ? instByKey.get(h.item.data?.id) : h.cell >= 0 ? cellInst.get(h.cell) : null;
       if (inst) instTable.setHot(inst.key);
-      if (h?.item?.kind === "range") rTable?.setHot(h.item.data?.id ?? null);
-      const m = h?.cell >= 0 ? metros.rowAtCell(h.cell) : null;
+      if (h.item?.kind === "range") rTable?.setHot(h.item.data?.id ?? null);
+      const m = h.cell >= 0 ? metros.rowAtCell(h.cell) : null;
       gTable?.setHot(m && mil.cities?.[m.key] ? m.key : null, false);
-      const vr = h?.cell >= 0 ? data.levels[vLevel]?.rowAtCell(h.cell) : null;
+      const vr = h.cell >= 0 ? data.levels[vLevel]?.rowAtCell(h.cell) : null;
       vTable.setHot(vr ? vr.key : null, false);
     },
     onMapClick(ev) {
       const fort = ev.item?.kind === "fort" ? instByKey.get(ev.item.data?.id) : null;
       if (fort) { instTable.setHot(fort.key); flyTo(fort); return true; }
       // A click on a state (not a city) filters the General's view to it; a second click clears it.
-      if (!drawStates || ev.city || ev.state == null) return false;
+      if (ev.city || ev.state == null) return false;
       const abbr = stLevel.rows[ev.state]?.key;
       if (!abbr) return false;
       setState(st.state === abbr ? null : abbr);

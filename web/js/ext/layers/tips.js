@@ -2,7 +2,7 @@
 // from and the caveat that matters for it (FAF values are model estimates; bases have no published headcount; the
 // trade arc is a drawing aid; curated landmarks are an editorial pick).
 import { esc, compact, int, pct, periodLabel } from "../../format.js";
-import { WONDER_KINDS } from "../../render/art/sites.js";
+import { FORT_KINDS, fortKind, WONDER_KINDS } from "../../render/art/sites.js";
 import { MODE_STYLE } from "../../render/art/improvements.js";
 
 const muted = (s) => `<span class="muted">${s}</span>`;
@@ -47,6 +47,27 @@ export const tips = {
     lines.push(muted(`OurAirports · ${periodLabel(a) || esc(a.year || "")}`));
     if (a.city_provenance) lines.push(muted(`Locality · Airports Authority of India · ${periodLabel(a.city_provenance)}`));
     return lines.join("<br>");
+  },
+  fort(f, m) {
+    const comp = m.data.military?.components?.find((c) => c.id === f.component);
+    const name = comp?.name || FORT_KINDS[fortKind(f.component)]?.name || "Defense site";
+    const tier = { major: "Major installation", base: "Base", site: "Site" }[f.tier] || f.tier;
+    const status = { act: "", semi: " · semi-active", care: " · caretaker status" }[f.status] ?? "";
+    const lines = [
+      `<b>${esc(f.name)}</b> ${muted(esc(f.state || ""))}`,
+      `${esc(name)}${f.joint ? " · joint base" : ""} · ${esc(tier)}${esc(status)}`,
+    ];
+    if (f.area_km2 != null) lines.push(`Boundary ${int(f.area_km2)} km²`);
+    lines.push(muted(esc([f.town, f.period, m.data.sources?.find((item) => item.id === f.source)?.publisher].filter(Boolean).join(" · "))));
+    return lines.join("<br>");
+  },
+  range(r, m) {
+    const comp = m.data.military?.components?.find((c) => c.id === r.component);
+    return [
+      `<b>${esc(r.name)}</b> ${muted(esc(r.state || ""))}`,
+      `Restricted ground · ${esc(comp?.name || "")} · ${int(r.area_km2)} km²`,
+      muted("One of the 30 largest DoD boundaries (MIRTA), drawn on the hexes it covers."),
+    ].join("<br>");
   },
   wonder(x, m) {
     const k = WONDER_KINDS[x.kind]?.name || "Wonder";

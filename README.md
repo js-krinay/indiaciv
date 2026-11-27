@@ -89,6 +89,18 @@ uv run python -m pipeline serve    # http://127.0.0.1:8765
 uv run python -m unittest discover -s tests
 ```
 
+The Military layer takes its points from the civil gazetteers. To reproduce the
+optional town coverage, prepare Natural Earth Populated Places 5.1.2 from the
+[pinned shapefile archive](https://naturalearth.s3.amazonaws.com/5.1.2/10m_cultural/ne_10m_populated_places.zip)
+and use the existing City View GHSL archive. The GeoNames India extract for
+27 Nov 2026 supplies additional civil populated places.
+
+```sh
+uv run --no-project --with pyproj --with pyshp python -m pipeline.india.military_gazetteer ne .cache/ne_10m_populated_places.zip
+uv run --no-project --with pyproj --with pyshp python -m pipeline.india.military_gazetteer ghsl .cache/ic37-ghsl.zip
+uv run --no-project --with pyproj --with pyshp python -m pipeline.india.military_gazetteer geonames .cache/IN.zip
+```
+
 ### Historical Census civic measures
 
 With the DataMeet, Census A-01 and City View inputs prepared, fetch the pinned

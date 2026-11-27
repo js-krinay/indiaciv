@@ -5,7 +5,7 @@ from ..core.store import load_interim
 from ..india.advisor_sources import (BOARD_CENSUS, BOARD_CENSUS_SOURCE, BOARD_CLASS_PERIOD,
                                     BOARDS, BOARDS_PERIOD, CIVIC_OFFICES, FY, PARTNERSHIP_PLACES,
                                     PARTNERSHIP_SOURCE, PARTNERSHIP_SUPPLEMENT, PARTNERSHIP_SUPPLEMENT_SOURCE,
-                                    PENURY_GRANT_INR, PENURY_GRANT_PERIOD,
+                                    OLDER_REGISTRATIONS, OLDER_REGISTRATION_PERIOD, PENURY_GRANT_INR, PENURY_GRANT_PERIOD,
                                     PSU_FINANCIALS, REGISTRATIONS, RMS_BY_STATE, RMS_PERIOD,
                                     RMS_SOURCE, RMS_TOWNS, SAINIK_ROSTER, SAINIK_ROSTER_SOURCE, VETERAN_METHOD,
                                     VETERAN_PERIOD, VETERAN_POPULATION, VETERAN_SOURCES)
@@ -13,31 +13,33 @@ from ..india.city_sources import LABOUR_SOURCE
 from ..india.civic_sources import PMJAY, POVERTY
 
 
-def veteran_columns(count, share, *, district=False):
-    period = "31 Mar 2026" if district else VETERAN_PERIOD
-    source = "hp_veterans_2026" if district else VETERAN_SOURCES
-    common = {"group": "Defence & veterans"}
+def veteran_columns(count, share, *, district=False, older=False):
+    period = "31 Mar 2026" if district else OLDER_REGISTRATION_PERIOD if older else VETERAN_PERIOD
+    sources = ["hp_veterans_2026"] if district else VETERAN_SOURCES[:1] if older else VETERAN_SOURCES
+    common = {"group": "Defence & veterans", **({"vintage": "older"} if older else {})}
     columns = {}
     if count is not None:
         columns["registered_veterans"] = {
             **common, "label": "Registered ex-servicemen", "format": "int", "unit": "people",
-            "value": count, "period": period, "source": source, "estimated": not district,
+            "value": count, "period": period, "source": sources[0] if district else sources,
+            "estimated": not (district or older),
             "lens": "registered_veterans",
-            "description": "Reported district registrations in Himachal Pradesh." if district else VETERAN_METHOD,
+            "description": ("Reported registrations for the named geography." if district or older else VETERAN_METHOD),
         }
     if share is not None:
         columns["veteran_share"] = {
             **common, "label": "Registered ex-servicemen per 100 residents", "format": "pct",
             "unit": "share of residents", "value": share, "estimated": True,
             "period": f"{period} registrations · mid-2026 residents",
-            "source": [*([source] if district else source), "city_population_grid", "datameet"],
+            "source": [*sources, "city_population_grid", "datameet"],
             "description": "Registrations divided by the mid-2026 WorldPop population.",
         }
     return columns
 
 
 def state_explorer_columns(statistics, annual_industry=None):
-    columns = veteran_columns(statistics["registered_veterans"], statistics["veteran_share"])
+    columns = veteran_columns(statistics["registered_veterans"], statistics["veteran_share"],
+                              older=statistics.get("veteran_vintage") == "older")
     columns["cantonment_boards"] = {
         "label": "Listed cantonment boards", "format": "int", "unit": "civic boards",
         "group": "Defence & veterans", "value": statistics["cantonment_boards"],
@@ -146,6 +148,9 @@ def veteran_population(level):
 
 def state_statistics(code, industries, residents):
     veterans = veteran_estimate(*REGISTRATIONS.get(code, (None, None)))
+    older = veterans is None and code in OLDER_REGISTRATIONS
+    if older:
+        veterans = OLDER_REGISTRATIONS[code]
     return {
         "industry": industries.get(code),
         "cantonment_boards": len(BOARDS.get(code, ())),
@@ -157,6 +162,7 @@ def state_statistics(code, industries, residents):
         "partnership_sainik_school_supplement": PARTNERSHIP_SUPPLEMENT.get(code, ()),
         "defence_psu_financials": [row for row in PSU_FINANCIALS if row[2] == code],
         "registered_veterans": veterans,
+        **({"veteran_vintage": "older"} if older else {}),
         "veteran_share": veterans / residents if veterans is not None and residents else None,
     }
 

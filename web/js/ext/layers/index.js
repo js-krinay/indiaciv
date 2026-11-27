@@ -1,10 +1,10 @@
 // Map-art extension: tile improvements (Interstates and major highways, railroads, ports, airports),
-// wonders and protected land, and freight trade routes, each as a static layer
+// military forts and restricted ground, wonders and protected land, and freight trade routes, each as a static layer
 // drawn into the cached map (nothing animates; an idle map draws no frames), with a switch in the "Map" menu.
 //
-// Data: infrastructure.json, wonders.json and trade.json (loaded eagerly by main.js right after the
+// Data: infrastructure.json, military.json, wonders.json and trade.json (loaded eagerly by main.js right after the
 // first frame; app.loadData returns the same promise). A missing file (null) leaves its layers off and their switches
-// harmless. Defaults: roads, rail, ports & airports and wonders on (roads, rail and hubs only from the region
+// harmless. Defaults: roads, rail, ports & airports, military and wonders on (roads, rail and hubs only from the region
 // view in: see each layer's minRpx), trade routes off.
 import { createModel } from "./model.js";
 import { makeLayers } from "./layers.js";
@@ -14,6 +14,7 @@ const TOGGLES = [
   { id: "roads", label: "Highways", icon: "t-road", def: true, title: "Open expressways and national highways · OpenStreetMap", layers: ["roads"] },
   { id: "rail", label: "Railways", icon: "t-rail", def: true, title: "Active main and secondary rail lines · OpenStreetMap", layers: ["rail"] },
   { id: "hubs", label: "Ports & airports", icon: "d-harbor", def: true, title: "Major ports and scheduled-service airports", layers: ["hubs"] },
+  { id: "military", label: "Military", icon: "m-army", def: true, title: "Published Command HQ cities and civic Cantonment Board towns", layers: ["forts", "restricted", "plates"] },
   { id: "wonders", label: "Wonders", icon: "w-landmark", def: true, title: "Built landmarks and natural wonders", layers: ["wonders", "protected", "plates"] },
   { id: "trade", label: "Trade", icon: "t-trade", def: false, title: "Dedicated Freight Corridors and single-port coastal cargo", layers: ["trade"] },
 ];
@@ -40,7 +41,7 @@ export function install(app) {
     model.setData(name, data);
     app.requestDraw();
   };
-  for (const name of ["infrastructure", "wonders", "trade"]) {
+  for (const name of ["infrastructure", "military", "wonders", "trade"]) {
     if (app.data[name] !== undefined) apply(name, app.data[name]);
     else app.loadData(name).then((d) => apply(name, d), (err) => console.warn(`map layers: ${name} failed to load`, err));
   }

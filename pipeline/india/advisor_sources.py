@@ -255,7 +255,7 @@ CIVIC_OFFICES = [
 ]
 
 # Aggregate registration stocks only (June 2024, June 2025).
-# Punjab and Manipur are omitted pending reconciliation of abrupt changes.
+# Punjab and Manipur lack comparable pairs; use the PIB observation below.
 REGISTRATIONS = {
     "AP": (78148, 80878), "AR": (986, 1003), "AS": (41656, 42111), "BR": (133526, 139651),
     "CG": (7355, 7445), "GA": (2389, 2418), "GJ": (33773, 34495), "HR": (177771, 184714),
@@ -266,6 +266,9 @@ REGISTRATIONS = {
     "UK": (139882, 140975), "WB": (107450, 111383), "AN": (1123, 1216), "CH": (8463, 8462),
     "DL": (63614, 64074), "JK": (78592, 80504), "LA": (6479, 6680), "PY": (2477, 2494),
 }
+
+OLDER_REGISTRATIONS = {"MN": 8_744, "PB": 382_694}
+OLDER_REGISTRATION_PERIOD = "30 Jun 2024"
 
 # Table 2.22, aligned to the DataMeet district codes in Himachal Pradesh.
 HP_REGISTRATIONS = {
