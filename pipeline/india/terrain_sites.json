@@ -1,0 +1,8 @@
+[
+  {"key": "volcano", "name": "Barren Island", "point": [93.858, 12.278], "source": "https://volcano.si.edu/volcano.cfm?vn=260010"},
+  {"key": "volcano", "name": "Narcondam", "point": [94.2617, 13.4452], "source": "https://volcano.si.edu/volcano.cfm?vn=260001"},
+  {"key": "beach", "name": "Marina Beach", "line": [[80.2854, 13.0526], [80.2803, 13.0307]], "source": "https://chennai.nic.in/tourist-place/marina/"},
+  {"key": "beach", "name": "Varkala Beach", "line": [[76.7024, 8.7345], [76.6996, 8.7374]], "source": "https://whc.unesco.org/en/tentativelists/6895/"},
+  {"key": "cliff", "name": "Varkala Cliff", "line": [[76.7023, 8.7357], [76.6979, 8.7427]], "source": "https://whc.unesco.org/en/tentativelists/6895/"},
+  {"key": "marsh", "name": "Nalabana salt marsh", "point": [85.30, 19.69], "source": "https://www.chilika.com/documents/CDA%20Health%20Report%282023-24%29.pdf"}
+]

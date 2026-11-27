@@ -1,0 +1,190 @@
+{
+  "centroids.json": {
+    "source": "rsis_protected",
+    "url": "https://rsis.ramsar.org/geoserver/wfs?request=GetFeature&service=WFS&version=1.0.0&outputformat=application%2Fjson&srsName=EPSG%3A4326&CQL_FILTER=iso3%3D%27IND%27&typename=ramsar_sdi:features_centroid_published",
+    "retrieved": "2026-11-27",
+    "sha256": "3fef7c8345c8d6497df6112ad77b227f58fdc5fd551d0a49e16dcf7d2e1c89af",
+    "bytes": 32330
+  },
+  "boundaries.json": {
+    "source": "rsis_protected",
+    "url": "https://rsis.ramsar.org/geoserver/wfs?request=GetFeature&service=WFS&version=1.0.0&outputformat=application%2Fjson&srsName=EPSG%3A4326&CQL_FILTER=iso3%3D%27IND%27&typename=ramsar_sdi:features_published",
+    "retrieved": "2026-11-27",
+    "sha256": "16013ddb83e7998a8eb2c4add079ddce30648158b8334c7455e91f77d988d494",
+    "bytes": 3920304
+  },
+  "national-parks.pdf": {
+    "source": "wii_protected",
+    "url": "https://eiacp.moef.gov.in/file/PA%20Database_NP1768194801983189.pdf",
+    "retrieved": "2026-11-27",
+    "sha256": "f60b834c2918f5c95dcffe55b01139fa1da5b6551ade73731afce4058e52e569",
+    "bytes": 1789390
+  },
+  "ntca.html": {
+    "source": "ntca_protected",
+    "url": "https://ntca.gov.in/tiger-reserves/",
+    "retrieved": "2026-11-27",
+    "sha256": "8d77bb23031087fbf53a55356b94676b288ed2b48336428c44a02fed0ed9a470",
+    "bytes": 62087
+  },
+  "osm-index.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "18a375d630f2f7075e2c0605ba8e93d3416a595088df22052ea4e246a7f8c245",
+    "bytes": 343624,
+    "query": "[out:json][timeout:100];area[\"ISO3166-1\"=\"IN\"][\"admin_level\"=\"2\"]->.india;(nwr[\"boundary\"=\"national_park\"](area.india);nwr[\"boundary\"=\"protected_area\"](area.india);nwr[\"leisure\"=\"nature_reserve\"](area.india);nwr[\"designation\"~\"ramsar|tiger|national.park\",i](area.india););out tags center;",
+    "timestamp": "2026-11-26T21:37:20Z"
+  },
+  "wikidata-points.json": {
+    "source": "wikidata_protected",
+    "url": "https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&props=claims%7Cinfo&ids=Q1723746%7CQ4208325%7CQ727091%7CQ2667857%7CQ5215675%7CQ135111713%7CQ3364416%7CQ1480481%7CQ2639563%7CQ2979712%7CQ15266124%7CQ3091771%7CQ3058213%7CQ5224247%7CQ5617576%7CQ3092314%7CQ5135742%7CQ7285897%7CQ3091762%7CQ131465770%7CQ7461463%7CQ127499823%7CQ107203235%7CQ2720864",
+    "retrieved": "2026-11-27",
+    "sha256": "61e349dabe8d8369827299a483ff88b9fff35464d924c9426a9384ff32ead612",
+    "bytes": 152184
+  },
+  "osm-part-0-0.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "10cc0f37319f9fa2fa940f93eb29909cba0339341031a268fdaefb5704d86559",
+    "bytes": 110224,
+    "query": "[out:json][timeout:22];(way(25006292);way(28268610);way(44417026);way(71890925););out geom;",
+    "timestamp": "2026-11-26T21:41:21Z"
+  },
+  "osm-part-0-4.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "7d4f763fd1379153c35f4b5510180aae8c3f66078c56f0b686e723fa4fd5414f",
+    "bytes": 32282,
+    "query": "[out:json][timeout:22];(way(86162261);way(110534256);way(110534257);way(114783253););out geom;",
+    "timestamp": "2026-11-26T21:41:21Z"
+  },
+  "osm-part-0-8.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "714c7277e95bc6d915d27660c47ef72e757ec12d8841f32fae77f4f4ca575616",
+    "bytes": 79136,
+    "query": "[out:json][timeout:22];(way(114792469);way(120851795);way(126673985);way(126704884););out geom;",
+    "timestamp": "2026-11-26T21:41:21Z"
+  },
+  "osm-part-1-8.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "c4d2b14ecf49d687f992cd5a9185a1d57c3fdddeb3a4ea5759e746e1b03c98ff",
+    "bytes": 14913,
+    "query": "[out:json][timeout:22];(way(278769809);way(307541594);way(520269554);way(520270036););out geom;",
+    "timestamp": "2026-11-26T21:41:21Z"
+  },
+  "osm-part-2-16.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "f5f8e52cb71cdf1bafbe7ac8c50746e13d108628d88e5ed56bb115753f097628",
+    "bytes": 12232,
+    "query": "[out:json][timeout:22];(way(678447674);way(678579869););out geom;",
+    "timestamp": "2026-11-26T21:41:21Z"
+  },
+  "osm-part-2-8.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "d00af4ca82c28b045e36a9bce2d3964b36cc6de7dfb9ce722988e12d8dd1cd28",
+    "bytes": 65298,
+    "query": "[out:json][timeout:22];(way(669356833);way(669356834);way(669514549);way(669642430););out geom;",
+    "timestamp": "2026-11-26T21:41:21Z"
+  },
+  "osm-part-3-12.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "1283783c298572e78ea7d038ea7605505b9bb0162b4e7b2b530bac678c76f8b0",
+    "bytes": 37232,
+    "query": "[out:json][timeout:22];(way(1012210565);way(1266070636);way(1267088172);way(1396527952););out geom;",
+    "timestamp": "2026-11-26T21:41:21Z"
+  },
+  "osm-part-3-16.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "d3ef9b9070835c8b6f47fca4c0e1d75dfa3d4b784706e9aeee41db709ebf0599",
+    "bytes": 37073,
+    "query": "[out:json][timeout:22];(way(1425279635);way(1425509675););out geom;",
+    "timestamp": "2026-11-26T21:41:21Z"
+  },
+  "osm-part-3-4.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "7f552a0eedee97576733821a8910aa1ce90c81a5b88e4a78e4f0fd0c44d9d132",
+    "bytes": 124524,
+    "query": "[out:json][timeout:22];(way(680051181);way(680067509);way(680484087);way(682767837););out geom;",
+    "timestamp": "2026-11-26T21:42:20Z"
+  },
+  "osm-part-3-8.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "11cd8b5d2f80da157a6324f7c122421dbba2d6b15e79b6f636a4d53c0438d91d",
+    "bytes": 64884,
+    "query": "[out:json][timeout:22];(way(682775618);way(682980216);way(683079843);way(683363598););out geom;",
+    "timestamp": "2026-11-26T21:42:20Z"
+  },
+  "osm-part-4.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "7203a8ec18690ea862e72251c74e4322a88921eb6d82465ff5eb6569caf3af7c",
+    "bytes": 738824,
+    "query": "[out:json][timeout:50];(way(id:1550874859,1574109380);relation(id:415570,1665597,2123530,2640059,2640060,2713675,3494941,3895850,4148317,4192204,6245228,7099949,8124064,8334694,8334753,8756010););out geom;",
+    "timestamp": "2026-11-26T21:38:16Z"
+  },
+  "osm-part-5.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "b4266b3569eb347e1076fd2edfca7978d1b22d85e2389a5619172732f7cbe969",
+    "bytes": 619092,
+    "query": "[out:json][timeout:50];(relation(id:8777786,8815438,8815465,8815513,9258262,9268491,9282307,9282503,9282556,9312342,9329791,9447947,9462851,9466769,9466981,9471841,9472154,9473198););out geom;",
+    "timestamp": "2026-11-26T21:38:16Z"
+  },
+  "osm-part-6.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "2c6b8eb1a5e434dd540ca3a4d3691dde7b3d582d076201854baa62c27a904a79",
+    "bytes": 809638,
+    "query": "[out:json][timeout:50];(relation(id:9474607,9474608,9474965,9477404,9477458,9482054,9483703,11278141,11279545,11279548,12154449,12490378,13414729,13617703,15036911,15694340,15743640,16831555););out geom;",
+    "timestamp": "2026-11-26T21:38:16Z"
+  },
+  "osm-part-7.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "686354050fbff75c1242f1165c0a084a679163329c8be88c3f2b1e90f424bbda",
+    "bytes": 696194,
+    "query": "[out:json][timeout:50];(relation(id:17086554,17746132,19153509,19289292,19704103,19877145,20256454,20256455,20256538,21060057,21061186,21123057,21127130,21127131,21128925,21130740,21130741,21130861););out geom;",
+    "timestamp": "2026-11-26T21:38:16Z"
+  },
+  "osm-part-8.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "cbfa7c2f999eac81c47e5e64b08feaaae46af9d0d4d5229d119a4d1e78409d14",
+    "bytes": 2509719,
+    "query": "[out:json][timeout:50];(relation(id:21132682,21132683,21253238,21376802,21656429,21656430,21656435,21878902););out geom;",
+    "timestamp": "2026-11-26T21:38:16Z"
+  },
+  "osm-part-focus.json": {
+    "source": "osm_protected",
+    "url": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "retrieved": "2026-11-27",
+    "sha256": "bec2c160e7e997fe9fff8aeed79b46e561d8624e517d16cce97e42ee2cd2faa3",
+    "bytes": 68384,
+    "query": "[out:json][timeout:22];(way(id:126758723,129547191,159049291,126713905););out geom;",
+    "timestamp": "2026-11-26T21:45:22Z"
+  }
+}

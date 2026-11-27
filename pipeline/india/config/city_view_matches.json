@@ -1,0 +1,53 @@
+{
+  "21170": {
+    "required_states": [
+      "JH",
+      "WB"
+    ],
+    "note": "The matched GHSL centre crosses from West Bengal into Jharkhand. Keep the Dhanbad district overlap as a separate UA membership."
+  },
+  "21176": {
+    "required_districts": [
+      "29-572",
+      "29-583"
+    ],
+    "note": "GHSL 9558 intersects both Bengaluru and Bangalore Rural."
+  },
+  "21206": {
+    "waterfront_wonders": [
+      "gateway-of-india"
+    ],
+    "note": "Reviewed waterfront monument. The Apollo Bunder point lies just outside the clipped urban raster boundary."
+  },
+  "21228": {
+    "aliases": [
+      "New Delhi"
+    ],
+    "required_states": [
+      "DL",
+      "HR",
+      "UP"
+    ],
+    "note": "GHSL 7963 combines New Delhi, Ghaziabad, Gurugram, Noida, Bahadurgarh, Faridabad and Manesar in one footprint. Keep the Haryana and Uttar Pradesh portions."
+  },
+  "21296": {
+    "required_districts": [
+      "09-164",
+      "09-156"
+    ],
+    "excluded_districts": [
+      "09-163"
+    ],
+    "note": "GHSL 9244 lists Kanpur and Unnao in one urban centre across the Ganga. Kanpur Dehat does not intersect."
+  },
+  "21325": {
+    "note": "The UN point falls inside GHSL 9230, already assigned to Kozhikode. The source polygon cannot distinguish the two UN populations, so keep Malappuram as a point."
+  },
+  "21211": {
+    "excluded_resources": [
+      "HPL Cogeneration power station"
+    ],
+    "note": "The operator locates its single manufacturing and cogeneration site at Haldia. The GEM snapshot point falls far to the north.",
+    "reference": "https://www.haldiapetrochemicals.com/infrastructure"
+  }
+}

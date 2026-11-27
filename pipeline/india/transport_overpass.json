@@ -1,0 +1,77 @@
+{
+  "vintage": "26 November 2026",
+  "responses": [
+    {
+      "file": "northeast.json",
+      "endpoint": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+      "query": "[out:json][timeout:240];\n(\n  way[\"railway\"=\"rail\"][!\"service\"](23,88,30,98);\n  way[\"highway\"=\"motorway\"](23,88,30,98);\n  way[\"highway\"=\"trunk\"][\"ref\"~\"N[HE][ -]?[0-9]\",i](23,88,30,98);\n  nwr[\"industrial\"=\"port\"][\"name\"](23,88,30,98);\n  nwr[\"harbour\"~\"^(yes|commercial)$\"][\"name\"](23,88,30,98);\n  nwr[\"seamark:type\"=\"harbour\"][\"name\"](23,88,30,98);\n);\nout geom qt;",
+      "sha256": "b558eac169430b122826e7017c5f613a8a8b9064f5ba1571ce98c569c8873ef7",
+      "retrieved": "2026-11-26T20:17:49.781637+00:00",
+      "timestamp": "2026-11-26T20:14:21Z"
+    },
+    {
+      "file": "northwest.json",
+      "endpoint": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+      "query": "[out:json][timeout:240];\n(\n  way[\"railway\"=\"rail\"][!\"service\"](25,67,36,79);\n  way[\"highway\"=\"motorway\"](25,67,36,79);\n  way[\"highway\"=\"trunk\"][\"ref\"~\"N[HE][ -]?[0-9]\",i](25,67,36,79);\n  nwr[\"industrial\"=\"port\"][\"name\"](25,67,36,79);\n  nwr[\"harbour\"~\"^(yes|commercial)$\"][\"name\"](25,67,36,79);\n  nwr[\"seamark:type\"=\"harbour\"][\"name\"](25,67,36,79);\n);\nout geom qt;",
+      "sha256": "977a14d1a75825395aea4f2c48b263a105fd46fb5eecf6d1a0415bc79c326feb",
+      "retrieved": "2026-11-26T20:19:47.925148+00:00",
+      "timestamp": "2026-11-26T20:16:21Z"
+    },
+    {
+      "file": "northern-plains.json",
+      "endpoint": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+      "query": "[out:json][timeout:240];\n(\n  way[\"railway\"=\"rail\"][!\"service\"](25,79,36,88);\n  way[\"highway\"=\"motorway\"](25,79,36,88);\n  way[\"highway\"=\"trunk\"][\"ref\"~\"N[HE][ -]?[0-9]\",i](25,79,36,88);\n  nwr[\"industrial\"=\"port\"][\"name\"](25,79,36,88);\n  nwr[\"harbour\"~\"^(yes|commercial)$\"][\"name\"](25,79,36,88);\n  nwr[\"seamark:type\"=\"harbour\"][\"name\"](25,79,36,88);\n);\nout geom qt;",
+      "sha256": "b378fe29571221bd06ce5ab32f18c19d5500daf8777d4a6c43f8d6373ae98035",
+      "retrieved": "2026-11-26T20:21:31.208756+00:00",
+      "timestamp": "2026-11-26T20:18:21Z"
+    },
+    {
+      "file": "west-north.json",
+      "endpoint": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+      "query": "[out:json][timeout:240];\n(\n  way[\"railway\"=\"rail\"][!\"service\"](21,68,25,79);\n  way[\"highway\"=\"motorway\"](21,68,25,79);\n  way[\"highway\"=\"trunk\"][\"ref\"~\"N[HE][ -]?[0-9]\",i](21,68,25,79);\n  nwr[\"industrial\"=\"port\"][\"name\"](21,68,25,79);\n  nwr[\"harbour\"~\"^(yes|commercial)$\"][\"name\"](21,68,25,79);\n  nwr[\"seamark:type\"=\"harbour\"][\"name\"](21,68,25,79);\n);\nout geom qt;",
+      "sha256": "55a43e730e4fa211dea48979cb76881b954232b8168706029d86580ee3d29d1e",
+      "retrieved": "2026-11-26T20:24:02.337212+00:00",
+      "timestamp": "2026-11-26T20:21:26Z"
+    },
+    {
+      "file": "west-south.json",
+      "endpoint": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+      "query": "[out:json][timeout:240];\n(\n  way[\"railway\"=\"rail\"][!\"service\"](17,68,21,79);\n  way[\"highway\"=\"motorway\"](17,68,21,79);\n  way[\"highway\"=\"trunk\"][\"ref\"~\"N[HE][ -]?[0-9]\",i](17,68,21,79);\n  nwr[\"industrial\"=\"port\"][\"name\"](17,68,21,79);\n  nwr[\"harbour\"~\"^(yes|commercial)$\"][\"name\"](17,68,21,79);\n  nwr[\"seamark:type\"=\"harbour\"][\"name\"](17,68,21,79);\n);\nout geom qt;",
+      "sha256": "e045bb34fcca9e33f76c83b50005264b6d93e7f701997e9dbd0cd017c15dbad3",
+      "retrieved": "2026-11-26T20:25:10.843126+00:00",
+      "timestamp": "2026-11-26T20:22:29Z"
+    },
+    {
+      "file": "east.json",
+      "endpoint": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+      "query": "[out:json][timeout:240];\n(\n  way[\"railway\"=\"rail\"][!\"service\"](17,79,25,88);\n  way[\"highway\"=\"motorway\"](17,79,25,88);\n  way[\"highway\"=\"trunk\"][\"ref\"~\"N[HE][ -]?[0-9]\",i](17,79,25,88);\n  nwr[\"industrial\"=\"port\"][\"name\"](17,79,25,88);\n  nwr[\"harbour\"~\"^(yes|commercial)$\"][\"name\"](17,79,25,88);\n  nwr[\"seamark:type\"=\"harbour\"][\"name\"](17,79,25,88);\n);\nout geom qt;",
+      "sha256": "f508e2a3bac0b1c00a2840d7224f921e869721477f4673762a055944c1d6ce2d",
+      "retrieved": "2026-11-26T20:27:52.134595+00:00",
+      "timestamp": "2026-11-26T20:25:32Z"
+    },
+    {
+      "file": "bengal.json",
+      "endpoint": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+      "query": "[out:json][timeout:240];\n(\n  way[\"railway\"=\"rail\"][!\"service\"](17,88,23,98);\n  way[\"highway\"=\"motorway\"](17,88,23,98);\n  way[\"highway\"=\"trunk\"][\"ref\"~\"N[HE][ -]?[0-9]\",i](17,88,23,98);\n  nwr[\"industrial\"=\"port\"][\"name\"](17,88,23,98);\n  nwr[\"harbour\"~\"^(yes|commercial)$\"][\"name\"](17,88,23,98);\n  nwr[\"seamark:type\"=\"harbour\"][\"name\"](17,88,23,98);\n);\nout geom qt;",
+      "sha256": "b6516bca493483f24619238fe8548abb7b70c57aa674f2e9dc0a1627d6413ba3",
+      "retrieved": "2026-11-26T20:29:18.505893+00:00",
+      "timestamp": "2026-11-26T20:26:35Z"
+    },
+    {
+      "file": "south.json",
+      "endpoint": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+      "query": "[out:json][timeout:240];\n(\n  way[\"railway\"=\"rail\"][!\"service\"](7,67,17,88);\n  way[\"highway\"=\"motorway\"](7,67,17,88);\n  way[\"highway\"=\"trunk\"][\"ref\"~\"N[HE][ -]?[0-9]\",i](7,67,17,88);\n  nwr[\"industrial\"=\"port\"][\"name\"](7,67,17,88);\n  nwr[\"harbour\"~\"^(yes|commercial)$\"][\"name\"](7,67,17,88);\n  nwr[\"seamark:type\"=\"harbour\"][\"name\"](7,67,17,88);\n);\nout geom qt;",
+      "sha256": "a1995daaaadf53e5ca39283ffeb6e56e1c2c9dee1f13969cfdd2b3c6620e6d2b",
+      "retrieved": "2026-11-26T20:31:47.711250+00:00",
+      "timestamp": "2026-11-26T20:28:36Z"
+    },
+    {
+      "file": "islands.json",
+      "endpoint": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+      "query": "[out:json][timeout:240];\n(\n  way[\"railway\"=\"rail\"][!\"service\"](6,88,17,98);\n  way[\"highway\"=\"motorway\"](6,88,17,98);\n  way[\"highway\"=\"trunk\"][\"ref\"~\"N[HE][ -]?[0-9]\",i](6,88,17,98);\n  nwr[\"industrial\"=\"port\"][\"name\"](6,88,17,98);\n  nwr[\"harbour\"~\"^(yes|commercial)$\"][\"name\"](6,88,17,98);\n  nwr[\"seamark:type\"=\"harbour\"][\"name\"](6,88,17,98);\n);\nout geom qt;",
+      "sha256": "e69739720424bfd3018fdc9957dfa4a09b563de06b9cf37b78d46c48f1205045",
+      "retrieved": "2026-11-26T20:32:37.854148+00:00",
+      "timestamp": "2026-11-26T20:30:34Z"
+    }
+  ]
+}

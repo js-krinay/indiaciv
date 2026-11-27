@@ -1,0 +1,77 @@
+{
+  "endpoint": "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+  "snapshots": [
+    {
+      "file": "river-osm-alaknanda-focused.json",
+      "sha256": "68ffc22a4823dea7b709007a24d7b09910e0fde2bcb086acb962c6a423339b89",
+      "timestamp": "2026-11-26T20:35:36Z",
+      "query": "[out:json][timeout:25];(rel[\"name:en\"=\"Alaknanda\"][\"waterway\"=\"river\"];rel[\"name\"=\"Alaknanda River\"][\"waterway\"=\"river\"];rel[\"name:en\"=\"Alaknanda River\"][\"waterway\"=\"river\"];);out geom;"
+    },
+    {
+      "file": "river-osm-damodar-ways.json",
+      "sha256": "574afbde6f7cab1402822bec9b69e9832440dec8113043e7b868910ea9028eaf",
+      "timestamp": "2026-11-26T20:35:36Z",
+      "query": "[out:json][timeout:25];(way[\"waterway\"=\"river\"][\"name:en\"~\"^(Damodar|Damuda)( River)?$\",i](22.15,84.5,24.25,88.4);way[\"waterway\"=\"river\"][\"name\"~\"^(Damodar|Damuda)( River)?$\",i](22.15,84.5,24.25,88.4);way[\"waterway\"=\"river\"][\"int_name\"~\"^(Damodar|Damuda)( River)?$\",i](22.15,84.5,24.25,88.4););out geom;"
+    },
+    {
+      "file": "river-osm-east.json",
+      "sha256": "4a63e7bf3d8c0cb6a77059e75b6afbbc9e226fd76bdcefeb3aa249ad2612ff42",
+      "timestamp": "2026-11-26T20:32:35Z",
+      "query": "[out:json][timeout:95];(way[\"waterway\"=\"river\"][\"name:en\"~\"^(Mahanadi|Tel|Brahmani|Baitarani|Brahmani|Subarnarekha|Subarnarekha|Godavari|Pranhita|Indravati|Krishna|Bhima|Tungabhadra|Pennar|Penna|Kaveri|Cauvery|Kabini|Kabani|Bhavani|Vaigai)( River)?$|^River (Mahanadi|Tel|Brahmani|Baitarani|Brahmani|Subarnarekha|Subarnarekha|Godavari|Pranhita|Indravati|Krishna|Bhima|Tungabhadra|Pennar|Penna|Kaveri|Cauvery|Kabini|Kabani|Bhavani|Vaigai)$\",i](8,72,24,89);way[\"waterway\"=\"river\"][\"name\"~\"^(Mahanadi|Tel|Brahmani|Baitarani|Brahmani|Subarnarekha|Subarnarekha|Godavari|Pranhita|Indravati|Krishna|Bhima|Tungabhadra|Pennar|Penna|Kaveri|Cauvery|Kabini|Kabani|Bhavani|Vaigai)( River)?$|^River (Mahanadi|Tel|Brahmani|Baitarani|Brahmani|Subarnarekha|Subarnarekha|Godavari|Pranhita|Indravati|Krishna|Bhima|Tungabhadra|Pennar|Penna|Kaveri|Cauvery|Kabini|Kabani|Bhavani|Vaigai)$\",i](8,72,24,89);way[\"waterway\"=\"river\"][\"int_name\"~\"^(Mahanadi|Tel|Brahmani|Baitarani|Brahmani|Subarnarekha|Subarnarekha|Godavari|Pranhita|Indravati|Krishna|Bhima|Tungabhadra|Pennar|Penna|Kaveri|Cauvery|Kabini|Kabani|Bhavani|Vaigai)( River)?$|^River (Mahanadi|Tel|Brahmani|Baitarani|Brahmani|Subarnarekha|Subarnarekha|Godavari|Pranhita|Indravati|Krishna|Bhima|Tungabhadra|Pennar|Penna|Kaveri|Cauvery|Kabini|Kabani|Bhavani|Vaigai)$\",i](8,72,24,89);relation[\"waterway\"=\"river\"][\"name:en\"~\"^(Mahanadi|Tel|Brahmani|Baitarani|Brahmani|Subarnarekha|Subarnarekha|Godavari|Pranhita|Indravati|Krishna|Bhima|Tungabhadra|Pennar|Penna|Kaveri|Cauvery|Kabini|Kabani|Bhavani|Vaigai)( River)?$|^River (Mahanadi|Tel|Brahmani|Baitarani|Brahmani|Subarnarekha|Subarnarekha|Godavari|Pranhita|Indravati|Krishna|Bhima|Tungabhadra|Pennar|Penna|Kaveri|Cauvery|Kabini|Kabani|Bhavani|Vaigai)$\",i](8,72,24,89);relation[\"waterway\"=\"river\"][\"name\"~\"^(Mahanadi|Tel|Brahmani|Baitarani|Brahmani|Subarnarekha|Subarnarekha|Godavari|Pranhita|Indravati|Krishna|Bhima|Tungabhadra|Pennar|Penna|Kaveri|Cauvery|Kabini|Kabani|Bhavani|Vaigai)( River)?$|^River (Mahanadi|Tel|Brahmani|Baitarani|Brahmani|Subarnarekha|Subarnarekha|Godavari|Pranhita|Indravati|Krishna|Bhima|Tungabhadra|Pennar|Penna|Kaveri|Cauvery|Kabini|Kabani|Bhavani|Vaigai)$\",i](8,72,24,89);relation[\"waterway\"=\"river\"][\"int_name\"~\"^(Mahanadi|Tel|Brahmani|Baitarani|Brahmani|Subarnarekha|Subarnarekha|Godavari|Pranhita|Indravati|Krishna|Bhima|Tungabhadra|Pennar|Penna|Kaveri|Cauvery|Kabini|Kabani|Bhavani|Vaigai)( River)?$|^River (Mahanadi|Tel|Brahmani|Baitarani|Brahmani|Subarnarekha|Subarnarekha|Godavari|Pranhita|Indravati|Krishna|Bhima|Tungabhadra|Pennar|Penna|Kaveri|Cauvery|Kabini|Kabani|Bhavani|Vaigai)$\",i](8,72,24,89););out geom;"
+    },
+    {
+      "file": "river-osm-ganga-focused.json",
+      "sha256": "a4d1f519e9970233ea7bbfca724dec2f18f64e7c4a6536fbd04615ecaa3018c5",
+      "timestamp": "2026-11-26T20:35:36Z",
+      "query": "[out:json][timeout:25];(rel[\"name:en\"=\"Ganges\"][\"waterway\"=\"river\"];rel[\"name\"=\"Ganges River\"][\"waterway\"=\"river\"];rel[\"name:en\"=\"Ganges River\"][\"waterway\"=\"river\"];);out geom;"
+    },
+    {
+      "file": "river-osm-ganga-selected.json",
+      "sha256": "54b0227c0157bed8654f97f159161044caadbc8688799446bbd5bc4763b40367",
+      "timestamp": "2026-11-26T20:36:36Z",
+      "query": "[out:json][timeout:25];way(id:27282446,27282683,27286263,28056068,44963722,82303835,116955113,116955114,160695612,164568703,165022242,165022243,178708281,178708282,206506482,206506483,206506484,209807527,209807528,219195715,219195720,229531420,239809759,239809762,239809763,263925989,267826662,297379872,297429226,313510334,323348496,323348500,326058547,327986503);out geom;"
+    },
+    {
+      "file": "river-osm-gomti-focused.json",
+      "sha256": "855a2ad1d938d2da41894ee4c420189475b0125db4d697e193c1bcde706a12d1",
+      "timestamp": "2026-11-26T20:34:35Z",
+      "query": "[out:json][timeout:25];(rel[\"name:en\"=\"Gomti\"][\"waterway\"=\"river\"];rel[\"name\"=\"Gomti River\"][\"waterway\"=\"river\"];rel[\"name:en\"=\"Gomti River\"][\"waterway\"=\"river\"];);out geom;"
+    },
+    {
+      "file": "river-osm-hooghly-focused.json",
+      "sha256": "b7acf2425912044425814b2a342991e1c64ece9e42c25b6aaeee13e4da400cff",
+      "timestamp": "2026-11-26T20:35:36Z",
+      "query": "[out:json][timeout:25];(rel[\"name:en\"=\"Hooghly\"][\"waterway\"=\"river\"];rel[\"name\"=\"Hooghly River\"][\"waterway\"=\"river\"];rel[\"name:en\"=\"Hooghly River\"][\"waterway\"=\"river\"];);out geom;"
+    },
+    {
+      "file": "river-osm-indus.json",
+      "sha256": "75393da4cc5f431817a635ce328e5eedec97645983a8fc6d75cafa1a7c27fa34",
+      "timestamp": "2026-11-26T20:31:36Z",
+      "query": "[out:json][timeout:95];(way[\"waterway\"=\"river\"][\"name:en\"~\"^(Indus|Sindhu|Sindh|Zanskar|Zaskar|Shyok|Chenab|Sutlej|Satluj|Jhelum|Ravi|Beas|Chandra|Bhaga)( River)?$|^River (Indus|Sindhu|Sindh|Zanskar|Zaskar|Shyok|Chenab|Sutlej|Satluj|Jhelum|Ravi|Beas|Chandra|Bhaga)$\",i](23,66,37,82);way[\"waterway\"=\"river\"][\"name\"~\"^(Indus|Sindhu|Sindh|Zanskar|Zaskar|Shyok|Chenab|Sutlej|Satluj|Jhelum|Ravi|Beas|Chandra|Bhaga)( River)?$|^River (Indus|Sindhu|Sindh|Zanskar|Zaskar|Shyok|Chenab|Sutlej|Satluj|Jhelum|Ravi|Beas|Chandra|Bhaga)$\",i](23,66,37,82);way[\"waterway\"=\"river\"][\"int_name\"~\"^(Indus|Sindhu|Sindh|Zanskar|Zaskar|Shyok|Chenab|Sutlej|Satluj|Jhelum|Ravi|Beas|Chandra|Bhaga)( River)?$|^River (Indus|Sindhu|Sindh|Zanskar|Zaskar|Shyok|Chenab|Sutlej|Satluj|Jhelum|Ravi|Beas|Chandra|Bhaga)$\",i](23,66,37,82);relation[\"waterway\"=\"river\"][\"name:en\"~\"^(Indus|Sindhu|Sindh|Zanskar|Zaskar|Shyok|Chenab|Sutlej|Satluj|Jhelum|Ravi|Beas|Chandra|Bhaga)( River)?$|^River (Indus|Sindhu|Sindh|Zanskar|Zaskar|Shyok|Chenab|Sutlej|Satluj|Jhelum|Ravi|Beas|Chandra|Bhaga)$\",i](23,66,37,82);relation[\"waterway\"=\"river\"][\"name\"~\"^(Indus|Sindhu|Sindh|Zanskar|Zaskar|Shyok|Chenab|Sutlej|Satluj|Jhelum|Ravi|Beas|Chandra|Bhaga)( River)?$|^River (Indus|Sindhu|Sindh|Zanskar|Zaskar|Shyok|Chenab|Sutlej|Satluj|Jhelum|Ravi|Beas|Chandra|Bhaga)$\",i](23,66,37,82);relation[\"waterway\"=\"river\"][\"int_name\"~\"^(Indus|Sindhu|Sindh|Zanskar|Zaskar|Shyok|Chenab|Sutlej|Satluj|Jhelum|Ravi|Beas|Chandra|Bhaga)( River)?$|^River (Indus|Sindhu|Sindh|Zanskar|Zaskar|Shyok|Chenab|Sutlej|Satluj|Jhelum|Ravi|Beas|Chandra|Bhaga)$\",i](23,66,37,82););out geom;"
+    },
+    {
+      "file": "river-osm-northeast.json",
+      "sha256": "4f0da34538dbb00c736333d61b1a2f4747595661b9305f26b831ed069e6ac59d",
+      "timestamp": "2026-11-26T20:31:36Z",
+      "query": "[out:json][timeout:95];(way[\"waterway\"=\"river\"][\"name:en\"~\"^(Brahmaputra|Jamuna|Siang|Dihang|Yarlung|Tsangpo|Dibang|Lohit|Subansiri|Manas|Teesta|Tista|Barak|Surma|Kushiyara|Meghna)( River)?$|^River (Brahmaputra|Jamuna|Siang|Dihang|Yarlung|Tsangpo|Dibang|Lohit|Subansiri|Manas|Teesta|Tista|Barak|Surma|Kushiyara|Meghna)$\",i](21,86,32,98);way[\"waterway\"=\"river\"][\"name\"~\"^(Brahmaputra|Jamuna|Siang|Dihang|Yarlung|Tsangpo|Dibang|Lohit|Subansiri|Manas|Teesta|Tista|Barak|Surma|Kushiyara|Meghna)( River)?$|^River (Brahmaputra|Jamuna|Siang|Dihang|Yarlung|Tsangpo|Dibang|Lohit|Subansiri|Manas|Teesta|Tista|Barak|Surma|Kushiyara|Meghna)$\",i](21,86,32,98);way[\"waterway\"=\"river\"][\"int_name\"~\"^(Brahmaputra|Jamuna|Siang|Dihang|Yarlung|Tsangpo|Dibang|Lohit|Subansiri|Manas|Teesta|Tista|Barak|Surma|Kushiyara|Meghna)( River)?$|^River (Brahmaputra|Jamuna|Siang|Dihang|Yarlung|Tsangpo|Dibang|Lohit|Subansiri|Manas|Teesta|Tista|Barak|Surma|Kushiyara|Meghna)$\",i](21,86,32,98);relation[\"waterway\"=\"river\"][\"name:en\"~\"^(Brahmaputra|Jamuna|Siang|Dihang|Yarlung|Tsangpo|Dibang|Lohit|Subansiri|Manas|Teesta|Tista|Barak|Surma|Kushiyara|Meghna)( River)?$|^River (Brahmaputra|Jamuna|Siang|Dihang|Yarlung|Tsangpo|Dibang|Lohit|Subansiri|Manas|Teesta|Tista|Barak|Surma|Kushiyara|Meghna)$\",i](21,86,32,98);relation[\"waterway\"=\"river\"][\"name\"~\"^(Brahmaputra|Jamuna|Siang|Dihang|Yarlung|Tsangpo|Dibang|Lohit|Subansiri|Manas|Teesta|Tista|Barak|Surma|Kushiyara|Meghna)( River)?$|^River (Brahmaputra|Jamuna|Siang|Dihang|Yarlung|Tsangpo|Dibang|Lohit|Subansiri|Manas|Teesta|Tista|Barak|Surma|Kushiyara|Meghna)$\",i](21,86,32,98);relation[\"waterway\"=\"river\"][\"int_name\"~\"^(Brahmaputra|Jamuna|Siang|Dihang|Yarlung|Tsangpo|Dibang|Lohit|Subansiri|Manas|Teesta|Tista|Barak|Surma|Kushiyara|Meghna)( River)?$|^River (Brahmaputra|Jamuna|Siang|Dihang|Yarlung|Tsangpo|Dibang|Lohit|Subansiri|Manas|Teesta|Tista|Barak|Surma|Kushiyara|Meghna)$\",i](21,86,32,98););out geom;"
+    },
+    {
+      "file": "river-osm-padma-focused.json",
+      "sha256": "a45f73469a2e180a5b625b73ea3ddefecda4943ebb4eac3c530093d1c9f3ecd3",
+      "timestamp": "2026-11-26T20:36:36Z",
+      "query": "[out:json][timeout:25];(rel[\"name:en\"=\"Padma\"][\"waterway\"=\"river\"];rel[\"name:en\"=\"Padma River\"][\"waterway\"=\"river\"];way[\"name:en\"=\"Padma River\"][\"waterway\"=\"river\"](22,88,25,91););out geom;"
+    },
+    {
+      "file": "river-osm-ramganga-focused.json",
+      "sha256": "eb1141baa348326c490b90336fe169f3c3a47c41b5f26e7fd153044046b5717a",
+      "timestamp": "2026-11-26T20:35:36Z",
+      "query": "[out:json][timeout:25];(rel[\"name:en\"=\"Ramganga\"][\"waterway\"=\"river\"];rel[\"name\"=\"Ramganga River\"][\"waterway\"=\"river\"];rel[\"name:en\"=\"Ramganga River\"][\"waterway\"=\"river\"];);out geom;"
+    },
+    {
+      "file": "river-osm-west.json",
+      "sha256": "69c59c9170efd114e8b74e7a0aab75bb08c03ba07981fe19d088e513fb51572a",
+      "timestamp": "2026-11-26T20:32:35Z",
+      "query": "[out:json][timeout:95];(way[\"waterway\"=\"river\"][\"name:en\"~\"^(Narmada|Tapti|Tapi|Mahi|Sabarmati|Luni|Periyar|Sharavathi|Sharavati)( River)?$|^River (Narmada|Tapti|Tapi|Mahi|Sabarmati|Luni|Periyar|Sharavathi|Sharavati)$\",i](8,67,27,82);way[\"waterway\"=\"river\"][\"name\"~\"^(Narmada|Tapti|Tapi|Mahi|Sabarmati|Luni|Periyar|Sharavathi|Sharavati)( River)?$|^River (Narmada|Tapti|Tapi|Mahi|Sabarmati|Luni|Periyar|Sharavathi|Sharavati)$\",i](8,67,27,82);way[\"waterway\"=\"river\"][\"int_name\"~\"^(Narmada|Tapti|Tapi|Mahi|Sabarmati|Luni|Periyar|Sharavathi|Sharavati)( River)?$|^River (Narmada|Tapti|Tapi|Mahi|Sabarmati|Luni|Periyar|Sharavathi|Sharavati)$\",i](8,67,27,82);relation[\"waterway\"=\"river\"][\"name:en\"~\"^(Narmada|Tapti|Tapi|Mahi|Sabarmati|Luni|Periyar|Sharavathi|Sharavati)( River)?$|^River (Narmada|Tapti|Tapi|Mahi|Sabarmati|Luni|Periyar|Sharavathi|Sharavati)$\",i](8,67,27,82);relation[\"waterway\"=\"river\"][\"name\"~\"^(Narmada|Tapti|Tapi|Mahi|Sabarmati|Luni|Periyar|Sharavathi|Sharavati)( River)?$|^River (Narmada|Tapti|Tapi|Mahi|Sabarmati|Luni|Periyar|Sharavathi|Sharavati)$\",i](8,67,27,82);relation[\"waterway\"=\"river\"][\"int_name\"~\"^(Narmada|Tapti|Tapi|Mahi|Sabarmati|Luni|Periyar|Sharavathi|Sharavati)( River)?$|^River (Narmada|Tapti|Tapi|Mahi|Sabarmati|Luni|Periyar|Sharavathi|Sharavati)$\",i](8,67,27,82););out geom;"
+    }
+  ]
+}
