@@ -1,8 +1,7 @@
 // Share popover: copy a link to the current view, or download a 1600×900 PNG of it with a caption strip.
 import { drawIcon, hasIcon } from "../icons.js";
 import { icon } from "../ui/icon.js";
-import { periodLabel } from "../format.js";
-import { formatLensTick } from "../ui/lenses.js";
+import { formatLensTick, lensPeriodLabels } from "../ui/lenses.js";
 
 // The address printed on shared images. Set it to the published site (e.g. "example.com/us-atlas"); when left
 // empty, the page's own host and path are used, except on a local dev server, where SITE_FALLBACK is printed.
@@ -24,7 +23,7 @@ export function siteLabel() {
 
 export const IMG_W = 1600;
 export const IMG_H = 900;
-export const CAPTION_H = 128;
+export const CAPTION_H = 118;
 const SERIF = '"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif';
 const SANS = '-apple-system, "Segoe UI", system-ui, sans-serif';
 const BASE_CREDITS = [
@@ -37,11 +36,13 @@ const BASE_CREDITS = [
 
 export function imageCredits(info) {
   const rows = [...BASE_CREDITS];
+  const period = info.lens && lensPeriodLabels(info.lens, { plain: true });
+  if (period) rows.push(`Lens period · ${period}`);
   if (info.layerCredits?.length) rows.push(...info.layerCredits);
   if (info.lensCredits?.length) rows.push(`Lens data · ${info.lensCredits.join(" · ")}`);
   if (info.resourceCredits?.length) rows.push(`Resource data · ${info.resourceCredits.join(" · ")}`);
   const site = siteLabel();
-  rows.push(site === SITE_FALLBACK ? "IndiaCiv · Sources in the Almanac" : `${site}/?credits`);
+  rows.push(site === SITE_FALLBACK ? "IndiaCiv · Sources in the Almanac" : `${site}`);
   return rows;
 }
 
@@ -84,7 +85,7 @@ export function composeImage(info, { height = IMG_H } = {}) {
   const ctx = cv.getContext("2d");
   ctx.font = `14px ${SANS}`;
   const credits = imageCredits(info).flatMap((line) => wrapCredit(ctx, line));
-  const captionBase = CAPTION_H + (info.lens?.vintage === "older" ? 18 : 0);
+  const captionBase = CAPTION_H;
   const captionH = captionBase + credits.length * 17;
   const mapH = Math.max(75, imgH - captionH);
 
@@ -177,16 +178,10 @@ export function composeImage(info, { height = IMG_H } = {}) {
     ctx.textAlign = "right";
     ctx.fillText(formatLensTick(lens, 1, 4), rx + rw, ry + rh + 18);
     ctx.textAlign = "left";
-    if (lens.vintage === "older") {
-      ctx.fillText(periodLabel(lens, "", { plain: true }), rx, cy + 48, rw);
-      ctx.fillText(lens.unit || "", rx, cy + 64, rw);
-    } else if (lens.estimated && lens.source_line) {
-      ctx.fillText(lens.source_line, rx, cy + 48, rw);
-    }
   } else {
     ctx.font = `15px ${SANS}`;
     ctx.fillStyle = "#b9ab88";
-    ctx.fillText("Land cover, relief and rivers", mx + 50, cy + 16);
+    ctx.fillText("Land cover, relief, rivers and resources", mx + 50, cy + 16);
   }
 
   // Selection, credits, site
@@ -313,7 +308,6 @@ export function initShare(opts) {
       status.textContent = "Drawing the map…";
       await new Promise((r) => setTimeout(r, 30)); // let the status paint
       try {
-        await opts.beforeImage?.();
         const cv = composeImage(opts.getInfo());
         const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
         if (!blob) throw new Error("toBlob failed");

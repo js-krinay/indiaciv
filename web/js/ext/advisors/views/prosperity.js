@@ -1,14 +1,12 @@
 // Prosperity & Housing advisor: income vs home values, poverty, rents and unemployment.
 import { esc, fin, colorScale, RAMPS } from "../core/util.js";
-import { fmtCell, pct, int, count3, fmtShort } from "../core/fmt.js";
+import { money, dollars, pct, int, count3, fmtShort } from "../core/fmt.js";
 import { barList, histogram, rampLegend } from "../core/charts.js";
 import { createTable } from "../core/table.js";
 import { createScatter } from "../core/scatter.js";
 import { section, tiles, segmented, lensButton, sourcesHtml, topBy, frameBtn } from "../core/view.js";
 import { rowsHighlight } from "../core/data.js";
 
-const money = (value) => fmtCell("inr", value);
-const dollars = money;
 const METRO_MIN = 250000;
 const BIG_METRO = 500000;
 
@@ -143,7 +141,7 @@ export function mount(ctx) {
   }
 
   // --- unemployment ---------------------------------------------------------------------------------------------
-  const uBody = section(el, { title: "Unemployment", kicker: "1 Jul – 30 Sep 2026", note: `PLFS labour force aged 15+. Urban agglomerations of ${count3(BIG_METRO)}+ people use their state urban benchmark.` });
+  const uBody = section(el, { title: "Unemployment", kicker: states.field("unemployment")?.benchmark?.period, note: `PLFS labour force aged 15+. Urban agglomerations of ${count3(BIG_METRO)}+ people use their state urban benchmark.` });
   const uHost = document.createElement("div");
   let uLevel = "states";
   segmented(uBody, { label: "Areas", value: uLevel, options: [{ value: "states", label: "States & UTs" }, { value: "metros", label: "Large urban agglomerations" }], onChange: (v) => { uLevel = v; drawU(); } });
@@ -153,12 +151,12 @@ export function mount(ctx) {
     const lvU = uLevel === "states" ? states : metros;
     const min = uLevel === "states" ? 0 : BIG_METRO;
     const field = lvU.field("unemployment");
-    const comparable = lvU.rows.filter((row) => field && lvU.meta(field, row).period === "1 Jul – 30 Sep 2026");
+    const benchmark = field?.benchmark;
+    const comparable = benchmark?.period ? lvU.rows.filter((row) => lvU.meta(field, row).period === benchmark.period) : [];
     const high = topBy(comparable, (r) => r.v.unemployment, { n: 8, min });
     const low = topBy(comparable, (r) => r.v.unemployment, { n: 8, min, asc: true });
     const max = Math.max(...high.map((x) => x.v));
-    const benchmark = uLevel === "states" ? app.data.nation?.metrics?.unemployment?.value : n.unemployment;
-    const mk = (list) => list.map((x) => ({ key: x.r.key, label: x.r.name, sub: uLevel === "metros" ? x.r.sub : "", value: x.v, text: pct(x.v), tone: x.v > benchmark * 1.03 ? "bad" : x.v < benchmark * 0.97 ? "good" : null, row: x.r }));
+    const mk = (list) => list.map((x) => ({ key: x.r.key, label: x.r.name, sub: uLevel === "metros" ? x.r.sub : "", value: x.v, text: pct(x.v), tone: fin(benchmark?.value) ? (x.v > benchmark.value * 1.03 ? "bad" : x.v < benchmark.value * 0.97 ? "good" : null) : null, row: x.r }));
     const o = { max, onHover: (r) => link.hover(r ? rowsHighlight(lvU, [r.row]) : null), onClick: (r) => lvU.focus(r.row) };
     uHost.insertAdjacentHTML("beforeend", `<h4 class="adv-h4">Highest</h4>`);
     barList(uHost, { ...o, rows: mk(high) });

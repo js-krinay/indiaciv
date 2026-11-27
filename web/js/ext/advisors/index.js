@@ -246,10 +246,10 @@ export function install(app) {
 
   function councilHtml() {
     return `<div class="adv-title council"><div class="adv-titles"><div class="adv-kind">Your council</div><h2>Advisors</h2>
-      <p>Each advisor opens a dashboard on one part of India. Hover a chart entry to see it on the map. Click to drill in.</p></div></div>
+      <p>Each advisor opens a dashboard on one part of the real economy. Hover anything to see it on the map; hover the map to find it in the charts; click to drill in.</p></div></div>
       ${COUNCIL.map((g) => `<h4 class="adv-council-h">${esc(g.label)}</h4><div class="adv-council">${g.ids.map((id) => byId.get(id)).filter(Boolean).map((a) => `<button type="button" class="adv-card" data-adv="${a.id}" style="--adv:${a.color}">
         ${emblem(a, 48)}<span class="t"><span class="r">${esc(a.role)}</span><b>${esc(a.name)}</b><span class="d">${esc(a.blurb)}</span></span></button>`).join("")}</div>`).join("")}
-`;
+      <p class="adv-note pad">Each dashboard lists its sources and caveats at the bottom.</p>`;
   }
 
   // --- map → dashboard --------------------------------------------------------------------------------------------
@@ -291,10 +291,7 @@ export function install(app) {
   app.registerMode("advisor", {
     enter(params) {
       // Remember where the camera was when the advisors opened (not on a switch between advisors), to fly back on exit.
-      if (!pendingTeardown && !current) {
-        prevCam = { x: app.cam.x, y: app.cam.y, scale: app.cam.scale };
-        if (app.isMobile() && !app.panels.element.hidden) app.clearSelection();
-      }
+      if (!pendingTeardown && !current) prevCam = { x: app.cam.x, y: app.cam.y, scale: app.cam.scale };
       pendingTeardown = false;
       show(params?.id && byId.has(params.id) ? params.id : null, params);
     },

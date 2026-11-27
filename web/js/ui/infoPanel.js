@@ -89,17 +89,20 @@ export const gdpRow = (o) =>
 
 // " · ▲ 3.4% since 2021" from growth / growth_years (cities and states), compared with the U.S. in the tooltip.
 // Empty when growth is missing (null means "not measured", never zero).
-export function growthSpan(o) {
-  const growth = o?.growth_period ? o.projected_growth ?? o.growth : o?.profile?.growth_period ? o.profile.growth : null;
-  if (!Number.isFinite(growth) || o.provenance?.population?.vintage === "older" ||
-      o.provenance?.growth?.vintage === "older" || o.provenance?.projected_growth?.vintage === "older") return "";
-  const period = esc(o.growth_period || o.profile.growth_period);
-  const cls = growth >= 0 ? "good" : "bad";
-  return ` · <span class="growth ${cls}">${growth >= 0 ? "▲" : "▼"} ${Math.abs(growth * 100).toFixed(1)}% · ${period}</span>`;
+export function growthSpan(o, n = null) {
+  if (!Number.isFinite(o?.growth)) return "";
+  const yrs = Array.isArray(o.growth_years) && o.growth_years.length === 2 ? o.growth_years : null;
+  const p = (g) => `${g >= 0 ? "+" : "−"}${Math.abs(g * 100).toFixed(1)}%`;
+  const period = o.growth_period || (yrs ? `${yrs[0]}–${yrs[1]}` : "");
+  const us = Number.isFinite(n?.growth) ? ` (India ${p(n.growth)})` : "";
+  const tip = `Population change ${period}, population projections: ${p(o.growth)}${us}`;
+  const cls = o.growth >= 0 ? "good" : "bad";
+  return ` · <span class="growth ${cls}" title="${esc(tip)}">${o.growth >= 0 ? "▲" : "▼"} ${Math.abs(o.growth * 100).toFixed(1)}%${
+    period ? ` <span class="since">${esc(period)}</span>` : ""}</span>`;
 }
 
 export const popLine = (o, extra = "") =>
-  `<div class="cp-pop">${icon("pop", "👥", { size: 16 })} <b>${int(o.population)}</b> people${o.employed != null ? ` · ${int(o.employed)} employed${periodLabel(o.provenance?.employed?.period || "1 Jul – 30 Sep 2026", " · ")} · IndiaCiv estimate` : ""}${extra}</div>`;
+  `<div class="cp-pop">${icon("pop", "👥", { size: 16 })} <b>${int(o.population)}</b> people${o.employed != null ? ` · ${int(o.employed)} employed${o.provenance?.employed?.age_scope ? ` (${esc(o.provenance.employed.age_scope)})` : ""}${periodLabel(o.provenance?.employed, " · ")}${o.provenance?.employed?.estimated ? " · IndiaCiv estimate" : ""}` : ""}${extra}</div>`;
 
 /**
  * Fill and show the panel.

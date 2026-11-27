@@ -28,7 +28,8 @@ export function openCityPanel(city, ctx) {
     title: city.name,
     titleHtml: `${isCapital(city) ? `<span class="cap" title="National capital">★</span> ` : ""}${esc(city.name)}`,
     sub: `${esc(city.full || "")}${states ? `<div class="chips">${states}</div>` : ""}`,
-    headExtra: popLine(city, period + growth),
+    headExtra: popLine({ ...city, employed: city.resident_workforce?.employed_all_ages,
+      provenance: { employed: { ...city.resident_workforce, age_scope: "all ages" } } }, period + growth),
     sections: [
       city.yields && { title: "Yields", html: `<div class="yield-grid">${yieldGrid(nation, city.yields, null, 0, city.yield_meta)}</div>` },
       hasAmenities(city) && { title: "Amenities &amp; Housing", html: amenities(city, nation.nation) + gdpRow(city) },

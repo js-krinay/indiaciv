@@ -1,5 +1,11 @@
-// Map-art extension: highway, railway, port, airport, wonder, protected-land and trade layers.
-// Each is drawn into the cached map and has a switch in the Map menu.
+// Map-art extension: tile improvements (Interstates and major highways, railroads, ports, airports),
+// wonders and protected land, and freight trade routes, each as a static layer
+// drawn into the cached map (nothing animates; an idle map draws no frames), with a switch in the "Map" menu.
+//
+// Data: infrastructure.json, wonders.json and trade.json (loaded eagerly by main.js right after the
+// first frame; app.loadData returns the same promise). A missing file (null) leaves its layers off and their switches
+// harmless. Defaults: roads, rail, ports & airports and wonders on (roads, rail and hubs only from the region
+// view in: see each layer's minRpx), trade routes off.
 import { createModel } from "./model.js";
 import { makeLayers } from "./layers.js";
 import { tips } from "./tips.js";

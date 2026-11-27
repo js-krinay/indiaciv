@@ -27,10 +27,13 @@ PARK_ART = {
     "wii-jk-kishtwarhighaltitude": ("peak", "Steep valleys climb from forest into the alpine terrain of the western Himalaya."),
     "wii-ar-namdapha": ("forest", "Forest climbs from the Noa-Dihing river valley into the eastern Himalayan foothills."),
 }
+RULE_LABELS = {
+    "owner_named": "Selected landmarks", PARK_RULE: "National parks", RESEARCH_RULE: "Research institutions",
+}
 RULES = {
     "owner_named": "Selected project landmarks.",
     "unesco_inscribed": "Inscribed on the UNESCO World Heritage List.",
-    "asi_domestic_top10": "Selected from ASI ticketed monuments in FY 2025-26.",
+    "asi_domestic_top10": f"Selected from ASI ticketed monuments in {VISIT_PERIOD}.",
     "unesco_tentative_sample": "Selected from India's UNESCO Tentative List.",
     "ramsar_sample": "Selected from the Ramsar wetland inventory.",
     "gvp_active_volcano": "Active volcano in the Smithsonian Global Volcanism Program catalogue.",
@@ -230,7 +233,8 @@ def wonder_document(world, data, protected=(), wetlands=(), points=()):
         "osm_license": osm_notice("OpenStreetMap-derived landmark anchors and protected area extents"),
         "rules": [{"id": key, "kinds": (["university"] if key == RESEARCH_RULE else
                   ["natural"] if key == PARK_RULE else ["natural", "landmark"]),
-                   "text": phrase} for key, phrase in RULES.items()],
+                   "label": RULE_LABELS.get(key, key.replace("_", " ").capitalize()),
+                   "ranked": False, "text": phrase} for key, phrase in RULES.items()],
         "national": {}, "wonders": wonders,
     }
 

@@ -265,6 +265,10 @@ def city_record(city, profile=None, owner=None, pilot=None):
             result["jobs"] = {row["sector"]: row["employed"] for row in work["industries"]}
             result["employed"] = work["employed_15_plus"]
             provenance["jobs"] = provenance["employed"] = metadata(work)
+        provenance["employed"] = {
+            **provenance.get("employed", metadata(work)),
+            "age_scope": "age 15+" if work.get("employed_15_plus") is not None else "all ages",
+        }
     if output := city.get("sector_output"):
         record = metadata(output)
         if weights := output.get("input_weights"):
@@ -474,6 +478,10 @@ def add_district_roles(cities, catalog, profiles):
                 row["badge"] = {**metadata(role), "label": role["label"], "text": role.get("evidence", role["label"])}
         if roles:
             row["roles"] = roles
+        badge = row.get("badge") or {}
+        captions = [*([capital] if capital and capital["label"] != badge.get("label") else []), *roles]
+        if captions:
+            row["role_caption"] = " · ".join(f"{role['label']} ({role['period']})" for role in captions)
 
 
 def workplace_districts(workplace, profiles):

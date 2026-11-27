@@ -12,6 +12,20 @@
 import { hexPath } from "./map.js";
 
 const DEFAULT_COLOR = "#ffe08a";
+
+export function drawMapCredit(ctx, width) {
+  const credit = "© OpenStreetMap contributors · openstreetmap.org/copyright";
+  ctx.save();
+  ctx.font = "10px sans-serif";
+  ctx.textAlign = "right";
+  const labelWidth = ctx.measureText(credit).width;
+  ctx.fillStyle = "#17242d";
+  ctx.fillRect(width - labelWidth - 12, 2, labelWidth + 8, 14);
+  ctx.fillStyle = "#e1e9ed";
+  ctx.fillText(credit, width - 8, 12);
+  ctx.restore();
+}
+
 const cacheByHighlight = new WeakMap();
 let version = 0;
 

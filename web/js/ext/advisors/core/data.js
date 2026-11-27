@@ -135,13 +135,7 @@ export function buildData(app) {
   return {
     app, nation, nat, levels: { states: states_, metros, counties: counties_ },
     stateCells, countyCells, cellMetro, metroByCity,
-    source: (id) => {
-      const entry = srcTitle.get(id);
-      if (!entry) return null;
-      const safeTitle = /\b(?:19\d\d|20(?:0\d|1\d|2[0-5]))\b/.test(entry.title) ? entry.publisher : entry.title;
-      return { ...entry, title: id === "datameet" ? "DataMeet community maps of India" :
-        id === "census_a01" ? "Census of India district areas" : safeTitle || entry.title };
-    },
+    source: (id) => srcTitle.get(id) || null,
   };
 }
 

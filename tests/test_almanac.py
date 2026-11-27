@@ -8,6 +8,21 @@ from pipeline.build.catalog import release_credits
 
 
 class AlmanacTests(unittest.TestCase):
+    def test_transport_inventory_preserves_names_references_and_networks(self):
+        entries = make_entries(
+            world={"grid": {"cols": 3, "rows": 2, "radius": 5}},
+            infrastructure={"vintage": {"network": "November 2026"},
+                            "roads": [[0, 1, 0, "NH 1", "Example Highway", "National"],
+                                      [1, 2, 0, "NH 1", "Example Highway", "National"]],
+                            "rail": [[0, 1, 0, "", "Example Railway", "Main"]]},
+        )
+        roads = entries["About this map"]["Highways"]
+        self.assertEqual(len(roads), 1)
+        self.assertEqual(roads[0]["name"], "Example Highway · NH 1")
+        self.assertIn("National · November 2026", roads[0]["rule"])
+        self.assertEqual(roads[0]["sources"], ["osm_transport"])
+        self.assertEqual(entries["About this map"]["Railway lines"][0]["name"], "Example Railway")
+
     @unittest.skipUnless(shutil.which("node"), "Node is needed to exercise the Almanac")
     def test_map_share_state(self):
         subprocess.run(

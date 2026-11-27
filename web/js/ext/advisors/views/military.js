@@ -1,17 +1,15 @@
 // Military advisor ("General"): DoD installations and ranges (MIRTA), troops by state (DMDC), defense dollars by state
 // (OLDCC), garrison metros, and veterans and armed-forces residents by county (ACS, counties.json).
 import { esc, fin, el as mk } from "../core/util.js";
-import { int, pct, fmtCell, count3 } from "../core/fmt.js";
+import { int, pct, money, count3, dollars } from "../core/fmt.js";
 import { stackedBars, sizeLegend, swatchLegend } from "../core/charts.js";
 import { createTable } from "../core/table.js";
 import { section, tiles, chips, segmented, mapPicker, sourcesHtml } from "../core/view.js";
-import { rowsHighlight } from "../core/data.js";
+import { fieldContext, rowsHighlight } from "../core/data.js";
 import { countyLens, stateLens } from "../core/lenses.js";
 import { frameBox, focusPoint } from "../core/frame.js";
 
 // Original colours per component (branch hues; reserve = lighter, Guard = gold tones).
-const money = (value) => fmtCell("inr", value);
-const dollars = money;
 const COMP_COLOR = {
   army: "#7d9a46", navy: "#3f6fc2", air_force: "#6fb3e0", marines: "#c24a3e",
   army_reserve: "#a8bd78", navy_reserve: "#8aa6db", air_force_reserve: "#a9d3ee", marine_reserve: "#e08f86",
@@ -305,12 +303,13 @@ export async function mount(ctx) {
     onChange: (v) => { vLevel = v; vTable.setRows(vRows()); },
   });
   const vRows = () => data.levels[vLevel].rows.filter((r) => fin(r.v.veterans_pct) && (vLevel !== "counties" || (r.v.population || 0) >= 10000));
+  const veteranTip = (row, key) => fieldContext(data, data.levels[row.level], data.levels[row.level].field(key), row);
   const vTable = createTable(vBody, {
     caption: "Registered ex-servicemen", rank: true, maxHeight: 260, search: "Search places",
     columns: [
       { key: "name", label: "Place", align: "l", width: "minmax(0,1.7fr)", value: (r) => r.name, html: (r) => `${esc(r.name)}${r.level !== "states" && r.sub ? ` <span class="sub">${esc(r.sub)}</span>` : ""}` },
-      { key: "veterans", label: "Veterans", value: (r) => r.v.veterans, text: (r) => count3(r.v.veterans) },
-      { key: "veterans_pct", label: "Share", value: (r) => r.v.veterans_pct, text: (r) => pct(r.v.veterans_pct), bar: { max: 0.2, color: "rgba(135,150,171,.35)" }, title: "Registered ex-servicemen as a share of mid-2026 residents" },
+      { key: "veterans", label: "Veterans", value: (r) => r.v.veterans, text: (r) => count3(r.v.veterans), tip: (r) => veteranTip(r, "registered_veterans") },
+      { key: "veterans_pct", label: "Share", value: (r) => r.v.veterans_pct, text: (r) => pct(r.v.veterans_pct), bar: { max: 0.2, color: "rgba(135,150,171,.35)" }, title: "Registered ex-servicemen as a share of mid-2026 residents", tip: (r) => veteranTip(r, "veteran_share") },
       ...(stLevel.rows.some((r) => fin(r.v.armed_forces_pct)) ? [{ key: "armed_forces_pct", label: "In uniform", value: (r) => r.v.armed_forces_pct, text: (r) => pct(r.v.armed_forces_pct), title: "Active duty among residents 16+" }] : []),
     ],
     rows: vRows(), sort: { key: "veterans_pct", dir: "desc" },

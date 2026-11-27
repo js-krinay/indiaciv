@@ -7,7 +7,6 @@ import { compact, dollars, esc, int, money, pct, yieldDetails, yieldValue } from
 import { hasIcon } from "../icons.js";
 import { icon, glyph } from "./icon.js";
 import { DISTRICT_ICON } from "./infoPanel.js";
-import { cityProjectedGrowth } from "./cityHeadlines.js";
 
 export const METRO_MIN = 250000; // metros in growth / specialisation / per-person rankings
 export const BIG_METRO_MIN = 500000; // metros in the unemployment rankings
@@ -57,7 +56,6 @@ export function fmtStat(def, v) {
 // Every top-bar stat in display order: population, the yields from nation.json, unemployment.
 export function statDefs(nation) {
   const n = nation?.nation || {};
-  const profile = nation?.profile;
   const yields = (nation?.yields || []).map((y) => ({
     key: y.key,
     label: y.label,
@@ -67,7 +65,7 @@ export function statDefs(nation) {
     unit: y.unit,
     description: y.description || "",
     source: y.scale ? "" : y.key === "gold" ? nation.gdp_vintage || nation.vintage || "" : nation.vintage || "",
-    value: y.key === "gold" && !y.scale ? n.gdp ?? n.yields?.gold ?? null : n.yields?.[y.key] ?? null,
+    value: y.key === "gold" ? n.gdp ?? n.yields?.gold ?? null : n.yields?.[y.key] ?? null,
     details: y.scale ? yieldDetails(y, n.yields?.[y.key], n.yield_meta?.[y.key]) : "",
   }));
   return [
@@ -76,13 +74,6 @@ export function statDefs(nation) {
       description: n.provenance?.population?.period ? `Residents · ${n.provenance.population.period}` : "Residents.",
       source: n.provenance?.population?.period || nation?.vintage || "", value: n.population ?? null,
     },
-    ...(fin(profile?.growth) && profile.growth_period ? [{
-      key: "growth", label: "Growth", name: "Projected population growth", color: "#a8d39a",
-      emoji: "↗", unit: "rate", value: profile.growth,
-      description: "Population change between the two annual projections.",
-      source: `${profile.growth_period} · Technical Group on Population Projections`,
-      details: `${profile.growth_period} · Technical Group on Population Projections`,
-    }] : []),
     ...yields,
     ...(n.unemployment == null || n.provenance?.unemployment?.scope === "urban" ? [] : [{
       key: "unemployment", label: "Unemployment", name: "Unemployment rate", color: "#e8dcc0", iconId: "unemployment", emoji: "😐",
@@ -120,21 +111,15 @@ function rank(list, valueOf, { asc = false, min = 0, fmt = count3, exact = int, 
     .map(({ r, v }, i) => ({ rank: i + 1, kind: r.kind, ref: r.ref, name: r.name, sub: subOf ? subOf(r.o) : r.sub, value: v, text: fmt(v), exact: exact ? exact(v, r.o) : "" }));
 }
 
-// Which states the "States" rankings cover. states.json holds the states drawn on the map; when the U.S. total
-// includes people outside them (Alaska and Hawaii are not on the map), say so rather than imply all 50 are ranked.
+// Compare populations at the state reference date.
 function stateScope(n, st) {
-  const abbrs = new Set(st.map((r) => r.o.abbr).filter(Boolean));
-  const hasDC = abbrs.has("DC");
   const sum = st.reduce((a, r) => a + (fin(r.o.population) ? r.o.population : 0), 0);
   const gap = fin(n.population) && n.population > 0 ? (n.population - sum) / n.population : 0;
-  const label = hasDC ? "States & DC" : "States";
+  const label = "States and union territories";
   if (!st.length || gap < 0.001) return { label, note: "" };
-  const missing = [["AK", "Alaska"], ["HI", "Hawaii"]].filter(([a]) => !abbrs.has(a)).map(([, name]) => name);
-  const outside = missing.length ? missing.join(" and ") : `${compact(n.population - sum)} residents`;
-  const what = `${st.length - (hasDC ? 1 : 0)} states on the map${hasDC ? " + DC" : ""}`;
   return {
-    label, inMap: `${hasDC ? "Map states & DC" : "Map states"}`,
-    note: `Ranks the ${what}; ${outside} ${missing.length > 1 ? "are" : "is"} in the U.S. total but not ranked.`,
+    label, inMap: "Mapped states and union territories",
+    note: `Ranks ${st.length} mapped states and union territories. Their population total differs from the India projection for 1 March 2026.`,
   };
 }
 
@@ -160,7 +145,7 @@ export function buildReport(key, { nation, states, cities, lenses, lensVintage }
   if (!def) return null;
   const n = nation.nation || {};
   const { st, metros } = areas(states, cities);
-  const scope = stateScope(n, st);
+  const scope = stateScope({ population: n.state_reference_population ?? n.population }, st);
   const fmt = (v) => fmtStat(def, v);
   const rep = {
     key, def, total: def.value, totalText: fmt(def.value), context: [], definition: def.description, source: def.source,
@@ -174,23 +159,12 @@ export function buildReport(key, { nation, states, cities, lenses, lensVintage }
   }
 
   if (key === "population") reportPopulation(rep, n, st, metros);
-  else if (key === "growth") {
-    const options = { fmt: (v) => signedPct(v, 2), exact: (v) => signedPct(v, 2) };
-    const cityPeriod = metros.find(({ o }) => fin(cityProjectedGrowth(o)))?.o.growth_period;
-    rep.boards.statesNote = `States and UTs · ${def.source}.`;
-    rep.boards.modes = [{ id: "abs", label: def.label,
-      hint: cityPeriod ? `Urban agglomerations · ${cityPeriod} · UN DESA projections.` : "",
-      states: rank(st, (area) => area.profile?.growth, options),
-      metros: rank(metros, cityProjectedGrowth, {
-        ...options, exact: (v, area) => `${options.fmt(v)} · ${area.growth_period}`,
-      }) }];
-  }
   else if (key === "unemployment") reportUnemployment(rep, n, st, metros);
   else if (def.yield?.scale) {
-    const options = { fmt, exact: (v, area) => yieldDetails(def.yield, v, area.yield_meta?.[key]) };
+    const options = { fmt, exact: (v, area) => yieldDetails(def.yield, v, area.yield_meta?.[key]),
+      subOf: (area) => area.yield_meta?.[key]?.period };
     const value = (area) => area.yields?.[key];
     rep.context.push(def.details);
-    rep.boards.statesNote = "";
     rep.boards.modes = [{ id: "abs", label: def.label, states: rank(st, value, options), metros: rank(metros, value, options) }];
   }
   else if (def.unit === "usd") reportGold(rep, nation, n, st, metros);
@@ -199,18 +173,16 @@ export function buildReport(key, { nation, states, cities, lenses, lensVintage }
 }
 
 function reportPopulation(rep, n, st, metros) {
-  const yrs = Array.isArray(n.growth_years) && n.growth_years.length === 2 ? n.growth_years : null;
-  const since = yrs ? ` since ${yrs[0]}` : "";
-  if (fin(n.growth)) rep.context.push(`${signedPct(n.growth)}${since} (Census population estimates)`);
+  if (fin(n.growth)) rep.context.push(`${signedPct(n.growth)} · ${n.growth_period} (Technical Group population projections)`);
   const emp = ratio(n.employed, n.population);
   if (emp != null) rep.context.push(`${compact(n.employed)} employed age 15+, ${pct(emp)} of residents · ${n.provenance?.employed?.period} · IndiaCiv estimate`);
 
   const g = (o) => o.growth;
   const row = (x, prefix = "") => ({
-    label: `${prefix}${x.r.name}`, sub: x.r.kind === "city" ? x.r.sub : "", value: x.v, text: signedPct(x.v), tone: x.v >= 0 ? "good" : "bad",
+    label: `${prefix}${x.r.name}`, sub: x.r.o.growth_period || "", value: x.v, text: signedPct(x.v), tone: x.v >= 0 ? "good" : "bad",
   });
   const groups = [];
-  if (fin(n.growth)) groups.push({ rows: [{ label: "United States", value: n.growth, text: signedPct(n.growth), tone: n.growth >= 0 ? "good" : "bad", strong: true }] });
+  if (fin(n.growth)) groups.push({ rows: [{ label: "India", value: n.growth, text: signedPct(n.growth), tone: n.growth >= 0 ? "good" : "bad", strong: true }] });
   const extremes = (list, what) => {
     if (list.length < 2) return;
     const k = Math.min(3, Math.floor(list.length / 2));
@@ -219,15 +191,15 @@ function reportPopulation(rep, n, st, metros) {
     groups.push({ title: bottom.every((x) => x.v < 0) ? `Shrinking ${what}` : `Slowest-growing ${what}`, rows: bottom.map((x) => row(x)) });
   };
   extremes(sorted(st, g), "states");
-  extremes(sorted(metros, g, METRO_MIN), `metros (${compact(METRO_MIN)}+)`);
-  if (groups.length) rep.breakdown = { title: yrs ? `Population change ${yrs[0]}–${yrs[1]}` : "Population change", note: rep.scope.note, groups };
+  extremes(sorted(metros, g, METRO_MIN), `urban agglomerations (${compact(METRO_MIN)}+)`);
+  if (groups.length) rep.breakdown = { title: "Projected population change", note: rep.scope.note, groups };
 
   rep.boards.modes = [
     { id: "abs", label: "Largest", states: rank(st, (o) => o.population),
       metros: rank(metros, (o) => o.provenance?.population?.vintage === "older" ? null : o.population) },
     {
-      id: "rel", label: "Fastest growing", hint: `Population change${since}; metros of ${compact(METRO_MIN)}+ people.`,
-      states: rank(st, g, { fmt: signedPct, exact: (v) => signedPct(v, 2) }), metros: rank(metros, g, { fmt: signedPct, exact: (v) => signedPct(v, 2), min: METRO_MIN }),
+      id: "rel", label: "Fastest growing", hint: `Population change by published projection period.`,
+      states: rank(st, g, { fmt: signedPct, subOf: (o) => o.growth_period }), metros: rank(metros, g, { fmt: signedPct, subOf: (o) => o.growth_period, min: METRO_MIN }),
     },
   ];
 }
@@ -242,7 +214,7 @@ function reportUnemployment(rep, n, st, metros) {
   const row = (label, x) => ({ label: `${label}: ${x.r.name}`, sub: x.r.kind === "city" ? x.r.sub : "", value: x.v, text: pct(x.v), tone: tone(x.v) });
   const spread = (list) => (list.length >= 3 ? [row("Highest", list[0]), row("Median", list[Math.floor(list.length / 2)]), row("Lowest", list.at(-1))] : []);
   const groups = [];
-  if (fin(n.unemployment)) groups.push({ rows: [{ label: "United States", value: n.unemployment, text: pct(n.unemployment), strong: true }] });
+  if (fin(n.unemployment)) groups.push({ rows: [{ label: "India", value: n.unemployment, text: pct(n.unemployment), strong: true }] });
   const sRows = spread(ss), mRows = spread(sorted(metros, u, BIG_METRO_MIN));
   if (sRows.length) groups.push({ title: rep.scope.label, rows: sRows });
   if (mRows.length) groups.push({ title: `Large metros (${compact(BIG_METRO_MIN)}+)`, rows: mRows });

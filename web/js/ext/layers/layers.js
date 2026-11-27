@@ -1,5 +1,5 @@
 // Static map layers for the map art, as factories over a model (model.js) and a switch state, so the app
-// (index.js) and the art gallery draw exactly the same thing.
+// (index.js) and the art gallery (web/dev/gallery.js) draw exactly the same thing.
 //
 //   makeLayers(model, on, {tips}) → [layer, …]   on = {roads, rail, hubs, military, wonders, trade} (booleans, read live)
 //
@@ -7,11 +7,10 @@
 // restricted ground 58 (hatching on hexes), ports & airports 65, forts 66, wonders 67 (above city tiles, under the fog),
 // name plates 68 (forts and wonders laid out together, clear of city banners and City View district plaques), trade
 // routes 85 (above resources, under state names). Everything is drawn into the cached static map; nothing animates.
-import { drawRoads, drawRail, drawPort, drawAirport, drawTradeRoutes, hitRoute, hitTransportLink, TRANSPORT_MIN_RPX } from "../../render/art/improvements.js";
+import { drawRoads, drawRail, drawPort, drawAirport, drawTradeRoutes, hitRoute, TRANSPORT_MIN_RPX } from "../../render/art/improvements.js";
 import { drawProtected, drawWonder, drawPlaque } from "../../render/art/sites.js";
 import { visibleSites, siteSize, hitSites } from "./model.js";
 import { esc } from "../../format.js";
-import { showHtmlTooltip } from "../../ui/tooltip.js";
 
 const inVp = (it, vp, padKm) => it.x > vp.x0 - padKm && it.x < vp.x1 + padKm && it.y > vp.y0 - padKm && it.y < vp.y1 + padKm;
 
@@ -42,18 +41,7 @@ export function makeLayers(model, on, { tips = {}, app = null } = {}) {
   // While a lens colours the map, roads and rail fade so the data stays readable.
   const lensAlpha = (o) => (o.lens ? 0.55 : 1);
 
-  const transportHit = (kind) => (x, y, Rpx) => {
-    const row = hitTransportLink(m.net, grid(), kind, x, y, Rpx);
-    return row && { kind, row, vintage: m.data.infrastructure?.vintage?.network || "OpenStreetMap snapshot" };
-  };
-  const transportTooltip = ({ kind, row, vintage }) => {
-    const [, , , ref, name, network] = row;
-    const title = [...new Set([name, ref].filter(Boolean))].join(" · ");
-    return { text: [title || (kind === "roads" ? "Highway" : "Railway"), network,
-      `${vintage} · © OpenStreetMap contributors`].filter(Boolean).join(" · ") };
-  };
   const roads = {
-    hit: transportHit("roads"), tooltip: transportTooltip,
     id: "roads", z: 55, minRpx: TRANSPORT_MIN_RPX,
     visible: () => !!on.roads && !!m.net,
     sig: ver,
@@ -63,7 +51,6 @@ export function makeLayers(model, on, { tips = {}, app = null } = {}) {
     },
   };
   const rail = {
-    hit: transportHit("rail"), tooltip: transportTooltip,
     id: "rail", z: 56, minRpx: TRANSPORT_MIN_RPX,
     visible: () => !!on.rail && !!m.net,
     sig: ver,
@@ -96,12 +83,6 @@ export function makeLayers(model, on, { tips = {}, app = null } = {}) {
     warm(ctx, vp, w, o) { hubs.draw(ctx, vp, w, o); },
     hit: (x, y, Rpx) => hitSites(hubs.list(Rpx), x, y, Rpx, grid()),
     tooltip: (it) => moved(it, (it.kind === "port" ? tips.port?.(it.data, m) : tips.airport?.(it.data, m)) ?? null),
-    click(it, event) {
-      const content = hubs.tooltip(it);
-      if (!content) return false;
-      showHtmlTooltip(event.x, event.y, content);
-      return true;
-    },
   };
   const wonders = {
     id: "wonders", z: app?.layerZ ? app.layerZ.RESOURCES + 1 : 67, minRpx: 1.5,

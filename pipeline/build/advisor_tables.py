@@ -10,6 +10,7 @@ from ..core.store import write_web
 from .advisor_inventory import FY, SNAPSHOT, column, index_inventory, inventory_columns
 from .advisor_observations import city_district_observations, path_value, place_columns
 from .counties import field
+from .state_metrics import QUARTER
 
 REQUIRES = [
     "world.json", "lenses.json", "workplace.json", "cities.json", "city_view.json", "states.json", "nation.json", "counties.json",
@@ -108,6 +109,14 @@ def advisor_tables(world, lenses, workplace, cities, city_view, states, nation, 
     memberships, populations, plaques = city_district_observations(cities, profiles)
     hex_area = 1.5 * math.sqrt(3) * world["grid"]["radius"] ** 2
     tables = {}
+    national = nation.get("nation", {})
+    benchmarks = {
+        "states": {**nation.get("metrics", {}).get("unemployment", {}), "period": QUARTER,
+                   "scope": "rural and urban", "population": "labour force aged 15+"},
+        "metros": {"value": national.get("unemployment"),
+                   **national.get("provenance", {}).get("unemployment", {}),
+                   "population": "urban labour force aged 15+"},
+    }
     city_names = {row["id"]: row["name"] for row in cities}
     mapped_city_counts = Counter(abbr for city in cities for abbr in city.get("states", []))
     wonder_names = {row["id"]: row.get("name", row["id"]) for row in wonders.get("wonders", [])}
@@ -229,6 +238,9 @@ def advisor_tables(world, lenses, workplace, cities, city_view, states, nation, 
                                  columns.get("projected_growth", {}).get("value")}
             observations[key] = columns
         tables[level] = column_table(observations, id_key)
+        for definition in tables[level]["fields"]:
+            if definition["key"] == "unemployment" and level in benchmarks:
+                definition["benchmark"] = benchmarks[level]
     return tables
 
 

@@ -4,7 +4,6 @@
 import { esc, compact, int, pct, periodLabel } from "../../format.js";
 import { WONDER_KINDS } from "../../render/art/sites.js";
 import { MODE_STYLE } from "../../render/art/improvements.js";
-import { wonderFactsHtml } from "../../ui/wonderFacts.js";
 
 const muted = (s) => `<span class="muted">${s}</span>`;
 const num = (n, d = 1) => (n == null || !Number.isFinite(n) ? "–" : compact(n));
@@ -30,9 +29,7 @@ export const tips = {
     ];
     if (p.tons != null) lines.push(`${p.rank == null ? "" : `#${int(p.rank)} by cargo among major ports · `}<b>${num(p.tons)}</b> metric tonnes (${periodLabel(p) || esc(yr)})`);
     if (p.foreign != null || p.domestic != null) lines.push(`Overseas ${num(p.foreign)} · coastal ${num(p.domestic)} metric tonnes`);
-    if (p.coastal_cargo?.tons != null) lines.push(`Coastal cargo · <b>${num(p.coastal_cargo.tons)}</b> metric tonnes (${periodLabel(p.coastal_cargo) || esc(p.coastal_cargo.year)}) · ${esc(p.coastal_cargo.status)}`);
-    if (p.overseas_direction) lines.push(`Overseas cargo · ${pct(p.overseas_direction.unloaded)} unloaded · ${pct(p.overseas_direction.loaded)} loaded · ${periodLabel(p.overseas_direction)}`);
-    if (p.source_id || p.overseas_direction) lines.push(muted([p.cargo?.status, "Ministry of Ports, Shipping and Waterways"].filter(Boolean).map(esc).join(" · ")));
+    if (p.source_id) lines.push(muted([p.cargo?.status, "Ministry of Ports, Shipping and Waterways"].filter(Boolean).map(esc).join(" · ")));
     return lines.join("<br>");
   },
   airport(a) {
@@ -52,14 +49,12 @@ export const tips = {
     return lines.join("<br>");
   },
   wonder(x, m) {
-    if (x.description) return [
-      `<b>${esc(x.name)}</b>`, esc(x.description), muted(esc(x.location)), wonderFactsHtml(x, m.data),
-    ].join("<br>");
     const k = WONDER_KINDS[x.kind]?.name || "Wonder";
     const rule = m.data.wonders?.rules?.find((r) => r.id === x.rule);
     const mt = x.metrics || {};
     const lines = [`<b>${esc(x.name)}</b> ${muted(esc([x.state].filter(Boolean).join("")))}`];
-    if (x.kind === "university") {
+    if (x.description) lines.push(esc(x.description), muted(esc(x.location)), muted(esc(x.period || "")));
+    else if (x.kind === "university") {
       lines.push(`${esc(k)} · #${esc(x.rank)} by research spending`);
       if (mt.rd_usd != null) lines.push(`R&amp;D ${usd(mt.rd_usd)} (FY${esc(mt.year)})${mt.federal_usd != null ? `, ${pct(mt.federal_usd / mt.rd_usd, 0)} federal` : ""}`);
       if (mt.enrollment != null) lines.push(`${int(mt.enrollment)} students (12-month headcount, ${esc(mt.enrollment_year)})`);

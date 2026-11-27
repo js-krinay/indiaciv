@@ -4,11 +4,7 @@ import { pct, int, count3 } from "../core/fmt.js";
 import { shareBar, barList, donut, smallMultiples } from "../core/charts.js";
 import { createTable } from "../core/table.js";
 import { section, tiles, segmented, lensButton, sourcesHtml, topBy, frameBtn } from "../core/view.js";
-import { rowsHighlight } from "../core/data.js";
-
-const LAND_KEYS = ["forest", "crop", "developed"];
-const LAND_LABEL = { forest: "Tree cover", crop: "Cropland", developed: "Built-up" };
-const LAND_COLOR = { forest: "#46753d", crop: "#b3a64d", developed: "#b68e87" };
+import { LAND_KEYS as COVER_KEYS, LAND_LABEL as COVER_LABEL, LAND_COLOR, rowsHighlight } from "../core/data.js";
 
 const LENS_OF = { forest: "forest", crop: "farmland", pasture: "farmland", developed: "developed" };
 
@@ -18,6 +14,9 @@ export function mount(ctx) {
   const P = w.raw.pct;
   const owner = w.raw.owner;
   const { states } = data.levels;
+  const LAND_LABEL = { ...COVER_LABEL, ...Object.fromEntries(COVER_KEYS.map((k) => [k, states.field(`land_${k}`)?.label || COVER_LABEL[k]])) };
+  const coverPeriod = states.field("land_forest")?.period;
+  const LAND_KEYS = COVER_KEYS.filter((k) => coverPeriod && states.field(`land_${k}`)?.period === coverPeriod);
   // --- national shares and dominant cover per hex ---------------------------------------------------------------
   let nationalCover;
   if (w.raw.pct_source && w.raw.pct_period && P) {
@@ -85,7 +84,7 @@ export function mount(ctx) {
   }
 
   // --- per state ------------------------------------------------------------------------------------------------
-  const sBody = section(el, { title: "The states' make-up", kicker: "Esri 2025 (1 Jan – 31 Dec 2025)", note: "Share of classified land samples. Hover to outline the state or union territory, click to open it." });
+  const sBody = section(el, { title: "The states' make-up", kicker: coverPeriod, note: "Share of classified land samples. Hover to outline the state or union territory, click to open it." });
   const stRows = states.rows.filter((r) => LAND_KEYS.some((k) => fin(r.v[`land_${k}`])));
   const comp = (r) => `<span class="adv-minibar">${LAND_KEYS.map((k) => {
     const v = r.v[`land_${k}`];

@@ -18,6 +18,8 @@ OPTIONAL_REQUIRES = [GHSL_UCDB]
 PRODUCES = ["resources.json", "_crop_production"]
 GEM_PERIODS = {"gem_power": "Sep 2026", "gem_coal": "Aug 2026", "gem_iron": "Sep 2026",
                "gem_oil_gas": "Mar 2026"}
+
+
 ADVISOR_GROUPS = [
     {"id": "thermal", "label": "Power plants",
      "types": ["nuclear", "coal_plant", "gas_plant", "oil_plant", "bioenergy"]},
@@ -269,6 +271,7 @@ def mark_mw_subtotals(items, types):
         periods = {row.get("period") for row in rows}
         if len(periods) == 1 and None not in periods:
             rows[0]["aggregate_mw"] = {"period": periods.pop(), "source": sorted({row["source"] for row in rows}),
+                                       "value": sum(row["value"] for row in rows),
                                        "estimated": any(row.get("estimated") for row in rows)}
 
 

@@ -3,6 +3,7 @@
 import json
 import math
 import re
+from collections import Counter
 
 from ..core.paths import WEB_DATA
 from ..core.store import write_web
@@ -121,11 +122,13 @@ def make_entries(*, world, states=(), cities=(), wonders=None, lenses=None, nati
         order = (f"Class order · {row['rank']} of {metrics['institution_count']} mapped "
                  f"{metrics['institution_class']} sites · {period}"
                  if period and metrics.get("institution_count") is not None else "")
+        inventory_order = (f"Inventory order · {row['rank']} · {period}"
+                           if period and row.get("rank") is not None and not (area or order) else "")
         add("About this map", "Wonders", row["name"],
             " · ".join(filter(None, [row.get("kind"), (row.get("subtype") or "").replace("_", " "),
                                      row.get("location") or state_names.get(row.get("state")), period])),
             row.get("description"), row.get("era") if not period else None, WONDER_NOTES.get(row["id"], row.get("long_description")),
-            *selection, area, order,
+            *selection, area, order, inventory_order,
             f"Mapped extent · {number(len(row['cells']), 0)} protected land hexes" if row.get("cells") else "",
             sources=["india_wonders", *(row.get("sources") or []), *row.get("extent_sources", [])],
             links=[{"url": ref.get("url"), "label": kind.title() + (f" · {ref['license']}" if ref.get("license") else "")}
@@ -247,6 +250,19 @@ def make_entries(*, world, states=(), cities=(), wonders=None, lenses=None, nati
                 f"{number(100 * value / total)}% of nominal GVA · {gva['period']}",
                 sources=(gva["source"],))
 
+    network_period = infrastructure.get("vintage", {}).get("network")
+    for key, heading in (("roads", "Highways"), ("rail", "Railway lines")):
+        lines = Counter()
+        for _, _, _, *labels in infrastructure.get(key, []):
+            ref, name, network = (labels + [None] * 3)[:3]
+            title = " · ".join(dict.fromkeys(filter(None, (name, ref))))
+            if title or network:
+                lines[title or heading, network or ""] += 1
+        for (title, network), count in sorted(lines.items()):
+            caption = f"{number(count, 0)} mapped segments"
+            add("About this map", heading, title, " · ".join(filter(None, (network, network_period, caption))),
+                sources=("osm_transport",))
+
     freight = infrastructure.get("freight")
     if freight:
         add("About this map", "Railways", "Originating freight by railway", *NOTES["Railways"],
@@ -264,6 +280,30 @@ def make_entries(*, world, states=(), cities=(), wonders=None, lenses=None, nati
             trade.get("label"), trade.get("status"),
             "The Kolkata and Haldia authority has one combined branch at the mouth of the Hooghly.",
             sources=(trade.get("source_id"), "pib_dfc_completion", "osm_transport", "cwprs_port_locations"))
+    for port in infrastructure.get("ports", []):
+        cargo = {key: port[key] for key in ("period", "vintage", "estimated") if key in port}
+        cargo["source"] = port.get("source_id")
+        coastal = port.get("coastal_cargo") or {}
+        direction = port.get("overseas_direction") or {}
+        add("About this map", "Ports", port["name"],
+            " · ".join(filter(None, (port.get("category"), port.get("city"), port.get("state")))),
+            *(figure(label, port.get(key), unit, cargo) for key, label, unit in (
+                ("tons", "Cargo handled", "metric tonnes"), ("rank", "Major-port cargo rank", ""),
+                ("domestic", "Domestic cargo", "metric tonnes"), ("foreign", "Overseas cargo", "metric tonnes"))),
+            figure(" · ".join(filter(None, ("Coastal cargo", coastal.get("status")))), coastal.get("tons"), "metric tonnes",
+                   {"period": coastal.get("period"), "source": coastal.get("source_id")}),
+            *(figure(label, direction[key] * 100, "%", {
+                "period": direction["period"], "vintage": direction["vintage"], "source": direction.get("source_id"),
+              })
+              for key, label in (("unloaded", "Overseas cargo unloaded"), ("loaded", "Overseas cargo loaded"))
+              if direction.get(key) is not None))
+    for airport in infrastructure.get("airports", []):
+        locality = airport.get("city_provenance") or {}
+        add("About this map", "Airports", airport["name"],
+            " · ".join(filter(None, (airport["id"], airport.get("city"), airport.get("state"),
+                                     airport.get("period") or infrastructure.get("vintage", {}).get("airports")))),
+            " · ".join(filter(None, ("Locality · Airports Authority of India", locality.get("period")))) if locality else "",
+            sources=("ourairports", locality.get("source_id") or locality.get("source")))
 
     sites = {row["id"]: row for file in protected if file for row in file.get("sites", []) if not row.get("ramsar_id")}
     if sites:

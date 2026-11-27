@@ -251,8 +251,6 @@
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 .adv-thead .th.r button { text-align: right; }
-.adv-thead .th button:has(.column-period) { display: block; }
-.adv-thead .column-period { display: block; }
 .adv-thead .th.l button { text-align: left; }
 .adv-thead .th[aria-sort="ascending"] button, .adv-thead .th[aria-sort="descending"] button { color: var(--gold-bright); }
 .adv-thead .arr { font-size: 8px; margin-left: 3px; }

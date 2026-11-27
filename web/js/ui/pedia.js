@@ -18,6 +18,8 @@ export function initPedia(data) {
   const nav = document.getElementById("pedia-nav");
   const body = document.getElementById("pedia-body");
   const srcName = (id) => data.sources?.find((s) => s.id === id)?.title || id || "";
+  const sourceCaption = (text) => esc(text).replace(/\b[\da-f]{40,64}\b/gi,
+    (hash) => `<abbr title="${hash}">${hash.slice(0, 8)}…</abbr>`);
   let restoreFocus = null;
 
   const h2 = (ic, fb, text) => `<h2>${icon(ic, fb, { size: 24 })}<span>${esc(text)}</span></h2>`;
@@ -108,14 +110,14 @@ export function initPedia(data) {
       ${h2("pedia", "📖", "Sources")}
       ${data.sources.map((s) => `
         <h4>${esc(s.title)}</h4>
-        <p>${esc(s.description)}<br>
+        <p>${sourceCaption(s.description)}<br>
         <span class="muted">${esc(s.publisher)} · ${link(s.license_url, s.license) || esc(s.license)}${s.period || (s.vintage && s.vintage !== "older") ? " · " + esc(s.period || s.vintage) : ""} ·
         <a href="${esc(s.homepage)}" target="_blank" rel="noopener">homepage</a></span><br>
         ${(s.used_for || []).map(esc).join(" · ")}
         ${(s.credit_links || (s.credit_link ? [s.credit_link] : [])).map(({ url, label }) => link(url, label)).join(" · ")}
         ${link(s.download_path, s.download_label || "Download derived data")}</p>
-        <table>${(s.files || []).map((f) => `<tr><td><code>${esc(f.url)}</code>${f.sha256 ? `<br><code>SHA-256 ${esc(f.sha256)}</code>` : ""}
-          ${f.timestamp ? `<br><code>${esc(f.timestamp)}</code>` : ""}${f.query ? `<br><code>${esc(f.query)}</code>` : ""}</td>
+        <table>${(s.files || []).map((f) => `<tr><td>${link(f.url, "Source file")}${f.sha256 ? `<br><code title="${esc(f.sha256)}">SHA-256 ${esc(f.sha256.slice(0, 8))}…</code>` : ""}
+          ${f.timestamp ? `<br><code>${esc(f.timestamp)}</code>` : ""}${f.query ? `<br><code title="${esc(f.query)}">Source query</code>` : ""}</td>
           <td class="muted" style="white-space:nowrap">${esc((f.retrieved || "").slice(0, 10))}${f.bytes ? `<br>${(f.bytes / 1e6).toFixed(1)} MB` : ""}</td></tr>`).join("")}</table>`).join("")}`,
   };
 
@@ -159,6 +161,11 @@ export function initPedia(data) {
       show(page);
       modal.hidden = false;
       (nav.querySelector("button.active") || card.querySelector("[data-close]"))?.focus();
+      if (!data.almanac && data.loadAlmanac) data.loadAlmanac().then((almanac) => {
+        if (!almanac || data.almanac) return;
+        data.almanac = almanac;
+        if (!modal.hidden) show(nav.querySelector("button.active")?.dataset.page || page);
+      });
     },
     close,
     get isOpen() {

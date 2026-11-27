@@ -10,6 +10,7 @@ from .district_values import district_sample_values, small_district_values
 GROUP = {"id": "air_weather", "name": "Air & weather"}
 INPUTS = ["cpcb_city_aqi", "cpcb_station_pm25", "imd_monsoon"]
 PM_RADIUS_KM = 150
+MONSOON_BANDS = ("Large deficit", "Deficit", "Near normal", "Excess", "Large excess")
 AQI_ALIASES = {
     "Ahilyanagar": "Ahmednagar",
     "Belagavi": "Belgaum",
@@ -145,16 +146,20 @@ def weather_lenses(world, grid, projection, districts, cities, areas, centers=()
         })
     if (data := inputs.get("imd_monsoon")) is not None:
         monsoon_at = monsoon_lookup(data["subdivisions"], projection)
+        ramp = ["#8c4725", "#d5914f", "#f4efd4", "#6db8ba", "#226586"]
         out.append({
             "id": "monsoon_2026", "name": "Monsoon rainfall, Jun–Sep 2026",
-            "icon": "r-hydro", "unit": "rainfall band", "format": "monsoon_band", "domain": [-2, 2],
-            "ramp": ["#8c4725", "#d5914f", "#f4efd4", "#6db8ba", "#226586"], "higher_is": "neutral",
+            "icon": "r-hydro", "unit": "rainfall band", "format": "category", "domain": [0, 4],
+            "categories": [{"id": name.lower().replace(" ", "_"), "name": name, "color": color}
+                           for name, color in zip(MONSOON_BANDS, ramp)],
+            "ramp": ramp, "higher_is": "neutral",
             "source": "imd_monsoon", "period": "Jun–Sep 2026", "source_line": "India Meteorological Department · Jun–Sep 2026",
             "share_credit": "India Meteorological Department · India by Numbers transcription",
             "description": "IndiaCiv groups observed southwest monsoon rainfall into five bands relative to IMD’s long-period average.",
             "note": "Uses the subdivision at each hex centre or district reference point.",
-            "values": [monsoon_at(*grid.center(*grid.col_row(i))) if state >= 0 else None
-                       for i, state in enumerate(world["owner"])],
+            "values": [band + 2 if band is not None else None for band in
+                       (monsoon_at(*grid.center(*grid.col_row(i))) if state >= 0 else None
+                        for i, state in enumerate(world["owner"]))],
             "district_values": [monsoon_at(*center) for center in centers],
         })
     return [{**lens, "emoji": "", "group": GROUP["id"], "scale": "linear"} for lens in out]

@@ -29,8 +29,6 @@ const robust = (vals, q = 0.02) => {
 
 /** Population growth per hex: by metro / micro area (other hexes grey) or by state. */
 export function growthLens(data, by = "metros") {
-  const published = data.app.lensById?.get(by === "states" ? "growth" : "city_growth");
-  if (published) return published;
   return memo(data, `growth-${by}`, () => {
     const { app, cellMetro } = data;
     const n = app.w.grid.size, owner = app.w.raw.owner;

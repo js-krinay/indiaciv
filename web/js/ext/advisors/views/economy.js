@@ -1,6 +1,6 @@
 // Economy advisor: GDP by industry, metro GDP on the map, leaders, specialisation and growth vs output.
 import { esc, fin, ratio, colorScale, robustDomain, RAMPS } from "../core/util.js";
-import { fmtCell, pct, signedPct, count3, fmtShort } from "../core/fmt.js";
+import { money, dollars, pct, int, signedPct, count3, fmtShort } from "../core/fmt.js";
 import { barList, rampLegend, sizeLegend } from "../core/charts.js";
 import { createTable } from "../core/table.js";
 import { createScatter } from "../core/scatter.js";
@@ -9,8 +9,6 @@ import { rowsHighlight } from "../core/data.js";
 import { icon } from "../../../ui/icon.js";
 import { hasIcon } from "../../../icons.js";
 
-const money = (value) => fmtCell("inr", value);
-const dollars = money;
 export const METRO_MIN = 250000;
 const short = (s) => String(s || "").replace(/\s*\(.*\)\s*$/, "");
 const indIcon = (k) => (hasIcon(`i-${k}`) ? icon(`i-${k}`, "•", { size: 14 }) : k === "government" ? icon("i-public_admin", "🏛", { size: 14 }) : "");
@@ -24,6 +22,9 @@ export function mount(ctx) {
   const gdpInd = n.gdp_by_industry || {};
   const jobInd = Object.keys(nation.industries || {}).filter((key) => fin(n.jobs?.[key]));
   const period = nation.gdp_vintage || "";
+  const growth = metros.field("economic_growth");
+  const growthValue = (row) => growth ? metros.value(row, growth.key) : null;
+  const growthPeriod = (meta) => [meta?.period, meta?.estimated && "IndiaCiv estimate"].filter(Boolean).join(" · ");
 
   // --- headline -------------------------------------------------------------------------------------------------
   const topInd = Object.entries(gdpInd).filter(([, v]) => fin(v)).sort((a, b) => b[1] - a[1])[0];
@@ -48,7 +49,7 @@ export function mount(ctx) {
         const top = states.map((s, i) => ({ i, v: ratio(s.gdp_by_industry?.[r.key], s.gdp) })).filter((x) => fin(x.v)).sort((a, b) => b.v - a.v).slice(0, 8);
         link.hover({ states: new Set(top.map((x) => x.i)), dimOthers: true });
       },
-      onClick: (r) => { setIndustry(r.key === "government" ? "public_admin" : r.key); specialization?.specBody.scrollIntoView({ behavior: "smooth", block: "start" }); },
+      onClick: (r) => { setIndustry(r.key === "government" ? "public_admin" : r.key); specBody?.scrollIntoView({ behavior: "smooth", block: "start" }); },
     });
   }
 
@@ -78,19 +79,18 @@ export function mount(ctx) {
   const big = rows.filter((r) => (r.v.population || 0) >= METRO_MIN);
   segmented(lBody, {
     label: "Rank by", value: "gdp",
-    options: [{ value: "gdp", label: "Largest GDP" }, { value: "gdp_pc", label: "GDP per person" }, { value: "growth", label: "Nominal output growth" }],
+    options: [{ value: "gdp", label: "Largest GDP" }, { value: "gdp_pc", label: "GDP per person" }, ...(growth ? [{ value: growth.key, label: growth.label }] : [])],
     onChange: (v) => { table.setRows(v === "gdp" ? rows : big); table.setColumns(cols, { key: v, dir: "desc" }); },
   });
   const cols = [
     { key: "name", label: "Urban agglomeration", align: "l", value: (r) => r.name, html: (r) => `${esc(r.name)} <span class="sub">${esc(r.sub)}</span>` },
     { key: "gdp", label: "GDP", value: (r) => r.v.gdp, text: (r) => money(r.v.gdp), bar: { max: gMax, color: "rgba(224,181,76,.35)" } },
     { key: "gdp_pc", label: "Per person", value: (r) => r.v.gdp_pc, text: (r) => money(r.v.gdp_pc) },
-    { key: "growth", label: "Output growth", value: (r) => r.v.economic_growth,
-      text: (r) => fin(r.v.economic_growth) ? `≈${signedPct(r.v.economic_growth)}` : "–",
-      tip: (r) => {
-        const meta = metros.meta(metros.field("economic_growth"), r);
-        return `IndiaCiv estimate · Separate matched fiscal series · ${meta.period}`;
-      } },
+    ...(growth ? [{
+      key: growth.key, label: growth.label, value: growthValue,
+      text: (r) => fin(growthValue(r)) ? `≈${signedPct(growthValue(r))}` : "–",
+      tip: (r) => growthPeriod(metros.meta(growth, r)),
+    }] : []),
   ];
   const table = createTable(lBody, {
     caption: "Urban agglomerations by GDP", columns: cols, rows, sort: { key: "gdp", dir: "desc" }, rank: true, maxHeight: 280,
@@ -100,7 +100,7 @@ export function mount(ctx) {
   });
 
   // --- specialisation -------------------------------------------------------------------------------------------
-  let specialization;
+  let specBody, indSel, specTable, specInfo;
   let industry = params.industry && jobInd.includes(params.industry) ? params.industry : jobInd[0];
   const lq = (r, k = industry) => {
     const o = r.ref;
@@ -108,16 +108,16 @@ export function mount(ctx) {
     return us ? ratio(ratio(o.jobs?.[k], o.employed), us) : null;
   };
   if (industry) {
-    const specBody = section(el, { title: "Who specialises in what", kicker: n.provenance?.jobs?.period, note: `PLFS Current Weekly Status, age 15+. Location quotient divides the estimated urban agglomeration share by the all-India rural and urban share. Worker counts are IndiaCiv estimates. Urban agglomerations of ${count3(METRO_MIN)}+ people; the 15 most specialised are outlined on the map.` });
-    const indSel = selectBox(specBody, {
+    specBody = section(el, { title: "Who specialises in what", kicker: n.provenance?.jobs?.period, note: `PLFS Current Weekly Status, age 15+. Location quotient divides the estimated urban agglomeration share by the all-India rural and urban share. Worker counts are IndiaCiv estimates. Urban agglomerations of ${count3(METRO_MIN)}+ people; the 15 most specialised are outlined on the map.` });
+    indSel = selectBox(specBody, {
       label: "Industry", value: industry,
       options: jobInd.map((k) => ({ value: k, label: short(nation.industries[k]) })),
       onChange: (v) => setIndustry(v),
     });
-    const specInfo = document.createElement("p");
+    specInfo = document.createElement("p");
     specInfo.className = "adv-note";
     specBody.appendChild(specInfo);
-    const specTable = createTable(specBody, {
+    specTable = createTable(specBody, {
       caption: "Most specialised urban agglomerations", rank: true, maxHeight: 260, rows: [],
       columns: [
         { key: "name", label: "Urban agglomeration", align: "l", value: (r) => r.name, html: (r) => `${esc(r.name)} <span class="sub">${esc(r.sub)}</span>` },
@@ -129,7 +129,6 @@ export function mount(ctx) {
       onHover: (r) => { link.hover(r ? rowsHighlight(metros, [r]) : null); scatter.setHot(r ? r.key : null); bubbles.setHot(r ? r.key : null); },
       onClick: (r) => app.selectCity(r.ref),
     });
-    specialization = { specBody, indSel, specTable, specInfo };
   }
 
   // --- scatter --------------------------------------------------------------------------------------------------
@@ -137,10 +136,10 @@ export function mount(ctx) {
   const scCtl = document.createElement("div");
   scCtl.className = "adv-row";
   scBody.appendChild(scCtl);
-  let colorBy = specialization ? "lq" : "none", allMetros = false;
+  let colorBy = specTable ? "lq" : "none", allMetros = false;
   selectBox(scCtl, {
     label: "Colour", value: colorBy,
-    options: [...(specialization ? [{ value: "lq", label: "Specialisation (chosen industry)" }] : []), ...(metros.field("unemployment") ? [{ value: "unemployment", label: "Urban unemployment benchmark (15+)" }] : []), { value: "none", label: "None" }],
+    options: [...(specTable ? [{ value: "lq", label: "Specialisation (chosen industry)" }] : []), ...(metros.field("unemployment") ? [{ value: "unemployment", label: "Urban unemployment benchmark (15+)" }] : []), { value: "none", label: "None" }],
     onChange: (v) => { colorBy = v; drawScatter(); },
   });
   segmented(scCtl, { label: "Urban agglomerations", value: "big", options: [{ value: "big", label: `${count3(METRO_MIN)}+` }, { value: "all", label: "All" }], onChange: (v) => { allMetros = v === "all"; drawScatter(); } });
@@ -148,7 +147,7 @@ export function mount(ctx) {
   const scatter = createScatter(scBody, {
     points: [], height: 300,
     x: { label: "GDP per person", period: `${period} · IndiaCiv estimate`, fmt: (v) => money(v), log: true },
-    y: { label: "Nominal output growth", period: `${metros.field("economic_growth")?.period || period} · Separate matched fiscal series, IndiaCiv estimate`, fmt: (v) => fmtShort("signed", v) },
+    y: { label: growth?.label, period: growthPeriod(growth), fmt: (v) => fmtShort("signed", v) },
     size: { label: "Population", fmt: count3, max: 15, min: 2 },
     refY: [],
     onHover: (p) => { link.hover(p ? rowsHighlight(metros, [p.row]) : null); bubbles.setHot(p ? p.key : null); table.setHot(p ? p.key : null, false); },
@@ -185,7 +184,7 @@ export function mount(ctx) {
     }
     const labels = [...list].sort((a, b) => (b.v.population || 0) - (a.v.population || 0)).slice(0, 8).map((r) => r.key);
     scatter.update({
-      points: list.filter((r) => fin(r.v.gdp_pc) && fin(r.v.economic_growth)).map((r) => ({ key: r.key, x: r.v.gdp_pc, y: r.v.economic_growth, s: r.v.population, c: cv(r), label: r.name, sub: r.sub, row: r, extra: colorBy === "unemployment" && fin(r.v.unemployment) ? metros.meta(metros.field("unemployment"), r).period : null })),
+      points: list.filter((r) => fin(r.v.gdp_pc) && fin(growthValue(r))).map((r) => ({ key: r.key, x: r.v.gdp_pc, y: growthValue(r), s: r.v.population, c: cv(r), label: r.name, sub: r.sub, row: r, extra: colorBy === "unemployment" && fin(r.v.unemployment) ? metros.meta(metros.field("unemployment"), r).period : null })),
       color, labels, colorLabel: colorBy === "none" ? null : colorBy === "lq" ? "LQ" : colorBy === "unemployment" ? "Unemployment" : "Income",
       colorFmt: colorBy === "lq" ? (v) => `×${(+v).toFixed(2)}` : colorBy === "unemployment" ? pct : dollars,
     });
@@ -195,8 +194,7 @@ export function mount(ctx) {
   let specTop = [];
   const specHighlight = () => (specTop.length ? rowsHighlight(metros, specTop, { ringMax: 15 }) : null);
   function setIndustry(k) {
-    if (!specialization || !jobInd.includes(k)) return;
-    const { indSel, specTable, specInfo } = specialization;
+    if (!specTable || !jobInd.includes(k)) return;
     industry = k;
     indSel.set(k);
     const list = big.filter((r) => fin(lq(r))).sort((a, b) => lq(b) - lq(a));
@@ -215,19 +213,18 @@ export function mount(ctx) {
     indBars?.setSelected(k === "public_admin" ? "government" : k);
     drawScatter();
   }
-  if (specialization) setIndustry(industry);
+  if (specTable) setIndustry(industry);
   else drawScatter();
 
-  el.insertAdjacentHTML("beforeend", sourcesHtml(data, ["gdp_fy26", "gsdp_fy26", "un_wup_cities", "plfs_2026_q3", "plfs_annual_2025"], [
+  el.insertAdjacentHTML("beforeend", sourcesHtml(data, ["gdp_fy26", "gsdp_fy26", "un_wup_cities", "plfs_2026_q3", "plfs_annual_2025", ...[growth?.source].flat().filter(Boolean)], [
     "Urban agglomeration GDP is an IndiaCiv estimate. Source periods for sector and output growth series are in Explorer.",
   ]));
 
   return {
-    destroy() { table.destroy(); scatter.destroy(); specialization?.specTable.destroy(); },
     onMapHover(h) {
       const r = h?.cell >= 0 ? metros.rowAtCell(h.cell) : null;
       scatter.setHot(r ? r.key : null);
-      specialization?.specTable.setHot(r ? r.key : null);
+      specTable?.setHot(r ? r.key : null);
     },
     onEscape() {
       if (scatter.selected) { scatter.setSelected(null); link.base(specHighlight()); bubbles.setSelected(null); brushInfo.innerHTML = ""; return true; }

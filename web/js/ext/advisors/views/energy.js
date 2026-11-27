@@ -7,7 +7,7 @@ import { section, tiles, chips, sourcesHtml } from "../core/view.js";
 import { frameBox, focusPoint } from "../core/frame.js";
 import { glyph } from "../../../ui/icon.js";
 
-const GROUPS = [
+const DEFAULT_GROUPS = [
   { id: "thermal", label: "Power plants", types: ["nuclear", "coal_plant", "gas_plant", "geothermal"] },
   { id: "water", label: "Hydro", types: ["hydro", "pumped_storage"] },
   { id: "renew", label: "Wind, solar & batteries", types: ["wind", "solar", "battery"] },
@@ -30,10 +30,10 @@ export function mount(ctx) {
   const mwTypes = types.filter((t) => t.unit === "MW");
   const states = app.data.states || [];
   const stateIdx = new Map(states.map((s, i) => [s.abbr, i]));
+  const GROUPS = res.advisor_groups || DEFAULT_GROUPS;
   // Draw groups in GROUPS order, plus any type the groups do not list.
-  const groupDefinitions = res.advisor_groups || GROUPS;
-  const listed = new Set(groupDefinitions.flatMap((g) => g.types));
-  const groups = groupDefinitions.map((g) => ({ ...g, types: g.types.filter((t) => typeById.has(t)) })).filter((g) => g.types.length);
+  const listed = new Set(GROUPS.flatMap((g) => g.types));
+  const groups = GROUPS.map((g) => ({ ...g, types: g.types.filter((t) => typeById.has(t)) })).filter((g) => g.types.length);
   const extra = types.filter((t) => !listed.has(t.id)).map((t) => t.id);
   if (extra.length) groups.push({ id: "other", label: "Other", types: extra });
 
@@ -46,8 +46,8 @@ export function mount(ctx) {
   const top = el.appendChild(document.createElement("div"));
   top.innerHTML = tiles([
     { label: "Mapped power", value: mw(totalMW), sub: `${int(sites)} sites · September 2026` },
-    { label: "Mines", value: int(groups.find((g) => g.id === "mines")?.types.reduce((a, t) => a + (nat[t]?.count || 0), 0) || 0), sub: "August–September 2026 inventories" },
-    { label: "Oil & gas fields", value: int(groups.find((g) => g.id === "plays")?.types.reduce((a, t) => a + (nat[t]?.count || 0), 0) || 0), sub: "March 2026 inventory" },
+    { label: "Mines", value: int(types.filter((t) => t.category === "mineral").reduce((a, t) => a + (nat[t.id]?.count || 0), 0)), sub: "November 2026 inventory incl. August–September mine trackers" },
+    { label: "Oil & gas fields", value: int(types.filter((t) => t.unit === "field").reduce((a, t) => a + (nat[t.id]?.count || 0), 0)), sub: "March 2026 inventory" },
   ]) + `<p class="adv-callout">${esc(res.summary?.note || "Totals of the mapped sites only.")}</p>`;
 
   // --- national mix ---------------------------------------------------------------------------------------------

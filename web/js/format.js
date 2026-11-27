@@ -30,7 +30,7 @@ export function yieldDetails(y, value, meta) {
   const components = Object.entries(meta?.components || {})
     .filter(([, v]) => Number.isFinite(v))
     .map(([label, v]) => `${label} ${number(v)}`);
-  return [real, meta?.derivation, y.period, meta?.estimated ? "IndiaCiv estimate" : "", meta?.coverage, ...components]
+  return [real, meta?.derivation, meta?.period || y.period, meta?.estimated ? "IndiaCiv estimate" : "", meta?.coverage, ...components]
     .filter(Boolean).join(" · ");
 }
 

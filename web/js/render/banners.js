@@ -21,10 +21,8 @@
 import { css, luminance, shade } from "../color.js";
 import { drawIcon, hasIcon } from "../icons.js";
 import { compact, popShort } from "../ext/cityView/fmt.js"; // format.js plus a 1000K → 1.0M roll-over fix
-import { cityProjectedGrowth } from "../ui/cityHeadlines.js";
 import { cityStateIndex, isCapital } from "../world.js";
 import { cityIsDot } from "./art/city.js";
-import { compactCityGdp } from "../ui/cityHeadlines.js";
 
 const SERIF = '"Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif';
 const SANS = "-apple-system, system-ui, sans-serif";
@@ -105,7 +103,7 @@ export function specialty(city, nation) {
 
 /** Projected growth is already a fraction. Older records may carry a formatted growth rate. */
 function growthOf(city) {
-  const projected = cityProjectedGrowth(city);
+  const projected = city.growth_period ? city.growth : null;
   if (Number.isFinite(projected)) return projected;
   if (city.provenance?.population?.vintage === "older" || city.provenance?.growth?.vintage === "older") return null;
   let g = city.growth;
@@ -156,7 +154,7 @@ function measure(ctx, city, yields, nation, L) {
   const parts = (yields || []).map((yd) => {
     const value = city.yields?.[yd.key];
     const t = yd.key === "gold" && yd.unit === "INR" && Number.isFinite(value)
-      ? `${city.yield_meta?.gold?.estimated ? "≈" : ""}${compactCityGdp(value)}` : compact(value);
+      ? `${city.yield_meta?.gold?.estimated ? "≈" : ""}₹${compact(value / 1e7)} cr` : compact(value);
     return { yd, t, w: ctx.measureText(t).width };
   });
   const workers = city.resident_workforce;

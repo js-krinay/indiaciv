@@ -1,8 +1,7 @@
-import { esc, int, popShort, compact, periodLabel } from "../format.js";
+import { esc, int, popShort, compact, money, pct, periodLabel } from "../format.js";
 import { formatLensValue } from "./lenses.js";
 import { glyph } from "./icon.js";
 import { FOREIGN } from "../world.js";
-import { cityHeadlineStats, indianNumber, workforceSource } from "./cityHeadlines.js";
 
 const el = () => document.getElementById("tooltip");
 
@@ -100,15 +99,16 @@ export function showHtmlTooltip(mx, my, content) {
   show(mx, my, html);
 }
 
-export function showCityTooltip(mx, my, city, gold) {
-  const stats = cityHeadlineStats(city, gold).filter((row) => row.key !== "gdp_per_capita");
-  const work = city.resident_workforce;
-  if (Number.isFinite(work?.employed_all_ages)) {
-    stats.push({ label: "Employed residents", text: indianNumber(work.employed_all_ages), source: workforceSource(work) });
-  }
-  show(mx, my, `<b>${esc(city.full)}</b>${stats.map((row) =>
-    `<br>${esc(row.label)} · ${esc(row.text)}<br><span class="muted">${periodLabel(row.periodMeta) || esc(row.source)}</span>`).join("")}
-    <br><span class="muted">Click to open the city</span>`);
+export function showCityTooltip(mx, my, city) {
+  const rows = [
+    ["Population", city.population, int, city.provenance?.population],
+    ["Projected growth", city.growth, pct, city.provenance?.growth],
+    ["Employed residents (all ages)", city.resident_workforce?.employed_all_ages, int, city.resident_workforce],
+    ["GDP", city.gdp, money, city.provenance?.gdp],
+  ];
+  show(mx, my, `<b>${esc(city.full)}</b>${rows.map(([label, value, format, provenance]) =>
+    Number.isFinite(value) && provenance?.period ? `<br>${label} · ${format(value)}${periodLabel(provenance, " · ")}
+      ${provenance.estimated ? " · IndiaCiv estimate" : ""}` : "").join("")}<br><span class="muted">Click to open the city</span>`);
 }
 
 function show(mx, my, html) {

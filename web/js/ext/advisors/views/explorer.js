@@ -474,7 +474,6 @@ export async function mount(ctx) {
 
   const hostRowAt = (cell) => (cell >= 0 ? L().rowAtCell(cell) : null);
   return {
-    destroy() { table?.destroy(); scatter.destroy(); },
     onMapHover(h) {
       const r = hostRowAt(h?.cell);
       scatter.setHot(r ? r.key : null);

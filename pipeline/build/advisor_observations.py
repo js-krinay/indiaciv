@@ -4,6 +4,7 @@ import math
 from collections import defaultdict
 
 from .advisor_inventory import FY, SNAPSHOT, column
+from .air_weather import MONSOON_BANDS
 
 MARCH = "1 March 2026"
 MID = "mid-2026"
@@ -141,11 +142,15 @@ def place_columns(level, row, ident, profile, lenses, protected_share, district_
         if is_city:
             cell = row["cell"]
             band = values.get(str(cell)) if isinstance(values, dict) else values[cell] if cell < len(values) else None
+            if isinstance(band, int) and monsoon.get("format") != "category":
+                band += 2
         else:
             band = row.get("monsoon_2026")
-        levels = ["Large deficit", "Deficit", "Near normal", "Excess", "Large excess"]
+            if isinstance(band, int):
+                band += 2
+        levels = [category["name"] for category in monsoon.get("categories", [])] or MONSOON_BANDS
         add("monsoon_2026", "Monsoon rainfall band", "text", "band", "Air & weather", "Jun–Sep 2026", "imd_monsoon",
-            levels[band + 2] if isinstance(band, int) and -2 <= band <= 2 else None, lens_detail("monsoon_2026"))
+            levels[band] if isinstance(band, int) and 0 <= band < len(levels) else None, lens_detail("monsoon_2026"))
     if is_city:
         for key, label, unit, value in (
             ("kind", "Place type", "UN geography", "Urban agglomeration" if row.get("metro") else None),

@@ -33,9 +33,7 @@ export function openStatePanel(idx, ctx) {
 
   const hasEcon = st.population != null || st.yields;
   const jobs = st.provenance?.jobs;
-  const benchmark = nation.state_workforce_benchmark;
-  const workforceNation = benchmark && jobs?.period === benchmark.provenance.period
-    ? { ...nation, nation: benchmark } : nation;
+  const workforceNation = { ...nation, nation: st.industry_comparison || {} };
   showPanel({
     kind: "state",
     stripe: css(w.stateColor[idx] || [190, 190, 190]),
@@ -52,7 +50,9 @@ export function openStatePanel(idx, ctx) {
       { title: "Largest urban agglomerations · mid-2026", html: cityRows },
       !hasEcon && { title: "Data", html: `<p class="muted">State statistics are not in this data build (states.json is missing).</p>` },
     ],
-    foot: `Population · Technical Group projections (MoHFW). Ranks are among the ${count} mapped states and union territories (1 = largest).${st.provenance?.median_age?.period && st.profile?.median_age != null ? ` Median age · ${esc(st.provenance.median_age.period)} · ${st.profile.median_age.toFixed(1)} years.` : ""}`,
+    foot: `Source: ${esc(nation.vintage)}${nation.gdp_vintage ? `; GDP: ${esc(nation.gdp_vintage)}` : ""}. Ranks are among the ${count} mapped states and union territories (1 = largest).${
+      st.provenance?.median_age?.period && Number.isFinite(st.profile?.median_age)
+        ? ` Median age · ${st.profile.median_age.toFixed(1)} years${periodLabel(st.provenance.median_age, " · ")}.` : ""}`,
     onClose: ctx.onClose,
     onPedia: ctx.onPedia,
     wire(panel) {

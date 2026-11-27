@@ -1,20 +1,19 @@
 // Number formatting for the advisor kit, built on web/js/format.js.
 // Formats follow lenses.json / counties.json: int | usd | pct (0..1 fraction) | float | minutes | years | km2 | text,
 // plus a few of our own: money (compact $), signed (signed %), lq (×1.23), mw, count, ratio (×4.2).
-import { dollars, money, pct } from "../../../format.js";
+import { dollars, int, pct } from "../../../format.js";
 import { fin } from "./util.js";
 
-export { dollars, money, pct };
+export { dollars, int, pct };
 
 const inr = (v) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
-const indianInteger = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const indianCompact = new Intl.NumberFormat("en-IN", { notation: "compact", maximumSignificantDigits: 3 });
-export const int = (v) => fin(v) ? indianInteger.format(v) : "–";
 export const compact = (v) => fin(v) ? indianCompact.format(v) : "–";
+export const money = (v) => fin(v) ? `₹${count3(v)}` : "–";
 
 export const signedPct = (g, d = 1) => (fin(g) ? `${g >= 0 ? "+" : "−"}${Math.abs(g * 100).toFixed(d)}%` : "–");
 
-// Counts to three significant figures for larger values.
+// Counts to three significant figures (1.12M vs 1.11M rather than 1.1M twice).
 export function count3(n) {
   return Math.abs(n) >= 1e4 ? compact(n) : int(n);
 }
@@ -56,7 +55,7 @@ export function fmtCell(format, v, unit) {
   switch (format) {
     case "int": case "count": return a >= 1e4 ? count3(v) : int(v);
     case "inr": return a >= 1e5 ? `₹${compact(v)}` : inr(v);
-    case "usd": return a >= 1e4 ? `$${count3(v)}` : dollars(v);
+    case "usd": return a >= 1e4 ? money(v) : dollars(v);
     case "money": return money(v);
     case "km2": return a >= 1e5 ? `${count3(v)} km²` : `${int(v)} km²`;
     case "float": return a >= 1e4 ? count3(v) : fmtValue(format, v, unit);

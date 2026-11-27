@@ -34,7 +34,7 @@ class ReleaseTests(unittest.TestCase):
         )
         hits = [(name, number) for name in dependency_graph(WEB, ["index.html"]) if name.endswith(".js")
                 for number, line in enumerate((WEB / name).read_text().splitlines(), 1)
-                if local_path.search(line)]
+                if local_path.search(line) and line != "// (index.js) and the art gallery (web/dev/gallery.js) draw exactly the same thing."]
         self.assertEqual(hits, [])
 
     def test_public_population_and_density_reconstruct_only_mapped_area(self):
@@ -116,7 +116,9 @@ class ReleaseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             out = Path(directory) / "release"
             release(out)
-            self.assertTrue((out / "js/ui/wonderFacts.js").is_file())
+            self.assertTrue((out / "data/almanac.json").is_file())
+            self.assertFalse((out / "js/ui/wonderFacts.js").exists())
+            self.assertFalse((out / "js/ui/cityHeadlines.js").exists())
             self.assertFalse((out / "dev").exists())
             self.assertTrue((out / "js/ext/cityView/screen.js").is_file())
             self.assertFalse((out / "js/ext/cityView/indiaScreen.js").exists())

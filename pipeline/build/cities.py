@@ -264,6 +264,7 @@ def build() -> None:
     july_population = round(july_population)
     statistics = national_statistics(industry_shares(), national_population, national_gdp)
     national_profile = state_profile(tg["data"], "INDIA")
+    national_vitals = state_vitals(tg["data"], "INDIA")
     national_metrics = load_interim("_state_metrics")["geographies"]["IN"]
     jobs, jobs_meta = quarterly_resident_industries(national_population, national_profile, national_metrics,
                                                    statistics["industry"])
@@ -286,12 +287,16 @@ def build() -> None:
             },
             "nation": {**NO_ECONOMY, **regional_economy(yields["rows"]["IN"]),
                        "population": july_population, "gdp": national_gdp, "gdp_year": 2026,
+                       "state_reference_population": national_population,
+                       "growth": national_vitals.get("growth"),
+                       "growth_period": national_vitals.get("growth_period"),
+                       "growth_years": [2025, 2026] if national_vitals.get("growth") is not None else None,
                        "employed": employed, "jobs": advisor_jobs,
                        "unemployment": labour.get("national_urban_unemployment_15_plus"),
                        "provenance": {
                            "population": {"period": "1 July 2026", "source": "tg_projections", "estimated": True},
                            "gdp": {"period": FY, "source": "gdp_fy26"},
-                           **({"employed": jobs_meta, "jobs": jobs_meta} if advisor_jobs else {}),
+                           **({"employed": {**jobs_meta, "age_scope": "age 15+"}, "jobs": jobs_meta} if advisor_jobs else {}),
                            "unemployment": {"period": LABOUR_PERIOD, "source": LABOUR_SOURCE,
                                             "scope": "urban"},
                        }},
@@ -301,7 +306,7 @@ def build() -> None:
                 "share_provenance": {"period": LABOUR_PERIOD, "source": LABOUR_SOURCE, "estimated": False,
                                      "scope": "Rural and urban workers age 15+, Current Weekly Status"},
             } if jobs else None,
-            "profile": {**national_profile, **state_vitals(tg["data"], "INDIA"),
+            "profile": {**national_profile, **national_vitals,
                         "density": 1000 * tg["data"]["population"]["INDIA"]["2026"][0] / INDIA_AREA_KM2},
             "metrics": national_metrics,
             "yields": YIELDS,

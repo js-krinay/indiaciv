@@ -1,7 +1,7 @@
 // Commerce advisor ("Master of Trade"): FAF5 freight routes between zones (trade.json), the busiest ports and airports
 // and the road and rail network (infrastructure.json).
 import { esc, fin, el as mk, withAlpha } from "../core/util.js";
-import { int, pct, fmtCell, count3, signedPct } from "../core/fmt.js";
+import { int, pct, money, count3, signedPct } from "../core/fmt.js";
 import { barList, shareBar, stackedBars, swatchLegend, sizeLegend } from "../core/charts.js";
 import { createTable } from "../core/table.js";
 import { section, tiles, segmented, sourcesHtml } from "../core/view.js";
@@ -11,12 +11,11 @@ import { frameBox, focusPoint } from "../core/frame.js";
 // dark copper pipeline drawn dashed).
 const MODE_COLOR = { truck: "#d9a457", rail: "#a3acb8", water: "#4f9ad6", air: "#c9a0e0", multiple: "#8fcbb8", pipeline: "#b0703e", other: "#9a9aa8" };
 const PORT_COLOR = "#4f9ad6", AIR_COLOR = "#e6cf86";
-const money = (value) => fmtCell("inr", value);
 const MUSD = 1e6; // trade.json values are million dollars
 
 export async function mount(ctx) {
   const { app, el, link, data } = ctx;
-  const [trade, infra] = await Promise.all([app.data.trade?.literal_paths ? null : app.data.trade, app.loadData("infrastructure")]);
+  const [trade, infra] = await Promise.all([app.loadData("trade"), app.loadData("infrastructure")]);
   if (!trade && !infra) {
     el.innerHTML = `<p class="adv-empty pad">Commerce data is unavailable.</p>`;
     return {};
@@ -35,14 +34,14 @@ export async function mount(ctx) {
     ...(fin(nm.domestic) ? [{ label: "Domestic freight", value: money(nm.domestic * MUSD), sub: `${trade.vintage} · by value` }] : []),
     ...(topPort ? [{ label: "Busiest major port", value: portFmt(topPort.tons), sub: [topPort.name, infra.vintage?.ports].filter(Boolean).join(" · ") }] : []),
     ...(topAir ? [{ label: "Busiest airport", value: count3(topAir.enplanements), sub: `${topAir.id} boardings ${topAir.year}` }] : []),
-  ]) + (trade ? `<p class="adv-callout">Freight values are model estimates from the Freight Analysis Framework, in current currency: what moves between places, not what each place produces. Imports ${money(nm.import * MUSD)} and exports ${money(nm.export * MUSD)} are counted separately.</p>` : ""));
+  ]) + (fin(nm.domestic) ? `<p class="adv-callout">Freight values are model estimates in current currency. Imports ${money(nm.import * MUSD)} and exports ${money(nm.export * MUSD)} are counted separately.</p>` : ""));
 
   // --- trade routes ---------------------------------------------------------------------------------------------
   let routes = [], zoneById = new Map(), routeCells = new Map(), overlayOff = null;
   const st = { mode: null, zone: null, route: null };
   let routeBars = null, zTable = null;
   const rDetail = mk("div", "adv-detail");
-  if (trade) {
+  if (trade?.zones?.length) {
     zoneById = new Map((trade.zones || []).map((z) => [z.id, z]));
     const modeName = new Map((trade.modes || []).map((m) => [m.id, m.name]));
     const comm = trade.commodities || {};

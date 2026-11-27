@@ -1,6 +1,6 @@
 // Knowledge advisor: degrees, broadband and the Science yield.
 import { esc, fin, ratio, colorScale, robustDomain, RAMPS } from "../core/util.js";
-import { fmtCell, pct, int, count3, fmtShort } from "../core/fmt.js";
+import { money, pct, int, count3, fmtShort } from "../core/fmt.js";
 import { barList, histogram, rampLegend } from "../core/charts.js";
 import { createTable } from "../core/table.js";
 import { createScatter } from "../core/scatter.js";
@@ -8,7 +8,6 @@ import { section, tiles, segmented, mapPicker, frameBtn, sourcesHtml, topBy } fr
 import { rowsHighlight } from "../core/data.js";
 import { scienceLens } from "../core/lenses.js";
 
-const money = (value) => fmtCell("inr", value);
 const METRO_MIN = 250000;
 
 export function mount(ctx) {

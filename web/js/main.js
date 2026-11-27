@@ -1,6 +1,5 @@
 import { Camera } from "./camera.js";
 import { prepareWorld, applyLens, stateIndex } from "./world.js";
-import { decodeLensValues } from "./lensValues.js";
 import * as mapRender from "./render/map.js";
 import { drawBanners } from "./render/banners.js";
 import { waterNameAt } from "./render/art/hydrography.js";
@@ -11,13 +10,12 @@ import { openCityPanel, closeCityPanel } from "./ui/cityPanel.js";
 import { openStatePanel } from "./ui/statePanel.js";
 import { installSheetSwipe } from "./ui/infoPanel.js";
 import { initPedia } from "./ui/pedia.js";
-import { esc, periodLabel } from "./format.js";
 import { initYieldReports } from "./ui/yieldReport.js";
 import { Minimap } from "./ui/minimap.js";
 import { icon } from "./ui/icon.js";
 import { initSearch } from "./app/search.js";
 import { createEmitter, createHashState, createModes, createUi, createMapToggles } from "./app/api.js";
-import { drawHighlight, drawOverlays, invalidateHighlight, highlightBounds } from "./render/overlays.js";
+import { drawHighlight, drawOverlays, invalidateHighlight, highlightBounds, drawMapCredit } from "./render/overlays.js";
 import { resourceFilterSig, resourcePredicate, layerActive, layerError, Z as LAYER_Z } from "./render/map.js";
 import { installExtensions } from "./ext/index.js";
 import { initShare } from "./app/share.js";
@@ -38,6 +36,10 @@ async function loadJSON(name, optional = false) {
 
 const DATA_NAME = /^[a-z0-9_-]+$/;
 
+// Small map-layer files load after the first frame. Other data loads on demand.
+const EAGER_DATA = ["infrastructure", "wonders", "trade"];
+const snapshotModule = import("./render/snapshot.js").catch(() => null);
+
 const PANEL_W = 394; // city panel width + margins (css #city-panel)
 const TOPBAR_H = 40;
 const CACHE_MARGIN = 160; // css px of map rendered beyond each edge of the viewport, so short pans are a blit
@@ -47,20 +49,14 @@ const SELECT_ANIM_MS = 33; // ~30 fps while a state's border highlight animates
 const isMobile = () => matchMedia("(max-width: 700px)").matches;
 
 async function main() {
-  const [world, cities, nation, lenses, sourcesData, resources, statesData,
-    wonders, infrastructure, protectedLand, protectedRamsar, almanac] = await Promise.all([
+  const [world, cities, nation, lenses, sources, resources, statesData] = await Promise.all([
     loadJSON("world"), loadJSON("cities"), loadJSON("nation"),
     loadJSON("lenses", true), loadJSON("sources", true), loadJSON("resources", true), loadJSON("states", true),
-    loadJSON("wonders", true), loadJSON("infrastructure", true), loadJSON("protected_land", true),
-    loadJSON("protected_ramsar", true), loadJSON("almanac", true),
   ]);
   const lensFile = lenses && Array.isArray(lenses.lenses) ? lenses : { vintage: "", groups: [], lenses: [] };
-  for (const lens of lensFile.lenses) lens.values = decodeLensValues(lens.values, world.owner.length);
-  const sources = sourcesData || [];
   const w = prepareWorld(world, cities, { resources });
   const state = {
-    cities, lens: null, band: null, hoverCell: -1, selectedCity: null, selectedState: null,
-    showResources: !!w.resources,
+    cities, lens: null, band: null, hoverCell: -1, selectedCity: null, selectedState: null, showResources: !!w.resources,
     highlight: null, // {cells?, cities?, states?, resources?, dimOthers?, color?} (render/overlays.js)
     resourceFilter: null, // {types?: Set<typeId>, minValue?: number}
   };
@@ -76,7 +72,7 @@ async function main() {
   const modes = createModes(app);
   events.on("mode", () => hideTooltip()); // a stale tooltip must not float over a mode's panels
   let ui = null;
-  let snapshot = null;
+  const snapshot = await snapshotModule;
 
   const canvas = document.getElementById("map");
   const ctx = canvas.getContext("2d");
@@ -99,7 +95,8 @@ async function main() {
     requestDraw();
     url.schedule();
   });
-  const pedia = initPedia({ world, nation, lenses: lensFile, sources, w, resources, states, almanac });
+  const pedia = initPedia({ world, nation, lenses: lensFile, sources: sources || [], w, resources, states,
+    loadAlmanac: () => loadData("almanac") });
   const help = initHelp();
 
   // --- static layer cache ----------------------------------------------------------------------------------------
@@ -249,6 +246,7 @@ async function main() {
     hits = drawBanners(ctx, cam, w, state, nation.yields, nation);
     if (overlays.length) drawOverlays(ctx, cam, overlays, app, { dpr, zMin: 100 });
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawMapCredit(ctx, cam.w);
     minimap.draw();
     record(perf.frame, performance.now() - t0);
   }
@@ -494,7 +492,7 @@ async function main() {
 
   // --- lens ------------------------------------------------------------------------------------------------------
   const dock = initLensDock({
-    lenses: lensFile, sources, w,
+    lenses: lensFile, sources: sources || [], w,
     onPick: (lens) => setLens(lens),
     onBand: (band) => setBand(band),
   });
@@ -545,9 +543,7 @@ async function main() {
   const panelCtx = () => ({
     w, nation, states, cities,
     onClose: () => clearSelection(),
-    pediaLink,
-    onPedia: pedia.open,
-    terrainLinks: pediaTerrainLinks,
+    onPedia: () => pedia.open("Yields"),
     onState: (idx) => selectState(idx, { fly: true }),
     onCity: (city) => selectCity(city, { fly: true }),
   });
@@ -562,11 +558,11 @@ async function main() {
     afterSelect();
   }
 
-  function selectState(idx, { fly = false, cell = null } = {}) {
+  function selectState(idx, { fly = false } = {}) {
     if (idx == null || !w.raw.states[idx]) return clearSelection();
     state.selectedCity = null;
     state.selectedState = idx;
-    app.panels.state(idx, { ...panelCtx(), cell });
+    app.panels.state(idx, panelCtx());
     if (fly) focusState(idx);
     announce(`${stateName(idx)} selected.`);
     afterSelect();
@@ -610,22 +606,6 @@ async function main() {
     const name = t.toLowerCase().replace(/[_+]/g, " ");
     return w.raw.states.findIndex((st, i) => (states?.[i]?.name || st.name || "").toLowerCase() === name);
   }
-  function pediaLink(page, label) {
-    return page ? `<a href="#" data-pedia-route="${esc(page)}">${esc(label)}</a>` : "";
-  }
-
-  function pediaTerrainLinks(cell) {
-    if (cell == null || cell < 0) return [];
-    const fields = [
-      [w.base ? "base" : "cover", w.base?.[cell] ?? w.cover?.[cell]],
-      ["relief", w.water[cell] ? null : w.relief[cell]],
-      ["water", w.base ? null : w.water[cell]],
-    ];
-    const labels = fields.map(([field, id]) => w.tables[field].find((row) => row.id === id)?.name);
-    return [...labels, ...(almanac?.cell_features?.[cell] || [])]
-      .filter(Boolean).map((label) => pediaLink("Terrain", label));
-  }
-
   let stateHashRef = null; // {idx, raw}: the form of the #state value the current selection came from
   const url = createHashState({
     // A flight is not "busy": read() reports its destination. Pans and wheel zooms are, until they settle.
@@ -654,7 +634,7 @@ async function main() {
         if (city !== state.selectedCity) selectCity(city, { fly: !p.at });
       } else if (sIdx >= 0) {
         if (sIdx !== state.selectedState) selectState(sIdx, { fly: !p.at });
-      } else if (panelShown()) clearSelection();
+      } else if (state.selectedCity || state.selectedState != null) clearSelection();
       if (p.at) {
         const [x, y, z] = p.at;
         const s = cam.clampScale(fitScale() * 2 ** z);
@@ -769,7 +749,7 @@ async function main() {
     if (protectionShown || (app.mapArt && ["rail", "roads", "hubs"].some((id) => app.mapArt.on[id]))) {
       credits.push("© OpenStreetMap contributors · openstreetmap.org/copyright");
     }
-    if (protectionShown && protectedRamsar?.sites.length) {
+    if (protectionShown && app.mapArt?.model.data.wonders?.protected?.some((site) => site.designation === "Ramsar Site")) {
       credits.push("Convention on Wetlands · RSIS · CC BY 4.0");
     }
     if (credits.length) {
@@ -810,7 +790,7 @@ async function main() {
     c.fillRect(0, 0, W, H);
   }
 
-  const sourceById = new Map(sources.map((source) => [source.id, source]));
+  const sourceById = new Map((sources || []).map((source) => [source.id, source]));
   function shareCredit(id) {
     const source = sourceById.get(id);
     return source ? [source.publisher, source.title, source.license?.split(/\. | \(/)[0]].filter(Boolean).join(", ") : "";
@@ -829,6 +809,7 @@ async function main() {
 
   const shareInfo = () => ({
     renderMap: renderShareMap,
+    lens: state.lens,
     lensCredits: [...new Set([state.lens?.source, ...(state.lens?.sources || [])])].map(shareCredit).filter(Boolean),
     resourceCredits: resourceShareCredits(),
     layerCredits: [
@@ -838,7 +819,6 @@ async function main() {
       staticLayers.some((layer) => layer.id === "protected" && layerActive(layer, cam.scale * w.grid.R))
         && "Protected land: Convention on Wetlands RSIS (CC BY 4.0), WII, NTCA, Wikidata and © OpenStreetMap contributors",
     ].filter(Boolean),
-    lens: state.lens,
     selection: state.selectedCity ? { kind: "city", name: state.selectedCity.name }
       : state.selectedState != null ? { kind: "state", name: stateName(state.selectedState) } : null,
   });
@@ -847,13 +827,6 @@ async function main() {
     button: document.getElementById("btn-share"),
     getInfo: shareInfo,
     beforeCopy: () => url.flush(),
-    async beforeImage() {
-      const [credits, renderer] = await Promise.all([
-        loadData("sources"), import("./render/snapshot.js").catch(() => null),
-      ]);
-      if (!credits) throw new Error("Map credits could not load");
-      snapshot = renderer;
-    },
     fileName: () => {
       const sel = shareInfo().selection;
       return `india-${state.lens?.id || "terrain"}${sel ? "-" + slug(sel.name) : ""}.png`;
@@ -874,7 +847,12 @@ async function main() {
     // A row picked from a report opens the place's panel; keyboard focus follows it there.
     onState: (idx) => { selectState(idx, { fly: true }); focusPanel(); },
     onCity: (city) => { selectCity(city, { fly: true }); focusPanel(); },
-    onLens: (id) => app.setLens(id),
+    onLens: (id) => {
+      const lens = lensById.get(id);
+      if (!lens) return;
+      if (lens !== state.lens) setLens(lens);
+      dock.remember(lens.id);
+    },
   });
 
   document.getElementById("btn-help").onclick = () => help.toggle();
@@ -882,10 +860,9 @@ async function main() {
 
   // --- resources toggle + minimap toggle -------------------------------------------------------------------------
   const resBtn = document.getElementById("btn-res");
-  const resourceSources = new Map(sources.map((source) => [source.id, source.title]));
+  const resourceSources = new Map((sources || []).map((source) => [source.id, source.title]));
   if (resBtn) {
     resBtn.hidden = !w.resources;
-    document.getElementById("lens-dock").hidden = !w.resources && !lensFile.lenses.length && !wonders;
     resBtn.innerHTML = `${icon("resources", "⛏️", { size: 15 })}<span>Resources</span>`;
     const sync = () => {
       resBtn.classList.toggle("active", state.showResources);
@@ -894,7 +871,6 @@ async function main() {
     resBtn.onclick = () => {
       state.showResources = !state.showResources;
       sync();
-      hideTooltip();
       requestDraw();
     };
     sync();
@@ -1007,7 +983,7 @@ async function main() {
     const resource = hitResource(mx, my);
     if (resource?.period && !city) showResourceTooltip(mx, my, w, resource, resourceSources);
     else if (tip != null && tip !== "") showHtmlTooltip(mx, my, tip);
-    else if (city) showCityTooltip(mx, my, city, nation.yields?.find((yieldDef) => yieldDef.key === "gold"));
+    else if (city) showCityTooltip(mx, my, city);
     else {
       const waterName = waterNameAt(world, cell, cam.toWorld(mx, my), cam.scale);
       if (waterName) showHtmlTooltip(mx, my, { text: waterName });
@@ -1085,8 +1061,7 @@ async function main() {
     // Resolve the target from the release position now; act once we know it was not a double click.
     const cell = cellAt(mx, my);
     const banner = hitCity(mx, my);
-    const hit = hitLayer(mx, my);
-    const lh = !banner || hit?.layer.id === "wonders" ? hit : null;
+    const lh = banner ? null : hitLayer(mx, my); // a layer's site wins over the city tile under it, not its banner
     const city = banner || w.cityByCell.get(cell);
     const owner = cell >= 0 ? w.raw.owner[cell] : -1;
     const resource = hitResource(mx, my);
@@ -1108,14 +1083,14 @@ async function main() {
           return false;
         }
       };
-      if (!modes.mode && lh?.layer.id === "wonders" && layerClick()) return;
-      if (!modes.mode && resource) { pedia.open("Resources"); return; }
-      if (!modes.mode && lh?.layer.id !== "wonders" && layerClick()) return;
+      if (!modes.mode && layerClick()) return;
       if (events.emit("mapclick", ev)) return;
       if (modes.mode && layerClick()) return;
       if (city) selectCity(city);
-      else if (owner >= 0 && !w.water[cell]) selectState(owner, { fly: isMobile(), cell });
-      else if (panelShown()) clearSelection();
+      else if (owner >= 0) {
+        // On phones the bottom sheet would hide the state, so bring it into the visible part of the map.
+        if (owner !== state.selectedState) selectState(owner, { fly: isMobile() });
+      } else if (state.selectedCity || state.selectedState != null) clearSelection();
     }, DOUBLE_MS);
     // A click changes what is on screen (a panel, a mode, a flight), so drop the tooltip until the pointer moves again.
     hideTooltip();
@@ -1171,7 +1146,7 @@ async function main() {
     if (pedia.isOpen) return pedia.close();
     if (modes.escape()) return; // the active mode (e.g. the City view) goes before the panels
     if (events.emit("escape", {})) return;
-    if (panelShown()) return clearSelection();
+    if (state.selectedCity || state.selectedState != null) return clearSelection();
   }
 
   window.addEventListener("keydown", (e) => {
@@ -1213,7 +1188,7 @@ async function main() {
   // The `app` object handed to ext/*/install(app) and exposed as window.__app. See the README of this API in
   // app/api.js and the summary below; names here are a stable contract with the extensions in ext/.
   const dataLoads = new Map(); // name → Promise<data | null>
-  dataLoads.set("sources", Promise.resolve(sources));
+  dataLoads.set("sources", Promise.resolve(sources || []));
   dataLoads.set("lenses", Promise.resolve(lensFile));
   function loadData(name) {
     if (!DATA_NAME.test(String(name))) return Promise.reject(new Error(`loadData: bad name "${name}"`));
@@ -1247,8 +1222,7 @@ async function main() {
   }
   Object.assign(app, {
     // data. Optional files arrive via loadData(name) (and the "data" event); see docs/DATA_CONTRACTS.md.
-    data: { world, cities, states, nation, lenses: lensFile, resources, wonders, sources,
-      counties: null, infrastructure, protectedLand, protectedRamsar },
+    data: { world, cities, states, nation, lenses: lensFile, resources, sources: sources || [], counties: null },
     loadData,
     loadCounties: () => loadData("counties"),
     w, cam, state, cityById, lensById,
@@ -1297,7 +1271,7 @@ async function main() {
     setLens(ref) {
       const lens = ref == null ? null : typeof ref === "string" ? lensById.get(ref) || null : ref;
       if (lens !== state.lens) setLens(lens);
-      else if (state.band) setBand(null);
+      // A mode's own lens (an advisor colouring the map) shows on the lens button but does not take a quick slot.
       if (lens && !modes.mode) dock.remember(lens.id);
     },
     setBand,
@@ -1321,7 +1295,7 @@ async function main() {
     ui,
     panels: { city: openCityPanel, state: openStatePanel, close: closeCityPanel, element: panelEl },
     // the built-in modules, for poking at things from the console
-    pediaLink, pediaTerrainLinks, search, share, help, lensDock: dock, reports, pedia, minimap, shareInfo, url, perf,
+    search, share, help, lensDock: dock, reports, pedia, minimap, shareInfo, url, perf,
     stats() {
       const avg = (a) => (a.length ? a.reduce((p, q) => p + q, 0) / a.length : 0);
       return { staticAvg: avg(perf.static), staticLast: perf.static.at(-1), frameAvg: avg(perf.frame), frameLast: perf.frame.at(-1) };
@@ -1340,7 +1314,13 @@ async function main() {
   dock.render(null, null);
   url.applyCurrent(true); // after the home fit, so "at" zoom is relative to it
   document.getElementById("loading").remove();
-  if (new URLSearchParams(location.search).has("credits")) pedia.open("Sources");
+  // Small optional map-layer files load once the first frame is on screen (extensions can await app.loadData).
+  // (A timer backs up the frame callback, which never fires while the page is in a background tab.)
+  let eagerKicked = false;
+  const kickEager = () => { if (!eagerKicked) { eagerKicked = true; EAGER_DATA.forEach((n) => loadData(n)); } };
+  requestAnimationFrame(() => setTimeout(kickEager, 0));
+  setTimeout(kickEager, 400);
+  // Extensions load after the first frame is on its way; a missing extension folder is fine.
   installExtensions(app);
 }
 

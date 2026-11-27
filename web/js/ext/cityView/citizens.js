@@ -7,8 +7,8 @@
 // the same largest-remainder method), a caption ("each figure ≈ 72K workers"), a read-out line that a hovered or
 // focused figure fills ("1 in 7 workers in San Jose is an engineer, coder or scientist (India: 1 in 14)"), and a thin
 // U.S. bar for comparison. A row Census left out is said so, never drawn as zeros.
-import { esc, pct, periodLabel } from "../../format.js";
-import { compact, int } from "./fmt.js";
+import { esc, int, pct, periodLabel } from "../../format.js";
+import { compact } from "./fmt.js";
 import { CATEGORY_COLOR, figureCanvas, loadPainter } from "./figures.js";
 
 const ROWS = [
@@ -139,7 +139,7 @@ export function citizensHtml(m, data) {
   const ba = row0.education?.bachelors_plus, usBa = nat.education?.bachelors_plus;
   const fb = row0.nativity?.foreign_born ?? row0.nativity?.shares?.foreign_born;
   const usFb = nat.nativity?.foreign_born ?? nat.nativity?.shares?.foreign_born;
-  const chip = (v, us, fmt, lbl, tip) => (v == null ? "" : `<div class="cv-cz-chip" title="${esc(tip)}"><b>${fmt(v)}</b><span>${esc(lbl)}${periodLabel(lbl === "have a degree" ? row0.education : lbl === "born abroad" ? row0.nativity : row0.age, " · ")}</span>${us != null ? `<small>India ${fmt(us)}</small>` : ""}</div>`);
+  const chip = (v, us, fmt, lbl, tip, observation) => (v == null ? "" : `<div class="cv-cz-chip" title="${esc(tip)}"><b>${fmt(v)}</b><span>${esc(lbl)}${periodLabel(observation, " · ")}</span>${us != null ? `<small>India ${fmt(us)}</small>` : ""}</div>`);
   const top = (row0.specialists || []).find((s) => s.ratio >= (data.rule?.specialist_high ?? 1.5));
   const topRow = ROWS.find((r) => r.id === top?.row);
   const great = top && topRow ? `<div class="cv-great" style="--fc:${esc(CATEGORY_COLOR[top.row]?.[top.key] || "#c9a45c")}">
@@ -192,9 +192,9 @@ export function citizensHtml(m, data) {
     ? `<p class="cv-warn">Micropolitan area: the 1-year survey's margins of error are large here, so read these figures as rough.</p>` : "";
   return `
     <div class="cv-cz-top">
-      ${chip(med, usMed, (v) => v.toFixed(1), "median age", "IndiaCiv estimate from WorldPop · mid-2026")}
-      ${chip(ba, usBa, (v) => pct(v, 0), "have a degree", `Adults aged 25+ with a degree or higher qualification${periodLabel(row0.education, " · ", { plain: true })}`)}
-      ${chip(fb, usFb, (v) => pct(v, 0), "born abroad", `Residents born outside India${periodLabel(row0.nativity, " · ", { plain: true })}`)}
+      ${chip(med, usMed, (v) => v.toFixed(1), "median age", "IndiaCiv estimate from WorldPop · mid-2026", row0.age)}
+      ${chip(ba, usBa, (v) => pct(v, 0), "have a degree", `Adults aged 25+ with a degree or higher qualification${periodLabel(row0.education, " · ", { plain: true })}`, row0.education)}
+      ${chip(fb, usFb, (v) => pct(v, 0), "born abroad", `Residents born outside India${periodLabel(row0.nativity, " · ", { plain: true })}`, row0.nativity)}
     </div>
     ${great}
     ${unreliable}

@@ -20,6 +20,7 @@ def advisor_inventory(inventory):
     recent = [{
         "disaster": event["id"], "date": event["start_date"] or event["reported_on"],
         "report_only": not event["start_date"], "state": " · ".join(event["states"]),
+        "date_caption": event["start_date"] or f"Reported {event['reported_on']}",
         "type": event["type"], "incident_type": event["type"], "title": event["label"],
         "areas": event.get("area"), "counties": event["districts"],
         "impact": event.get("impact"), "source": event["source"],

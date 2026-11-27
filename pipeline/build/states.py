@@ -29,7 +29,7 @@ from .world import PCT
 from .yields import rank_yields, regional_economy
 
 REQUIRES = ["_world", "datameet", "tg_projections", AGE_SOURCE, "_state_metrics", "_yields",
-            LABOUR_SOURCE, VETERAN_POPULATION, "resources.json", "infrastructure.json"]
+            LABOUR_SOURCE, VETERAN_POPULATION, "resources.json", "infrastructure.json", "nation.json"]
 PRODUCES = ["states.json"]
 OPTIONAL_REQUIRES = [ANNUAL_LABOUR_SOURCE, HEX_GEOGRAPHY, CENSUS_CIVIC]
 
@@ -135,6 +135,7 @@ def build() -> None:
     resources = json.loads((WEB_DATA / "resources.json").read_text())["summary"]["states"]
     transport = json.loads((WEB_DATA / "infrastructure.json").read_text()) or {}
     directions = transport.get("overseas_direction_by_state", {})
+    workforce_benchmark = json.loads((WEB_DATA / "nation.json").read_text()).get("state_workforce_benchmark")
     out = []
     for k, (abbr, name) in enumerate(zip(world["states"], world["state_names"])):
         cells = [i for i, o in enumerate(owner) if o == k and cover[i] > 0]
@@ -215,6 +216,11 @@ def build() -> None:
             "employed": employed,
             "unemployment": unemployment.get("value"),
             "jobs": jobs,
+            "industry_comparison": {
+                "jobs": workforce_benchmark["jobs"], "employed": workforce_benchmark["employed"],
+                "provenance": workforce_benchmark["provenance"],
+            } if workforce_benchmark and jobs and jobs_meta.get("period") == workforce_benchmark["provenance"]["period"]
+                and jobs_meta.get("scope") == workforce_benchmark["provenance"].get("scope") else None,
             "internet_per_100": metrics[abbr].get("internet_per_100", {}).get("value"),
         })
     rank_yields(out)

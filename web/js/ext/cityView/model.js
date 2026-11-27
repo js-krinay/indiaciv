@@ -3,8 +3,6 @@
 
 // Industry → short label, district colour (the medallion behind its icon) and icon id (icons.js i-<key>).
 export const INDUSTRY = {
-  industry: { short: "Industry", color: "#9a5a22" },
-  services: { short: "Services", color: "#2b4f8a" },
   agriculture: { short: "Agriculture", color: "#4f7a2a" },
   mining: { short: "Mining", color: "#6a5038" },
   construction: { short: "Construction", color: "#8a5426" },

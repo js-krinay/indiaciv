@@ -11,7 +11,6 @@ import json
 
 from ..core.geo import MapProjection, Shape, ShapeIndex
 from ..core.hexgrid import HexGrid
-from ..core.lens_values import encode
 from ..core.paths import WEB_DATA
 from ..core.store import load_interim, write_web
 from ..india import WUP_SOURCE
@@ -395,11 +394,10 @@ def build() -> None:
         "lenses": [{key: value for key, value in lens.items() if key != "values" or lens["id"] == "density"}
                    for lens in lenses],
     }
-    catalog["recent"] = ["density", "state_density", "growth"]
     write_web("lens_catalog.json", catalog)
     write_web("lenses.json", {
         **catalog,
-        "lenses": [{**lens, "values": encode(lens["values"])} for lens in lenses],
+        "lenses": lenses,
         "disasters": {
             "period": PERIOD, "coverage": COVERAGE, "events": events,
             "advisor_fields": advisor_definitions(events, PERIOD, COVERAGE),

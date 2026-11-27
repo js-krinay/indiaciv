@@ -6,8 +6,8 @@
 //   badgeOf(ddata, id) → {label, text, color, icon, district} | null | undefined   the city-type badge
 //   districtsHtml(m, ddata, mil) → HTML          the section body
 //   badgeHtml(m, ddata) → HTML                   the header badge
-import { esc, pct, periodLabel } from "../../format.js";
-import { compact, int, money } from "./fmt.js";
+import { esc, int, pct, periodLabel } from "../../format.js";
+import { compact, money } from "./fmt.js";
 import { icon } from "../../ui/icon.js";
 import { hasIcon } from "../../icons.js";
 
@@ -94,16 +94,11 @@ export function badgeOf(ddata, id) {
 export function badgeHtml(m, ddata) {
   const b = badgeOf(ddata, m.city.id);
   if (!b) return "";
-  const roles = roleCaption(ddata.cities[m.city.id], b);
+  const roles = ddata.cities[m.city.id].role_caption;
   return `<span class="cv-type${b.district ? "" : " plain"}" style="--tc:${esc(b.color)}" title="City type: ${esc(b.text || b.label)}${periodLabel(b.period ? b : ddata, " · ", { plain: true })}${roles ? ` · ${esc(roles)}` : ""}">
     <span class="cv-type-ic">${icon(b.icon, b.emoji || "◆", { size: 13 })}</span>${esc(b.label)}</span>`;
 }
 
-function roleCaption(row, badge) {
-  const capital = row.capital_designation;
-  return [...(capital && capital.label !== badge?.label ? [capital] : []), ...(row.roles || [])]
-    .map((role) => `${role.label} (${role.period})`).join(" · ");
-}
 
 const ge = (lb) => (lb ? "≥" : "");
 const signed = (x) => (x == null ? "–" : `${x >= 0 ? "+" : "−"}${Math.abs(x * 100).toFixed(1)}%`);
@@ -195,7 +190,7 @@ export function districtsHtml(m, ddata, mil) {
     lead = `<p class="cv-lead">Workplace estimates are unavailable for ${esc(m.city.name)}.</p>`;
   } else {
     const cnt = row.counties ? ` from ${row.counties[0]} of ${row.counties[1]} member${row.counties[1] === 1 ? " district" : " districts"}` : "";
-    const roles = roleCaption(row, b);
+    const roles = row.role_caption;
     lead = `<p class="cv-lead">${b ? `<b class="cv-type-l" style="--tc:${esc(b.color)}">${esc(b.label)}</b>${b.text ? ` · ${esc(b.text)}` : ""}${periodLabel(b, " · ")}. ` : ""}${
       roles ? `${esc(roles)}. ` : ""}${row.emp != null ? `${int(row.emp)} civilian non-farm jobs counted${esc(cnt)}${periodLabel(ddata, " · ")}.` : ""}</p>`;
   }

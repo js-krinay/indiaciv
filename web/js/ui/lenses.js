@@ -5,12 +5,12 @@ import { lensScale } from "../world.js";
 import { rampColor, parseHex } from "../color.js";
 import { icon, glyph } from "./icon.js";
 
-export function lensPeriodLabels(lens) {
-  if (lens.period_scope === "per_state") return periodLabel(lens);
+export function lensPeriodLabels(lens, options) {
+  if (lens.period_scope === "per_state" && !options?.plain) return periodLabel(lens);
   const older = new Map([...Object.values(lens.state_details || {}), ...Object.values(lens.cell_details || {})]
-    .filter((record) => record.vintage === "older").map((record) => [record.period, record]));
-  if (lens.vintage === "older") older.delete(lens.period);
-  return [lens, ...older.values()].map((record) => periodLabel(record)).filter(Boolean).join(" · ");
+    .filter((record) => record.vintage === "older" || options?.plain).map((record) => [record.period, record]));
+  older.delete(lens.period);
+  return [lens, ...older.values()].map((record) => periodLabel(record, "", options)).filter(Boolean).join(" · ");
 }
 
 export { glyph };
@@ -26,9 +26,6 @@ export function formatLensValue(lens, v) {
     case "category": return lens.categories?.[Math.round(v)]?.name ?? "no data";
     case "usd": return "$" + compact(v);
     case "pct": return (v * 100).toFixed(lens.precision ?? (v < 0.1 ? 1 : 0)) + "%";
-    case "departure_pct": return (v > 0 ? "+" : "") + v.toFixed(0) + "%";
-    case "monsoon_band":
-      return ["Large deficit", "Deficit", "Near normal", "Excess", "Large excess"][Math.round(v) + 2] ?? "no data";
     case "int": return intish(v) + (lens.unit === "people / km²" ? " /km²" : lens.unit ? " " + lens.unit : "");
     case "minutes": return v.toFixed(0) + " min";
     case "years": return v.toFixed(1) + " yrs";
@@ -63,6 +60,7 @@ export function lensValueAt(lens, t) {
 
 const TERRAIN = { id: null, icon: "terrain", emoji: "🗺️", name: "Terrain" };
 const RECENT_KEY = "civusa.recentLenses";
+const DEFAULT_RECENT = ["density", "income", "bachelors"];
 const BINS = 40;
 const HOVER_HALF = 0.08; // half-width of the hover band, in ramp units
 const QUANT = 80; // band edges snap to 1/80 of the ramp so tiny mouse moves don't re-render the map
@@ -93,7 +91,7 @@ export function initLensDock(opts) {
   const legend = document.getElementById("legend");
   let active = null;
   let band = null;
-  let recent = (loadRecent() || lensFile?.recent || []).filter((id) => byId.has(id));
+  let recent = (loadRecent() || DEFAULT_RECENT).filter((id) => byId.has(id));
   for (const l of lenses) if (recent.length < 3 && !recent.includes(l.id)) recent.push(l.id);
   recent = recent.slice(0, 3);
   let restoreFocus = null;

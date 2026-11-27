@@ -5,7 +5,6 @@ import { barList, histogram, rampLegend } from "../core/charts.js";
 import { createScatter } from "../core/scatter.js";
 import { section, tiles, segmented, mapPicker, frameBtn, sourcesHtml, topBy } from "../core/view.js";
 import { fieldContext, rowsHighlight } from "../core/data.js";
-import { growthLens } from "../core/lenses.js";
 
 const METRO_MIN = 250000;
 
@@ -29,9 +28,7 @@ export function mount(ctx) {
   const picker = mapPicker(ctx, mapRow, {
     value: "growth",
     options: [
-      ...(app.lensById.has("growth") && app.lensById.has("city_growth")
-        ? [{ value: "growth", label: "Growth", lens: () => growthLens(data, gLevel) }]
-        : []),
+      ...(app.lensById.has("growth") && app.lensById.has("city_growth") ? [{ value: "growth", label: "Growth", lens: () => gLevel === "states" ? "growth" : "city_growth" }] : []),
       ...[lensOpt("density", "Density", "density"), lensOpt("foreign_born", "Born abroad", "foreign_born")].filter((option) => app.lensById.has(option.lens())),
       { value: "terrain", label: "Terrain", lens: () => null },
     ],

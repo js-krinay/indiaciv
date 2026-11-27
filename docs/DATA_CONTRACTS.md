@@ -668,14 +668,12 @@ or coverage note. Water, foreign cells and unavailable states have null hex valu
 ## lenses.json
 
 The India build also emits `lens_catalog.json` with the same `vintage`, `groups` and
-lens metadata, omitting `values` and the top-level district and disaster records.
-The browser uses it for the dock, reports and Almanac. It loads `lenses.json` when a
-lens or a view that needs its detailed records is opened.
+lens metadata, retaining only density's values and omitting the top-level district
+and disaster records. The browser loads `lenses.json` at startup.
 
-India stores a grid as either a dense array or `{"runs":[gap,length,value,...]}`,
-whichever takes fewer JSON bytes. Each run skips `gap` null cells after the previous
-run (or the start of the grid), then repeats an exact numeric value for `length` cells.
-Any remaining cells are null. The checker and browser expand runs to the world grid size.
+India now writes one value per cell in the upstream dense array format. Missing
+cells are null. The pipeline still accepts legacy
+`{"runs":[gap,length,value,...]}` grids from older local builds.
 
 Produced by `pipeline/build/lenses.py`.
 

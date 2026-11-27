@@ -13,7 +13,6 @@ const KIND = {
   university: { label: "Universities", color: "#4a86d6" },
   landmark: { label: "Landmarks", color: "#e0b54c" },
 };
-const RULE_TITLE = { owner_named: "Selected landmarks", research_inventory: "Research institutions", national_park: "National parks", park_unit: "Other park units", research_university: "Research universities", landmark: "Landmarks" };
 const DIS_COLOR = { hurricane: "#4f9ad6", flood: "#2fa4b8", fire: "#e8774a", severe_storm: "#9a7bc9", winter: "#c9dcef", other: "#9a9aa8" };
 
 export async function mount(ctx) {
@@ -54,9 +53,10 @@ export async function mount(ctx) {
 
   // --- wonders --------------------------------------------------------------------------------------------------
   let wonderBars = [];
+  const rules = new Map((won?.rules || []).map((rule) => [rule.id, rule]));
   const bubbles = ctx.bubbles("wonders", {
     rMax: 9, minR: 9, alpha: 0.28,
-    tip: (b) => `<b>${esc(b.it.name)}</b><br>${esc(RULE_TITLE[b.it.rule] || b.it.kind)}${b.it.rule === "national_park" ? ` #${b.it.rank}` : ""}${metricText(b.it) ? ` · ${esc(metricText(b.it))}` : ""}${b.it.curated ? `<br><span class="sub">hand-picked, not ranked by data</span>` : ""}`,
+    tip: (b) => `<b>${esc(b.it.name)}</b><br>${esc(rules.get(b.it.rule)?.label || b.it.kind)}${rules.get(b.it.rule)?.ranked ? ` #${b.it.rank}` : ""}${metricText(b.it) ? ` · ${esc(metricText(b.it))}` : ""}${b.it.curated ? `<br><span class="sub">hand-picked, not ranked by data</span>` : ""}`,
     onHover: (b) => { for (const w of wonderBars) w.setHot(b ? b.key : null); },
     onClick: (b) => flyTo(b.it),
   });
@@ -77,12 +77,12 @@ export async function mount(ctx) {
       for (const rule of won.rules || []) {
         const list = vis.filter((w) => w.rule === rule.id);
         if (!list.length) continue;
-        wHost.insertAdjacentHTML("beforeend", `<h4 class="adv-h4">${esc(RULE_TITLE[rule.id] || rule.id)}</h4><p class="adv-note adv-rule">${esc(rule.text)}</p>`);
+        wHost.insertAdjacentHTML("beforeend", `<h4 class="adv-h4">${esc(rule.label || rule.id)}</h4><p class="adv-note adv-rule">${esc(rule.text)}</p>`);
         const host = mk("div");
         wHost.appendChild(host);
         const val = (w) => w.metrics?.area_km2 ?? null;
         wonderBars.push(barList(host, {
-          rank: rule.id === "national_park", compact: true, ariaLabel: RULE_TITLE[rule.id] || rule.id,
+          rank: rule.ranked, compact: true, ariaLabel: rule.label || rule.id,
           rows: list.map((w) => ({ key: w.key, label: w.short || w.name, full: w.name, sub: w.location || w.state, value: val(w), text: metricText(w), color: KIND[w.kind]?.color })),
           onHover: (r) => {
             const w = r ? wonders.find((x) => x.key === r.key) : null;
@@ -187,7 +187,7 @@ export async function mount(ctx) {
   // The disaster records arrive after the rest of the dashboard is up (the view may be gone by then).
   disastersP.then((dis) => {
     if (!active()) return;
-    if (!dis) dSec.innerHTML = `<p class="adv-empty">Documented hazard records are unavailable.</p>`;
+    if (!dis) dSec.innerHTML = `<p class="adv-empty">disasters.json is not built.</p>`;
     else drawDisasters(dis);
     drawTiles(dis);
     drawSources(dis);
@@ -263,10 +263,10 @@ export async function mount(ctx) {
     if (recent.length) {
       dSec.insertAdjacentHTML("beforeend", `<h4 class="adv-h4">Documented incidents · ${esc(D.period)}</h4>`);
       createTable(dSec, {
-        caption: "Documented hazard events", maxHeight: 220, rowKey: (r) => r.disaster, search: "Search events or types", searchText: (r) => `${r.title} ${r.type} ${r.state} ${r.areas || ""}`,
+        caption: "Documented hazard events", maxHeight: 220, rowKey: (r) => r.disaster,
         rows: recent,
         columns: [
-          { key: "date", label: "Date", align: "l", width: "78px", value: (r) => r.date, text: (r) => r.report_only ? `Reported ${r.date}` : r.date },
+          { key: "date", label: "Date", align: "l", width: "78px", value: (r) => r.date, text: (r) => r.date_caption || r.date },
           { key: "state", label: "State", align: "l", width: "38px", value: (r) => r.state, text: (r) => r.state },
           { key: "type", label: "What", align: "l", width: "minmax(0,1.6fr)", value: (r) => r.title, html: (r) => `<i class="dot" style="background:${DIS_COLOR[r.type] || "#999"}"></i>${esc(r.title)}`, tip: (r) => [r.incident_type, r.title, data.source(r.source)?.title, fin(r.impact?.deaths) && `${int(r.impact.deaths)} reported deaths`, fin(r.impact?.houses_destroyed) && `${int(r.impact.houses_destroyed)} houses destroyed`].filter(Boolean).join(" · ") },
           { key: "areas", label: "Areas", value: (r) => r.areas, text: (r) => r.areas || "–", title: "Area named in the source report", tip: (r) => [r.areas, ...r.counties.map((id) => counties?.byKey.get(id)?.name)].filter(Boolean).join(" · ") },
@@ -300,15 +300,15 @@ export async function mount(ctx) {
 
   const api = {
     onMapHover(h) {
-      const owner = h?.cell >= 0 ? app.w.raw.owner[h.cell] : -1;
+      const owner = h.cell >= 0 ? app.w.raw.owner[h.cell] : -1;
       const sr = owner >= 0 ? stLevel.rows[owner] : null;
       faithStates?.setHot(sr ? sr.key : null);
       dState?.setHot(sr ? sr.key : null, false);
-      const c = h?.cell >= 0 && counties ? counties.rowAtCell(h.cell) : null;
+      const c = h.cell >= 0 && counties ? counties.rowAtCell(h.cell) : null;
       amenHist?.setHot(c && amenHist.binOf ? amenHist.binOf(c.v.amenities)?.i ?? null : null);
       amenTable?.setHot(c ? c.key : null, false);
       dCounty?.setHot(c ? c.key : null, false);
-      if (h?.item?.kind === "wonder") for (const w of wonderBars) w.setHot(h.item.data?.id ?? null);
+      if (h.item?.kind === "wonder") for (const w of wonderBars) w.setHot(h.item.data?.id ?? null);
     },
     onMapClick(ev) {
       if (ev.item?.kind !== "wonder") return false;
@@ -322,7 +322,7 @@ export async function mount(ctx) {
 }
 
 function metricText(w) {
-  if (fin(w.metrics?.area_km2)) return `${int(w.metrics.area_km2)} km²`;
+  if (fin(w.metrics?.area_km2)) return `${int(w.metrics.area_km2)} km² · ${w.period || ""}`;
   return w.metrics?.institution_class || "";
 }
 

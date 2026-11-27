@@ -2,8 +2,8 @@
 // Citizens (figure rows from citizens.json), Districts (districts.json + military.json), Economy, Workforce,
 // Resources and Compare. Plain HTML strings + inline SVG charts; render(el, model, handlers) fills `el`. The
 // citizens and districts files load on demand (h.loadData) and fill their sections when they arrive.
-import { esc, pct, periodLabel, yieldDetails } from "../../format.js";
-import { compact, dollars, int, money, popShort, yieldValue } from "./fmt.js";
+import { dollars, esc, int, pct, periodLabel, yieldDetails } from "../../format.js";
+import { compact, money, popShort, yieldValue } from "./fmt.js";
 import { icon, glyph } from "../../ui/icon.js";
 import { css } from "../../color.js";
 import { isCapital } from "../../world.js";
@@ -54,7 +54,7 @@ function medallion(id, fallback, bg, size = 18) {
 
 // --- header --------------------------------------------------------------------------------------------------------
 function header(m) {
-  const c = m.city;
+  const c = m.city, n = m.nation.nation;
   const cities = m.cityList;
   const col = css(m.stateRGB);
   const chips = m.states.map((s) => (s.index >= 0
@@ -72,7 +72,7 @@ function header(m) {
     <button class="icon-btn cv-close" data-close aria-label="Close the City View (Esc)" title="Back to the map (Esc)">${icon("close", "✕", { size: 13 })}</button>
     <div class="cv-kind">City View · Urban agglomeration</div>
     <div class="cv-title">
-      <div class="cv-crest" aria-hidden="true" title="UN population projection${period(c.provenance?.population)}"><span>${esc(popShort(c.population))}</span></div>
+      <div class="cv-crest" aria-hidden="true"><span>${esc(popShort(c.population))}</span></div>
       <div class="cv-tt">
         <h2 class="cv-name" tabindex="-1">${isCapital(c) ? `<span class="cv-cap" title="National capital">★</span> ` : ""}${esc(c.name)}</h2>
         <div class="cv-full">${esc(c.full || "")}</div>
@@ -109,11 +109,12 @@ function citizens(m) {
         <span class="sv"><b>${v == null ? "–" : fmt(v)}</b>${sub ? `<small>${sub}</small>` : ""}</span></div>
       ${meter(v, tick, max ?? Math.max(v || 0, us || 0) * 1.35, better)}
     </div>`;
-  // Employed residents: no U.S. figure to set beside a count, so the share of residents (and India’s share).
   const empShare = c.employed != null && c.population > 0 ? c.employed / c.population : null;
-  const usEmpShare = n.employed != null && n.population > 0 ? n.employed / n.population : null;
+  const workforce = c.resident_workforce;
   const empSub = empShare == null ? ""
-    : `${pct(empShare)} of residents${estimate(c.provenance?.employed)}${usEmpShare != null ? ` · India ${pct(usEmpShare)}${period(n.provenance?.employed)}` : ""}`;
+    : `${pct(empShare)} of residents${estimate(c.provenance?.employed)}${
+      c.provenance?.employed?.age_scope === "age 15+" && Number.isFinite(workforce?.employed_all_ages)
+        ? ` · ${int(workforce.employed_all_ages)} employed (all ages)${period(workforce)}${estimate(workforce)}` : ""}`;
   const multi = m.tiles.length > 1;
   const tilesNote = multi
     ? `On the map each agglomeration hex shows <b>≈ residents</b> (district density × hex area, IndiaCiv estimate for 1 March 2026) and its
@@ -132,7 +133,7 @@ function citizens(m) {
       <p class="cv-note">UN population projection for 1 July 2026.</p>
     </div>` : ""}
     <div class="cv-stats">
-      ${row("pop", "👥", `Employed residents (age 15+)${periodLabel(c.provenance?.employed, " · ", { plain: true })}`, c.employed, null, int, null, c.population, empSub, usEmpShare != null ? usEmpShare * c.population : null)}
+      ${row("pop", "👥", `Employed residents${c.provenance?.employed?.age_scope ? ` (${c.provenance.employed.age_scope})` : ""}${periodLabel(c.provenance?.employed, " · ", { plain: true })}`, c.employed, null, int, null, c.population, empSub)}
       ${row("unemployment", "😐", `Urban unemployment (age 15+)${periodLabel(c.provenance?.unemployment, " · ", { plain: true })}`, c.unemployment, n.unemployment, (x) => pct(x), "low", undefined, n.unemployment != null ? `India ${pct(n.unemployment)}${period(n.provenance?.unemployment)}` : "")}
       ${row("l-income", "💵", "Median household income", c.median_income, n.median_income, dollars, "high")}
       ${row("l-homeownership", "🔑", "Median rent / month", c.median_rent, n.median_rent, dollars, null)}
@@ -269,8 +270,8 @@ function resources(m) {
   }).join("");
   const cats = {};
   for (const s of m.sites) cats[s.type?.category || "other"] = (cats[s.type?.category || "other"] || 0) + 1;
-  const mw = m.sites.filter((s) => s.type?.unit === "MW").reduce((a, s) => a + (s.item.value || 0), 0);
   const mwPeriod = m.sites.find((s) => s.item.aggregate_mw)?.item.aggregate_mw;
+  const mw = mwPeriod?.value;
   const summary = m.sites.length
     ? `<p class="cv-lead">${m.sites.length} mapped site${m.sites.length === 1 ? "" : "s"}${
       mw && mwPeriod ? ` · ${mw >= 1000 ? `${(mw / 1000).toFixed(1)} GW` : `${Math.round(mw)} MW`} of mapped generating capacity${period(mwPeriod)}${estimate(mwPeriod)}` : ""}. Click one to fly there.</p>`
