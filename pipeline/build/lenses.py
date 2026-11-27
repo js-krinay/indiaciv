@@ -237,11 +237,11 @@ def build() -> None:
                 "period": "mid-2026", "source": [DISTRICT_AGE_SOURCE, "datameet"], "estimated": True,
             }
         if geoid in HP_REGISTRATIONS:
-            places[geoid]["registered_veterans"] = HP_REGISTRATIONS[geoid]
+            # The HP table's terms allow derived rates only, so the raw district count is never served.
             if residents := hp_population.get(geoid):
                 places[geoid]["veteran_share"] = round(HP_REGISTRATIONS[geoid] / residents, 4)
             places[geoid]["advisor_columns"].update(
-                veteran_columns(HP_REGISTRATIONS[geoid], places[geoid].get("veteran_share"), district=True)
+                veteran_columns(None, places[geoid].get("veteran_share"), district=True)
             )
         if events := member_events({geoid}, EVENTS):
             places[geoid]["hazards"] = events

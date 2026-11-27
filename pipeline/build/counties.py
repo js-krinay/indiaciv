@@ -83,9 +83,8 @@ def district_table(world, places, workplace, cities=()):
                     value = str(REPORTED_FAITHS.index(value))
                 values[key] = value
                 meta[key] = {k: v for k, v in item.items() if k != "values"}
-        if district.get("registered_veterans") is not None:
-            values.update(veterans=district["registered_veterans"], veterans_pct=district.get("veteran_share"))
-            meta["veterans"] = {"source": "hp_veterans_2026", "period": "31 Mar 2026"}
+        if district.get("veteran_share") is not None:
+            values["veterans_pct"] = district["veteran_share"]
             meta["veterans_pct"] = {
                 "source": ["hp_veterans_2026", "city_population_grid", "datameet"],
                 "period": "31 Mar 2026 registrations · mid-2026 residents", "estimated": True,

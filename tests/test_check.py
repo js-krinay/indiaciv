@@ -316,5 +316,19 @@ class CheckTest(unittest.TestCase):
         self.assertTrue(any("hit by no sample" in m for m in self.levels(rep, "WARN")))
 
 
+class HpVeteranLicenceTest(unittest.TestCase):
+    def test_rejects_raw_district_veteran_count(self):
+        cols = ["geoid", "name", "state", "population", "land_km2", "density", "cbsa", "veterans", "veterans_pct"]
+        field = {"label": "x", "unit": "x", "higher_is": "neutral", "source": "x", "description": "x"}
+        fmts = {"geoid": "text", "name": "text", "state": "text", "veterans_pct": "pct"}
+        doc = {"vintage": None, "columns": cols, "fields": [{**field, "key": k, "format": fmts.get(k, "int")} for k in cols]}
+        for count, failed in ((None, False), (1200, True)):
+            with self.subTest(count=count):
+                doc["rows"] = [["02-001", "Shimla", "HP", 100, 10, 10, None, count, 0.012]]
+                report = check.Report(quiet=True)
+                check.check_counties(report, doc, None, None)
+                self.assertEqual(report.failed, failed)
+
+
 if __name__ == "__main__":
     unittest.main()

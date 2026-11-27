@@ -998,6 +998,8 @@ def check_counties(r: Report, doc, ctx: dict | None, city_ids: set | None) -> No
             errs["invalid district ID"] += 1
         if city_ids is not None and rec["cbsa"] is not None and rec["cbsa"] not in city_ids:
             errs["cbsa not a cities.json id"] += 1
+        if rec.get("veterans") is not None:  # HP's district table licenses derived rates only
+            errs["raw district veteran count"] += 1
     if errs:
         r.fail(f"counties.json: {dict(errs)}")
     if ctx and ctx["counties"]:
