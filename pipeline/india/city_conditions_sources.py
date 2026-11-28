@@ -74,6 +74,6 @@ HOUSING_INFO = SourceInfo(
     HPI_SOURCE, "All-India House Price Index for Q1:2026-27", "Reserve Bank of India",
     HPI_TABLE_URL, "RBI copyright policy permits accurate, unmodified reproduction with RBI acknowledgement.",
     "RBI release 2026-2027/958, 24 August 2026. DBIE House Price Index table snapshot reviewed"
-    " 27 November 2026. Provisional Q1.2026-27(P) row for registration markets, base 2022-23 = 100.",
-    ["City View housing markets"], license_url="https://rbi.org.in/scripts/Disclaimer.aspx",
+    " 27 November 2026. Public assets carry only the difference between the provisional index and the 2022-23 base of 100.",
+    ["Explorer housing markets"], license_url="https://rbi.org.in/scripts/Disclaimer.aspx",
 )

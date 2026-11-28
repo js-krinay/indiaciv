@@ -105,6 +105,26 @@ An Indian port's `overseas_direction`, and each entry of `infrastructure.json.ov
 carry FY 2024-25 older provenance and the `loaded` and `unloaded` shares of the same reporting geography's
 overseas cargo. Marker sizing and cargo ranks continue to use their own cargo series.
 
+The port observation carries `labels` for each direction and `unit: "%"`. The
+values are fractions of overseas tonnage for the same reporting port and period.
+`infrastructure.json.airports[].traffic` keeps AAI passenger share, freight share,
+prior passenger share and passenger growth as separate Almanac observations.
+Each carries `formatted` display text at 0.001 percentage-point precision and
+its own label, unit, period and source. Positive values below the threshold
+use `<0.001%`. The prior share
+and the growth observation's `comparison` carry older provenance.
+`airport_traffic_coverage` counts the matched civilian airports for each current
+share. The airport point's facility category comes from OurAirports.
+
+`trade.json.observed_coastal` is the dated DGMA table 7 subset. Its `zones` join
+to atlas port IDs and its `routes` link ordered loading and unloading zone IDs.
+Multi-port endpoints stay grouped. Each route has its publisher `report_order`,
+coarse relative percentage `band` as display text, documented `top_mode` and
+commodity presence tags. The Almanac displays the observations in their own group.
+Verified single-port pairs also carry great-circle `dist_km`. The historical
+records have no path, currency value or tonnage. The top-level `routes` still
+carry the 2026 schematic art and its single-port cargo observations.
+
 `city_view.json.profiles[id].citizens.census_work` contains separate
 `occupations` (B-25 A/B) and `industries` (B-18) Census 2011 observations.
 Each carries `period`, `vintage`, `source`, `scope` and fractional `values`.

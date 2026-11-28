@@ -34,7 +34,7 @@ export const tips = {
   },
   airport(a) {
     const lines = [`<b>${esc(a.id)} · ${esc(a.name)}</b> ${muted(esc([a.city, a.state].filter(Boolean).join(", ")))}`];
-    if (a.hub) lines.push(esc(HUB_NAME[a.hub] || a.hub));
+    if (a.hub) lines.push(esc([a.size_label, HUB_NAME[a.hub] || a.hub].filter(Boolean).join(" · ")));
     if (a.enplanements != null) {
       let ch = "";
       if (a.enplanements_prev > 0) {

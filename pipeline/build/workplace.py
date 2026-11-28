@@ -55,6 +55,11 @@ def advisor_definitions(national, thresholds):
             suffix = "" if key == "lq" else f"_{key}"
             fields.append({**common, "key": f"workplace_industry_{index}{suffix}", "label": f"{industry} {label}",
                            "format": format, "unit": unit, "path": ["industries", industry, key]})
+    from ..india.workplace import DETAILS
+    for index, label in enumerate((*DETAILS, "Civilian-filtered manufacturing")):
+        fields.append({**common, "key": f"workplace_matched_share_{index}",
+                       "label": f"{label} · Share of matched civilian workplace workers",
+                       "format": "pct", "unit": "%", "path": ["industry_shares", label], "hide_rank": True})
     return fields
 
 
@@ -89,7 +94,11 @@ def build():
         state = CITY_STATE_CODES.get(city["states"][0])
         matches = cohort.get((state, normalized(city["name"])), [])
         if len(matches) == 1:
-            cities[city["id"]] = matches[0]
+            record = matches[0]
+            cities[city["id"]] = {**record, "industry_shares": {
+                label: round(share, 3 if share < .1 else 2)
+                for label, share in record.get("industry_shares", {}).items()
+            }}
 
     thresholds = {"jobs": MIN_JOBS, "share": MIN_SHARE, "lq": MIN_LQ}
     write_web("workplace.json", {

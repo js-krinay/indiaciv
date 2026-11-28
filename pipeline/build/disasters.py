@@ -5,11 +5,74 @@ from collections import Counter, defaultdict
 from datetime import date
 
 from ..core.paths import WEB_DATA
-from ..core.store import write_web
+from ..core.store import load_interim, write_web
 from ..india.disaster_sources import COVERAGE, INCIDENTS, PERIOD
 
-REQUIRES = ["lenses.json"]
+REQUIRES = ["lenses.json", "datameet"]
 PRODUCES = ["disasters.json"]
+
+COLD_PERIOD = "1 Jan – 31 Jan 2026"
+COLD_SOURCE = "imd_delhi_january_2026"
+DROUGHT_PERIOD = "1 Jun – 2 Sep 2026"
+DROUGHT_SOURCE = "karnataka_drought_notification_ii_2026"
+# Counts from the 23 distinct names in the notification annex, keyed by its published district.
+DROUGHT_DISTRICTS = {
+    "Tumakuru": 1, "Koppala": 1, "Raichur": 3, "Kalaburagi": 6, "Bidar": 1,
+    "Vijayapura": 3, "Haveri": 1, "Dharwad": 4, "Chikkamagaluru": 1, "Kodagu": 2,
+}
+# Reviewed name equivalents in the unchanged Census 2011 district geography.
+DROUGHT_ALIASES = {
+    "Tumakuru": "Tumkur", "Koppala": "Koppal", "Kalaburagi": "Gulbarga",
+    "Vijayapura": "Bijapur", "Chikkamagaluru": "Chikmagalur",
+}
+FIRE_PERIOD = "Forest fire season (Nov 2023 – Jun 2024)"
+FIRE_SOURCE = "fsi_isfr_2023_fire_detections"
+FIRE_TOTAL = 203_544  # ISFR Vol. I, table 4.4, national SNPP-VIIRS detections for the same season.
+# Table 4.6 rows with exact Census 2011 district names. Omit reconfigured Prakasam
+# and names that do not match a district on the map. Use state codes to disambiguate Bijapur.
+FIRE_DISTRICTS = {
+    (22, "Bijapur"): 5018, (5, "Nainital"): 3320, (5, "Garhwal"): 3193,
+    (5, "Almora"): 2810, (21, "Rayagada"): 2646, (21, "Kandhamal"): 2591,
+    (5, "Tehri Garhwal"): 2589, (21, "Malkangiri"): 2582, (5, "Uttarkashi"): 2457,
+    (22, "Narayanpur"): 2316, (21, "Koraput"): 1994, (18, "Dima Hasao"): 1843,
+    (2, "Shimla"): 1823,
+}
+
+
+def hazard_observations(districts=()):
+    dates = [f"2026-01-{day}" for day in (11, 12, 13, 14, 15, 26)]
+    observations = [{
+        "id": "delhi_cold_wave_days", "label": "Delhi days with reported cold-wave conditions",
+        "location": "Delhi IMD reporting area", "value": len(dates), "dates": dates,
+        "unit": "days", "period": COLD_PERIOD, "source": COLD_SOURCE,
+    }]
+    identities = defaultdict(list)
+    for row in districts:
+        if row["code"]:
+            identities[row["state_code"], row["name"]].append(row["code"])
+    for name, count in DROUGHT_DISTRICTS.items():
+        matches = identities[29, DROUGHT_ALIASES.get(name, name)]
+        if len(matches) != 1:
+            continue
+        district = f"29-{matches[0]:03d}"
+        observations.append({
+            "id": f"karnataka_drought_taluks_{district}", "district": district,
+            "label": "Taluks assessed as drought affected in Karnataka Kharif assessment",
+            "location": name, "value": count, "unit": "taluks",
+            "period": DROUGHT_PERIOD, "source": DROUGHT_SOURCE,
+        })
+    for (state, name), count in FIRE_DISTRICTS.items():
+        matches = identities[state, name]
+        if len(matches) != 1:
+            continue
+        district = f"{state:02d}-{matches[0]:03d}"
+        observations.append({
+            "id": f"forest_fire_detections_{district}", "district": district,
+            "label": "Share of India’s reported SNPP-VIIRS forest fire detections",
+            "location": name, "value": round(100 * count / FIRE_TOTAL, 2), "unit": "%",
+            "period": FIRE_PERIOD, "vintage": "older", "source": FIRE_SOURCE,
+        })
+    return observations
 
 
 def advisor_inventory(inventory):
@@ -20,10 +83,18 @@ def advisor_inventory(inventory):
     recent = [{
         "disaster": event["id"], "date": event["start_date"] or event["reported_on"],
         "report_only": not event["start_date"], "state": " · ".join(event["states"]),
+        "state_caption": "Mapped affected states and UTs",
         "date_caption": event["start_date"] or f"Reported {event['reported_on']}",
         "type": event["type"], "incident_type": event["type"], "title": event["label"],
         "areas": event.get("area"), "counties": event["districts"],
         "impact": event.get("impact"), "source": event["source"],
+        **({"housing_impact": {
+            "label": "Houses reported destroyed in Mon town landslide",
+            "value": event["impact"]["houses_destroyed"], "unit": "houses",
+            "period": "19 Jul 2026", "source": event["source"],
+            "district": event["impact"]["district"], "comparator": "≥",
+            "caption": f"At least {event['impact']['houses_destroyed']} houses reported destroyed · 19 Jul 2026",
+        }} if event["id"] == "mon-town-landslide" else {}),
         **({"period": event["period"], "vintage": event["vintage"]} if "vintage" in event else {}),
     } for event in events]
     districts = inventory["districts"]
@@ -49,7 +120,10 @@ def advisor_inventory(inventory):
 
 def build():
     lenses = json.loads((WEB_DATA / "lenses.json").read_text())
-    write_web("disasters.json", advisor_inventory(lenses["disasters"]))
+    doc = advisor_inventory(lenses["disasters"])
+    doc["observations"] = hazard_observations(load_interim("datameet")["districts"])
+    doc["sources"] = sorted(set(doc["sources"]) | {row["source"] for row in doc["observations"]})
+    write_web("disasters.json", doc)
 
 
 def inventory(world, district_states, district_shapes, projection):

@@ -51,9 +51,9 @@ class CityConditionsTest(unittest.TestCase):
 
     def test_housing_preserves_published_market_and_leaves_missing_values_blank(self):
         markets = {"Bangalore": {"index": "118.40"}}
-        self.assertEqual(housing_market("Bengaluru", markets)["index"], "118.40")
+        self.assertEqual(housing_market("Bengaluru", markets)["index_difference"], 18.4)
         self.assertNotIn("base", housing_market("Bengaluru", markets))
-        self.assertIsNone(housing_market("Bengaluru", markets)["yoy_pct"])
+        self.assertNotIn("index", housing_market("Bengaluru", markets))
         self.assertIsNone(housing_market("Surat", markets))
 
     def test_shipped_hazards_match_patna_and_vijayawada_footprints(self):

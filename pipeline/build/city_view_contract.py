@@ -330,50 +330,28 @@ EXPLORER_OCCUPATIONS = {
     'other': 'Other or unclassified occupations',
 }
 
-EXPLORER_INDUSTRIES = {
-    'mining': 'Mining',
-    'construction': 'Construction',
-    'manufacturing': 'Manufacturing',
-    'wholesale': 'Wholesale excluding motor vehicles',
-    'retail': 'Retail excluding motor vehicles',
-    'transportation': 'Transport, storage and post',
-    'utilities': 'Utilities and waste',
-    'information': 'Information and communication',
-    'finance': 'Finance and insurance',
-    'real_estate': 'Real estate',
-    'professional': 'Professional, scientific and technical services',
-    'admin': 'Administrative and support services',
-    'education': 'Education',
-    'health': 'Health and social work',
-    'arts': 'Arts, entertainment and recreation',
-    'accommodation': 'Accommodation and food service',
-    'other': 'Other industries',
-    'public_admin': 'Civilian administration and compulsory social security',
-}
-
 def explorer_resident_columns(work):
+    from .citizens import resident_industries
+
     columns = {}
-    for series, labels, group, description in (
-        ("occupations", EXPLORER_OCCUPATIONS, "Resident occupations",
-         "Urban member-district main and marginal workers, excluding cultivators and agricultural labourers."),
-        ("industries", EXPLORER_INDUSTRIES, "Resident industries",
-         "Share of eligible urban member-district resident workers in Census 2011 B-18."),
-    ):
-        record = work.get(series)
-        if not record:
-            continue
-        metadata = {key: record[key] for key in ("period", "source", "vintage", "scope")}
-        common = {**metadata, "group": group, "hide_rank": True, "description": description}
-        for key, label in labels.items():
+    if record := work.get("occupations"):
+        common = {**metadata(record), "group": "Resident occupations", "hide_rank": True,
+                  "description": "Urban member-district main and marginal workers, excluding cultivators and agricultural labourers."}
+        for key, label in EXPLORER_OCCUPATIONS.items():
             value = record["values"].get(key)
             if value is not None:
-                column = f"cz_{key}" if series == "occupations" else f"census_resident_industry_{key}"
-                columns[column] = {**common, "label": label, "format": "pct", "unit": "%", "value": value}
-        if series == "occupations" and (specialist := record.get("specialist")):
-            label = labels[specialist["family"]]
+                columns[f"cz_{key}"] = {**common, "label": label, "format": "pct", "unit": "%", "value": value}
+        if specialist := record.get("specialist"):
+            label = EXPLORER_OCCUPATIONS[specialist["family"]]
             columns["cz_specialist"] = {
                 **common, "label": "Most over-represented occupation", "format": "text",
                 "unit": "local share ÷ urban India share", "value": f"{label} ×{specialist['ratio']:.2f}",
+            }
+    if record := work.get("industries"):
+        for key, observation in resident_industries(record, record.get("details")).items():
+            columns[f"census_resident_industry_{key}"] = {
+                **observation, "group": "Resident industries", "scope": record["scope"],
+                "description": "Census 2011 B-18. Fine NIC subtotals overlap their broad industry.",
             }
     return columns
 
@@ -448,6 +426,8 @@ SITE_DISTRICTS = {
     "harbor": ("Harbor", "#3d5f73"),
     "aerodrome": ("Aerodrome", "#557f9a"),
     "government_plaza": ("Government Plaza", "#5a6a7a"),
+    "industrial_land_use": ("Mapped industrial land-use site", "#9a5a22"),
+    "commercial_hub": ("Mapped commercial land-use site", "#786122"),
 }
 
 
@@ -463,6 +443,7 @@ def add_district_roles(cities, catalog, profiles):
         for site in sites:
             key = site["kind"]
             name, color = SITE_DISTRICTS[key]
+            name = site.get("label", name)
             catalog.setdefault(key, {"id": key, "name": name, "color": color, "sub": {}})
             if key not in districts:
                 districts[key] = {"id": key, "via": "site"}

@@ -23,6 +23,36 @@ INDUSTRIES = {
 # NIC 2008 includes inseparable defence or weapons activities in these classes.
 EXCLUDED_NIC_CLASSES = frozenset({"2029", "2520", "2829", "3011", "3030", "3040"})
 NIC_FAMILIES = {division: family for family, divisions in INDUSTRIES.items() for division in divisions}
+DETAIL_LABELS = {
+    "06": "Crude petroleum and natural gas extraction",
+    "59": "Motion picture, video, sound recording and music publishing",
+    "60": "Programming and broadcasting",
+    "93": "Sports, amusement and recreation",
+    "8411": "General public administration",
+    "8412": "Regulation of social services",
+    "8413": "Regulation of economic activity",
+    "05": "Coal and lignite mining",
+    "261": "Electronic components and boards",
+    "291": "Motor vehicle manufacturing",
+    "5222": "Service activities incidental to water transportation",
+    "6612": "Security and commodity contract brokerage",
+    "920": "Gambling and betting",
+    "701": "Head offices",
+}
+
+
+def industry_details(entries):
+    """Use explicitly published urban subtotals, including explicit zeroes."""
+    return {code[-1]: values[2] for code, values in entries.items() if code and code[-1] in DETAIL_LABELS}
+
+
+def member_industry_details(records, members, counts):
+    denominator = counts["published"] - counts["excluded"]
+    if not denominator or not members:
+        return {}
+    covered = [records[area] for area in sorted(members)]
+    return {code: round(sum(row[code] for row in covered) / denominator, 7)
+            for code in DETAIL_LABELS if all(code in row for row in covered)}
 
 
 def occupation_family(code):
@@ -155,6 +185,7 @@ def sum_areas(rows, areas, residence):
 
 
 def prepare(directory):
+    from ..build.city_view import cohort
     from ..build.yields import district_state_map
 
     districts = load_interim("census_a01")["districts"]
@@ -163,6 +194,7 @@ def prepare(directory):
     profiles = load_interim("city_footprints")["profiles"]
     controls = {kind: {} for kind in TABLES}
     series = {"occupations": {}, "industries": {}}
+    details = {}
     manifest = sorted(workbook_manifest(), key=lambda entry: (entry[1], entry[0]))
     main = None
     for kind, state, filename, checksum, _, _ in manifest:
@@ -176,6 +208,7 @@ def prepare(directory):
         controls[kind].update((area, entries[()]) for area, entries in areas.items())
         if kind == "industry":
             series["industries"].update(partition("industries", areas))
+            details.update((area, industry_details(entries)) for area, entries in areas.items())
         elif kind == "main":
             main = areas
         else:
@@ -192,7 +225,10 @@ def prepare(directory):
                     raise ValueError(f"{kind} district totals disagree with {state} {residence}")
 
     cities = {}
+    reviewed = set(cohort())
     for city, profile in profiles.items():
+        if city not in reviewed:
+            continue
         members = {district["id"] for district in profile["districts"]}
         if not members or not members <= districts.keys():
             continue
@@ -201,6 +237,8 @@ def prepare(directory):
             benchmark = records["00-000", "Urban"] if kind == "occupations" else None
             if record := observation(kind, counts, benchmark):
                 cities.setdefault(city, {})[kind] = record
+                if kind == "industries":
+                    record["details"] = member_industry_details(details, members, counts)
     return cities
 
 

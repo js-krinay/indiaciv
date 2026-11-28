@@ -153,7 +153,7 @@ inventory PDF is read with Poppler's `pdftotext`.
 
 ```sh
 uv run --no-project --with 'shapely>=2.1' python -m pipeline.india.protected_land .cache/ic27
-uv run python -m pipeline build protected_land wonders catalog
+uv run python -m pipeline build almanac --deps
 uv run --with 'shapely>=2.1' python -m unittest discover -s tests -p test_protected_land.py
 ```
 
@@ -354,6 +354,15 @@ uv run python -m pipeline.india.household_costs .cache/ic75/hces.pdf .cache/ic75
 uv run python -m pipeline build --force
 ```
 
+To add the district household observations, save the pinned [NFHS-5 workbook mirror](https://raw.githubusercontent.com/databandar/Stutnting_vs_tobacco/885b123efec9bfd1d3041ad17a614600074e71ae/NFHS_5_India_Districts_Factsheet_Data.xls)
+as `.cache/ic75/nfhs5-mirror.xls` and the [NITI MPI report](https://niti.gov.in/sites/default/files/2023-07/National-Multidimentional-Poverty-Index-2023-Final-17th-July.pdf) as `.cache/ic92/niti-mpi.pdf`. The optional Goa tap-share pilot uses the archived 27 Nov 2026 J5 district page
+as `.cache/ic92/jjm-goa.html`. Omit the last option when that exact snapshot is unavailable.
+
+```sh
+uv run --no-project --with xlrd python -m pipeline.india.district_households \
+  .cache/ic75/nfhs5-mirror.xls .cache/ic92/niti-mpi.pdf --jjm-goa .cache/ic92/jjm-goa.html
+```
+
 To prepare Census 2011 urban-district cultivation shares, save the
 [PCA SD workbook](https://censusindia.gov.in/nada/index.php/catalog/6191/download/9268/DDW_PCA0000_2011_Indiastatedist.xlsx)
 as `.cache/ic75/pca-district.xlsx` and run
@@ -384,7 +393,7 @@ India extract.
 
 ```sh
 uv run python -m pipeline.india.transport .cache/ic23-airports.csv --overpass-dir .cache/ic23-overpass
-uv run python -m pipeline build infrastructure catalog
+uv run python -m pipeline build almanac --deps
 uv run python -m pipeline check
 ```
 
@@ -463,7 +472,7 @@ as `ports.pdf`. The preparation steps verify pinned checksums. Port extraction u
 ```sh
 uv run python -m pipeline.india.workplace .cache/ic67
 uv run python -m pipeline.india.port_directions .cache/ic67/ports.pdf
-uv run python -m pipeline build workplace infrastructure catalog
+uv run python -m pipeline build workplace almanac --deps
 uv run python -m pipeline check
 ```
 
@@ -474,13 +483,45 @@ group. Employment in that group is also removed from the publisher's harmonised 
 The source cannot isolate establishment counts where excluded employment is present. The separate
 `workplace.json` adaptation carries SHRUG's CC BY-NC-SA 4.0 licence.
 
-Commerce displays the share of the same reporting port's or state's overseas tonnes loaded and unloaded.
+The Almanac displays each port's share of overseas cargo loaded and unloaded.
 The FY 2024-25 edition supplies all-commodity port totals in tables 2.1.3 and 2.2.1, and state totals in
 tables 3.1.3 and 3.1.4. Unmatched port rows stay blank.
 The standard build uses the reviewed Table 2.2.1 transcription for 11 non-major
 ports. The map tooltip reports metric tonnes with the reporting period. Explorer
 reports the coastal and overseas shares. The existing port preparation command
 also verifies the transcription against the pinned PDF.
+
+For the March AAI traffic annexures and the DGMA directed coastal subset, download the
+following reports into a local cache. The prep commands use Poppler and verify SHA-256
+before extraction.
+
+- AAI [Annexure III](https://www.aai.aero/sites/default/files/traffic-news/Mar2k26Annex3_0.pdf)
+  and [Annexure IV](https://www.aai.aero/sites/default/files/traffic-news/Mar2k26Annex4.pdf),
+  keeping the filenames from the download URLs.
+- DGMA [Coastal Shipping Committee report, table 7](https://dgma.gov.in/download/1769691524_697b598415456_coastal-committee-report-final-jan2026.pdf),
+  saved locally as `dgma.pdf`.
+
+```sh
+uv run python -m pipeline.india.port_directions .cache/ic67/ports.pdf
+uv run python -m pipeline.india.airport_traffic .cache/ic94/aai
+uv run python -m pipeline.india.coastal_shipping .cache/ic94/dgma.pdf
+uv run python -m pipeline build --force
+```
+
+Repeat these prep steps when upgrading an older cache. The build rejects earlier
+interim versions, including the 15-port direction extract.
+
+The Almanac shows airport shares against each fiscal column's national total.
+Passenger growth uses the two airport measurements from the same annexure.
+These observations publish only display text at 0.001 percentage-point precision,
+with positive values below the threshold shown as `<0.001%`. Airport analogues
+have no rank or score.
+
+The Almanac's DGMA entries preserve direction and groups with matched port IDs.
+Relative cargo categories divide the entry's low by the reference high and
+its high by the reference low, then round outward in 25-percentage-point steps.
+The reference is 100% by identity. Single-port pairs include great-circle separation.
+The 2026 schematic carries its original geometry and single-port observations.
 
 ## Data period rule (owner decisions, 27 Nov 2026)
 

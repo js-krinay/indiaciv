@@ -129,8 +129,8 @@ function citizens(m) {
     <div class="cv-card">
       <div class="cv-card-h"><span>Population${period(c.provenance?.pop_series)}</span>${
         ch != null ? `<span class="${ch >= 0 ? "good" : "bad"}">${signed(ch)}</span>` : ""}</div>
-      ${sparkline(series, { fmt: (v) => popShort(v), title: `Population of ${c.name} during 2026` })}
-      <p class="cv-note">UN population projection for 1 July 2026.</p>
+      ${sparkline(series, { fmt: (v) => popShort(v), title: `Projected midyear population of ${c.name}, 1 July 2025 to 1 July 2026` })}
+      <p class="cv-note">UN population projections for 1 July of each year.</p>
     </div>` : ""}
     <div class="cv-stats">
       ${row("pop", "👥", `Employed residents${c.provenance?.employed?.age_scope ? ` (${c.provenance.employed.age_scope})` : ""}${periodLabel(c.provenance?.employed, " · ", { plain: true })}`, c.employed, null, int, null, c.population, empSub)}

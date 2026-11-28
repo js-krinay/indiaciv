@@ -60,10 +60,10 @@ export function cityDistricts(ddata, mil, id) {
     const spec = d.via === "specialty" && d.sub;
     out.push({
       ...d, name: c.name || d.id, color: c.color || "#5a6a7a", icon: iconFor(d.id, c), emoji: FALLBACK[d.id]?.[1] || "◆",
-      caption: d.via === "site" ? `Verified site (${d.sites[0].period})` : `Workplace specialisation (${d.period || ddata.period})`,
+      caption: d.via === "site" ? `${d.sites[0].label || "Verified site"} (${d.sites[0].period})` : `Workplace specialisation (${d.period || ddata.period})`,
       cat: c, subName: d.sub ? c.sub?.[d.sub] || ddata.industries?.[d.sub]?.title || d.sub : null,
       // The map plaque: a speciality-qualified district is labelled by that speciality (its own LQ is the reason).
-      short: spec ? c.sub?.[d.sub] || SHORT[d.id] : SHORT[d.id] || c.name || d.id,
+      short: spec ? c.sub?.[d.sub] || SHORT[d.id] : d.sites?.[0]?.short_label || SHORT[d.id] || c.name || d.id,
       mapLq: spec ? d.sub_lq : d.lq,
       military: d.id === "encampment" ? mc : null,
     });
@@ -145,7 +145,7 @@ function districtCard(d, row, ddata, mil) {
   }
   const caveat = c.caveat ? `<p class="cv-dc-cav">${esc(c.caveat)}</p>` : "";
   const title = d.militaryOnly ? `${esc(d.name)} · ${esc(d.tierLabel)}` : d.military ? `${esc(d.name)} · ${esc(d.tierLabel)}` : esc(d.name);
-  const sites = (d.sites || []).map((site) => `${site.name} · Verified site (${site.period})`).join(" · ");
+  const sites = (d.sites || []).map((site) => `${site.name} · ${site.label || "Verified site"} (${site.period})`).join(" · ");
   return `<div class="cv-dc" style="--dc:${esc(d.color)}" title="${esc([d.caption, sites, c.description].filter(Boolean).join(" · "))}${esc(supTip)}">
     <div class="cv-dc-h"><span class="cv-dc-hex">${icon(d.icon, d.emoji, { size: 18 })}</span>
       <div class="cv-dc-t"><b>${title}</b><small>${esc([c.description, sites].filter(Boolean).join(" · "))}</small></div>
@@ -192,7 +192,7 @@ export function districtsHtml(m, ddata, mil) {
     const cnt = row.counties ? ` from ${row.counties[0]} of ${row.counties[1]} member${row.counties[1] === 1 ? " district" : " districts"}` : "";
     const roles = row.role_caption;
     lead = `<p class="cv-lead">${b ? `<b class="cv-type-l" style="--tc:${esc(b.color)}">${esc(b.label)}</b>${b.text ? ` · ${esc(b.text)}` : ""}${periodLabel(b, " · ")}. ` : ""}${
-      roles ? `${esc(roles)}. ` : ""}${row.emp != null ? `${int(row.emp)} civilian non-farm jobs counted${esc(cnt)}${periodLabel(ddata, " · ")}.` : ""}</p>`;
+      roles ? `${esc(roles)}. ` : ""}${row.emp != null ? `${int(row.emp)} matched non-farm civilian workplace workers${esc(cnt)}${periodLabel(ddata, " · ")}.` : ""}</p>`;
   }
   const cards = list.length
     ? `<div class="cv-dcs">${list.map((d) => districtCard(d, row, ddata, mil)).join("")}</div>`

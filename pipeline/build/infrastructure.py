@@ -6,21 +6,24 @@ from collections import defaultdict, deque
 
 from .cities import city_state_lookup
 from .resources import land_cell
-from .trade import CARGO_PERIOD, CARGO_SOURCE, DFC_SOURCE, coastal_network, route_document, trade_check
+from .trade import CARGO_PERIOD, CARGO_SOURCE, DFC_SOURCE, coastal_network, coastal_observations, route_document, trade_check
 from .transport_statistics import (
-    AAI_JHARSUGUDA, COASTAL, FEATURED_PORTS, FREIGHT, OPERATOR_LOCALITIES, PERIOD, PORT_CITIES,
-    PORT_TOTAL, PORTS, VERIFIED_PORT_LOCALITIES, cargo_split,
+    AAI_JHARSUGUDA, AIRPORT_LABELS, COASTAL, FEATURED_PORTS, FREIGHT, OPERATOR_LOCALITIES, PERIOD, PORT_CITIES,
+    PORT_DIRECTION_LABELS, PORT_TOTAL, PORTS, PREVIOUS_FY, VERIFIED_PORT_LOCALITIES, cargo_split,
 )
 from ..core.geo import MapProjection, Shape, ShapeIndex
 from ..core.hexgrid import HexGrid
+from ..core.paths import WEB_DATA
 from ..core.store import load_interim, load_interim_payload, write_web
 from ..india import OSM_TRANSPORT_LICENSE_URL
-from ..india.port_directions import NON_MAJOR_TOTALS, SOURCE as PORT_DIRECTION_SOURCE, non_major_cargo_record
+from ..india.airport_traffic import DISPLAY_VERSION as AIRPORT_DISPLAY_VERSION, SOURCE as AIRPORT_TRAFFIC_SOURCE
+from ..india.coastal_shipping import DISPLAY_VERSION as COASTAL_DISPLAY_VERSION, SOURCE as COASTAL_OBSERVATION_SOURCE
+from ..india.port_directions import JOIN_VERSION, NON_MAJOR_TOTALS, SOURCE as PORT_DIRECTION_SOURCE, non_major_cargo_record
 from ..india.transport import MILITARY_FACILITY, is_civil_airport, public_label
 from ..india.transport_corridors import FREIGHT_CORRIDORS, RAIL_CORRIDORS
 
 REQUIRES = ["_world", "soi_outline", "osm_transport", "ourairports", "datameet"]
-OPTIONAL_REQUIRES = [PORT_DIRECTION_SOURCE]
+OPTIONAL_REQUIRES = [PORT_DIRECTION_SOURCE, AIRPORT_TRAFFIC_SOURCE, COASTAL_OBSERVATION_SOURCE, "cities.json"]
 PRODUCES = ["infrastructure.json", "trade.json"]
 SOURCES = ["datameet", "osm_transport", "ourairports", AAI_JHARSUGUDA, OPERATOR_LOCALITIES,
            "mopsw_port_cargo", "pib_rail_freight", "cwprs_port_locations",
@@ -231,16 +234,25 @@ def build():
         directions = load_interim(PORT_DIRECTION_SOURCE)
     except FileNotFoundError:
         directions = None
+    if directions is not None and directions.get("join_version") != JOIN_VERSION:
+        raise ValueError("Stale overseas port directions. Rerun pipeline.india.port_directions as described in README.md.")
     for port in ports:
         if not port.get("city") and port["id"] in VERIFIED_PORT_LOCALITIES:
             port.update(city=VERIFIED_PORT_LOCALITIES[port["id"]],
                         city_provenance=dict(source_id=OPERATOR_LOCALITIES, period="FY 2024-25 (1 Apr 2024 – 31 Mar 2025)",
                                              vintage="older"))
         if directions and port["id"] in directions["ports"]:
-            port["overseas_direction"] = directions["ports"][port["id"]]
+            port["overseas_direction"] = dict(directions["ports"][port["id"]],
+                                               labels=PORT_DIRECTION_LABELS, unit="%")
         if port["cargo"] is None and port["id"] in NON_MAJOR_TOTALS:
             port["historical_cargo_split"] = non_major_cargo_record(*NON_MAJOR_TOTALS[port["id"]])
         port.update(port_tooltip_fields(port))
+    try:
+        traffic = load_interim(AIRPORT_TRAFFIC_SOURCE)
+    except FileNotFoundError:
+        traffic = {}
+    if traffic and traffic.get("display_version") != AIRPORT_DISPLAY_VERSION:
+        raise ValueError("Stale airport traffic. Rerun pipeline.india.airport_traffic as described in README.md.")
     airfields = []
     for airport in airports["data"]["airports"]:
         if not airport.get("civil_verified") or not is_civil_airport(airport):
@@ -252,6 +264,22 @@ def build():
                     "id": airport["iata"], "ourairports_id": airport["id"],
                     "city": city, "hub": f"{airport['size'].capitalize()} airport",
                     "year": 2026, "period": airports["vintage"], "scheduled_service": airport.get("scheduled_service", True)}
+            site["size_label"] = AIRPORT_LABELS["size"]
+            for metric in ("passengers", "freight"):
+                observation = traffic.get(metric, {}).get(site["id"])
+                if observation is not None:
+                    site.setdefault("traffic", {})[metric] = dict(
+                        formatted=observation["share"], label=AIRPORT_LABELS[metric], unit="%",
+                        period=PERIOD["label"], source_id=AIRPORT_TRAFFIC_SOURCE)
+                    if metric == "passengers":
+                        site["traffic"]["passengers_previous"] = dict(
+                            formatted=observation["previous_share"], label=AIRPORT_LABELS[metric], unit="%",
+                            period=PREVIOUS_FY, vintage="older", source_id=AIRPORT_TRAFFIC_SOURCE)
+                        if "change" in observation:
+                            site["traffic"]["change"] = dict(
+                                formatted=observation["change"], label=AIRPORT_LABELS["change"], unit="%",
+                                period=PERIOD["label"], comparison=dict(period=PREVIOUS_FY, vintage="older"),
+                                source_id=AIRPORT_TRAFFIC_SOURCE)
             if city and not public_label(airport.get("city")):
                 site["city_provenance"] = dict(source_id=AAI_JHARSUGUDA, period="6 Aug 2026", vintage="2026")
             airfields.append(site)
@@ -266,8 +294,23 @@ def build():
     historical = {"overseas_direction_by_state": directions["states"]} if directions else {}
     trade = coastal_network(grid, world, ports)
     coastal_port_slots(ports, trade)
+    try:
+        coastal_report = load_interim(COASTAL_OBSERVATION_SOURCE)
+    except FileNotFoundError:
+        coastal_report = None
+    if coastal_report and coastal_report.get("display_version") != COASTAL_DISPLAY_VERSION:
+        raise ValueError("Stale coastal shipping observations. Rerun pipeline.india.coastal_shipping as described in README.md.")
+    if coastal_report:
+        positions = {key: (lon, lat) for key, _, lon, lat, _ in (*PORTS, *FEATURED_PORTS)}
+        positions.update({key: (lon, lat) for key, _, lon, lat in osm["data"]["ports"]})
+        cities_path = WEB_DATA / "cities.json"
+        cities = json.loads(cities_path.read_text()) if cities_path.exists() else []
+        trade["observed_coastal"] = coastal_observations(ports, positions, cities, coastal_report)
     write_web("trade.json", route_document(trade, ports, corridors))
-    write_web("infrastructure.json", dict(version=2, sources=SOURCES + [PORT_DIRECTION_SOURCE],
+    traffic_coverage = {metric: sum(metric in site.get("traffic", {}) for site in airfields)
+                        for metric in ("passengers", "freight")}
+    sources = SOURCES + [PORT_DIRECTION_SOURCE] + ([AIRPORT_TRAFFIC_SOURCE] if traffic else [])
+    write_web("infrastructure.json", dict(version=2, sources=sources, airport_traffic_coverage=traffic_coverage,
                                          rail=rail, rail_corridors=corridors, **historical,
                                          main_lines=main_lines,
                                          trade=trade,

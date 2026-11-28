@@ -59,7 +59,7 @@ export async function mount(ctx) {
   const P = nat.personnel || {}, S = nat.spending || {};
   el.insertAdjacentHTML("beforeend", tiles([
     ...(fin(P.active?.total) ? [{ label: "Active duty", value: count3(P.active.total), sub: vint.personnel, color: "#a9c3d6" }] : []),
-    ...(fin(S.total) ? [{ label: "Union defence allocation", value: money(S.total), sub: `${fin(S.pct_gdp) ? `≈${pct(S.pct_gdp)} of GDP · ` : ""}${vint.spending || ""}` }] : []),
+    ...(fin(S.total) ? [{ label: "Union defence budget estimate", value: money(S.total), sub: `${fin(S.pct_gdp) ? `≈${pct(S.pct_gdp)} of GDP · ` : ""}${vint.spending || ""}` }] : []),
     ...(fin(nat.veterans) ? [{ label: "Registered ex-servicemen", value: `≈${count3(nat.veterans)}`, sub: `IndiaCiv estimate · ${vint.veterans || ""}` }] : []),
   ]));
 
@@ -129,7 +129,7 @@ export async function mount(ctx) {
     columns: [
         { key: "name", label: "Installation", align: "l", width: "minmax(0,1.9fr)", value: (r) => r.name, html: (r) => `<i class="dot" style="background:${esc(compById.get(r.component)?.color || "#999")}"></i>${esc(r.name)}${r.joint ? ` <span class="sub">joint</span>` : ""}`, tip: (r) => `${r.name} · ${compById.get(r.component)?.name || r.component}${r.status && r.status !== "act" ? ` · ${STATUS[r.status] || r.status}` : ""}${r.period ? ` · ${r.town} · ${r.period}` : ""}` },
       { key: "component", label: "Service", align: "l", width: "minmax(0,.9fr)", hideBelow: 400, value: (r) => compById.get(r.component)?.short, text: (r) => compById.get(r.component)?.short || r.component },
-        { key: "tier", label: "Tier", align: "l", width: "46px", value: (r) => ({ major: 0, base: 1, site: 2 })[r.tier] ?? r.tier, text: (r) => TIER_LABEL[r.tier] || r.tier, tip: (r) => TIER_LABEL[r.tier] || r.tier },
+        { key: "tier", label: "Designation", align: "l", width: "46px", value: (r) => ({ major: 0, base: 1, site: 2 })[r.tier] ?? r.tier, text: (r) => data.source(r.source)?.marker_designation || TIER_LABEL[r.tier] || r.tier, tip: (r) => [data.source(r.source)?.marker_designation || TIER_LABEL[r.tier] || r.tier, r.period].filter(Boolean).join(" · ") },
       { key: "state", label: "State", align: "l", width: "40px", value: (r) => r.state, text: (r) => r.state || "–" },
         ...(insts.some((it) => fin(it.area_km2)) ? [{ key: "area", label: "Area", width: "minmax(0,.8fr)", value: (r) => r.area_km2, text: (r) => (fin(r.area_km2) ? `${count3(r.area_km2)} km²` : "–"), title: "Land inside the boundary (null: no boundary published)" }] : []),
     ],
@@ -323,7 +323,7 @@ export async function mount(ctx) {
     rMax: 14, minR: 2.6, alpha: 0.6,
     tip: (b) => {
       const it = b.it, c = compById.get(it.component);
-      return `<b>${esc(it.name)}</b><br>${esc(c?.name || it.component)} · ${esc(TIER_LABEL[it.tier] || it.tier)}${fin(it.area_km2) ? ` · ${count3(it.area_km2)} km²` : ""}${it.state ? ` · ${esc(it.state)}` : ""}${it.status && it.status !== "act" ? `<br><span class="sub">${esc(STATUS[it.status] || it.status)}</span>` : ""}${it.period ? `<br><span class="sub">${esc(it.town)} · ${esc(it.period)}</span>` : ""}`;
+      return `<b>${esc(it.name)}</b><br>${esc(c?.name || it.component)} · ${esc(data.source(it.source)?.marker_designation || TIER_LABEL[it.tier] || it.tier)}${fin(it.area_km2) ? ` · ${count3(it.area_km2)} km²` : ""}${it.state ? ` · ${esc(it.state)}` : ""}${it.status && it.status !== "act" ? `<br><span class="sub">${esc(STATUS[it.status] || it.status)}</span>` : ""}${it.period ? `<br><span class="sub">${esc(it.town)} · ${esc(it.period)}</span>` : ""}`;
     },
     onHover: (b) => {
       instTable.setHot(b ? b.key : null);

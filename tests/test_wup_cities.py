@@ -17,6 +17,7 @@ class ParsePlacesTest(unittest.TestCase):
         self.assertEqual(delhi, {
             "id": "10", "name": "Delhi", "x": 77220, "y": 28660, "capital": True,
             "population": 1000125, "projected_growth": 1000.125 / 900 - 1, "growth_period": "1 Jul 2025 – 1 Jul 2026",
+            "population_midyear": {"2025": 900000, "2026": 1000125},
         })
         self.assertEqual(town["name"], "Other Town")
         self.assertFalse(town["capital"])

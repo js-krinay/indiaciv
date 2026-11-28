@@ -23,6 +23,7 @@ from .city_people import quarterly_resident_industries, resident_industries
 from .boundaries import ring_moments
 from .cities import NO_ECONOMY
 from .historical_land import ESRI_CLASSES, advisor_columns as land_columns
+from .household_analogues import state_columns as household_columns
 from .hex_geography import AGE_META, prepared_geography
 from .projection import state_population, state_profile, state_vitals
 from .world import PCT
@@ -208,7 +209,8 @@ def build() -> None:
                                 **state_explorer_columns(statistics, annual_work.get("industry")),
                                 **explorer_gsva_columns(sector_mix),
                                 **state_gdp_columns,
-                                **metric_columns(metrics[abbr], state_metrics["definitions"])},
+                                **metric_columns(metrics[abbr], state_metrics["definitions"]),
+                                **household_columns(metrics[abbr], state_metrics["definitions"], historical_land)},
             "energy": power_summary(resources.get(abbr, {})),
             "metrics": metrics[abbr],
             "sector_mix": sector_mix,

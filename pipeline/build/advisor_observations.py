@@ -5,6 +5,7 @@ from collections import defaultdict
 
 from .advisor_inventory import FY, SNAPSHOT, column
 from .air_weather import MONSOON_BANDS
+from .household_analogues import consumption
 
 MARCH = "1 March 2026"
 MID = "mid-2026"
@@ -128,10 +129,7 @@ def place_columns(level, row, ident, profile, lenses, protected_share, district_
             internet if internet is not None else row.get("internet_per_100"), lens="internet_per_100", estimated=True,
             description="June subscriptions divided by the projected 1 March 2026 population. Includes all access types.")
     else:
-        add("consumption_index", "Urban district consumption per person index (Uttar Pradesh urban = 100)",
-            "float", "index", "Prosperity", "HCES 2022–23 (1 Aug 2022 to 31 Jul 2023)", "mospi_up_hces_pilot",
-            row.get("consumption_index"), vintage="older", hide_rank=True,
-            description="Urban residents of the reporting district. City entries represent a single urban member district.")
+        out["consumption_index"] = consumption(row.get("consumption_index"), city=is_city)
         cultivation = (path_value(profile, ("citizens", "cultivation")) if is_city else row.get("cultivation")) or {}
         add("cultivation_share", "Cultivators and agricultural labourers among urban district workers",
             "pct", "% of urban district workers", "Work", "Census 2011", "orgi_cultivation_pca",

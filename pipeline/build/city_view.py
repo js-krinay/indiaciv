@@ -11,13 +11,14 @@ from ..core.paths import WEB_DATA
 from ..core.hexgrid import SQRT3, HexGrid
 from ..core.store import load_interim, write_web
 from ..india import CITY_POPULATION_GRID, GHSL_UCDB, IFI_SOURCE
-from ..india.census_work_sources import CULTIVATION_INTERIM
+from ..india.census_work_sources import CULTIVATION_INTERIM, INTERIM as CENSUS_WORK
 from ..india.city_sources import AGE_SOURCE, GOVERNMENT_SITES, GOVERNMENT_SITE_SOURCE
 from ..india.science_sources import research_points
 from ..india.transport import MILITARY_FACILITY, is_civil_airport
 from .advisor_statistics import civic_office_columns, civic_office_points, civic_offices_in_footprint
 from ..core.source import osm_notice
-from .city_conditions import city_conditions, explorer_condition_columns, load_air
+from .city_conditions import check_housing_output, city_conditions, explorer_condition_columns, load_air
+from .districts import COMMERCIAL_INFO, LAND_USE_PERIOD, LAND_USE_SITES, site_observation
 
 CAPITALS = {
     "BR": "Patna", "CH": "Chandigarh", "CG": "Raipur", "DL": "Delhi", "JH": "Ranchi",
@@ -30,6 +31,8 @@ BADGE_PERIOD = "November 2026"
 BADGE_SOURCES = {
     "campus": {"research_points"}, "harbor": {"cwprs_port_locations", "featured_port_locations"},
     "aerodrome": {"ourairports"}, "government_plaza": {GOVERNMENT_SITE_SOURCE},
+    "industrial_land_use": {"osm_transport"},
+    "commercial_hub": {COMMERCIAL_INFO.id},
 }
 
 
@@ -44,13 +47,18 @@ def district_badges(profile, rings, district_shapes, points):
             continue
         district = next((member for member in members if district_shapes[member].contains(x, y)), None)
         if district:
-            badges.setdefault((district, kind), {"district": district, "kind": kind, "name": name,
-                                                "source": source, "period": BADGE_PERIOD, "estimated": False})
+            site = {"district": district, "kind": kind, "name": name,
+                    "source": source, "period": BADGE_PERIOD, "estimated": False}
+            land_use = LAND_USE_SITES.get(name)
+            if land_use and (land_use["kind"], land_use["source"]) == (kind, source):
+                site.update(label=land_use["label"], short_label=land_use["short_label"], period=LAND_USE_PERIOD,
+                            url=f'https://www.openstreetmap.org/way/{land_use["way"]}')
+            badges.setdefault((district, kind), site)
     return sorted(badges.values(), key=lambda badge: (badge["district"], badge["kind"]))
 
 REQUIRES = ["cities.json", "world.json", "infrastructure.json", "resources.json", "lenses.json",
             "workplace.json", "counties.json", "datameet"]
-OPTIONAL_REQUIRES = [IFI_SOURCE, CULTIVATION_INTERIM]
+OPTIONAL_REQUIRES = [IFI_SOURCE, CULTIVATION_INTERIM, CENSUS_WORK]
 PRODUCES = ["city_view.json", "citizens.json", "districts.json"]
 CONFIG = Path(__file__).resolve().parents[1] / "india" / "config"
 
@@ -127,7 +135,7 @@ def footprint_resources(rings, resources, excluded):
 
 def build():
     from .census_civic import advisor_columns, civic_rows
-    from ..india.census_work_sources import INTERIM as CENSUS_WORK
+    from .citizens import commute_analogues
     from .city_economy import city_finances, explorer_gateway_columns, gateway_records
     from .city_people import age_profile
     from .city_view_contract import (FIGURES, GROUPS, citizen_mix, cultivation_mix,
@@ -181,6 +189,8 @@ def build():
                         for p in transport.get("ports", []) if p["category"] == "Major port" or p.get("featured"))
     badge_points.extend(("aerodrome", p["name"], "ourairports", p["x"], p["y"])
                         for p in transport.get("airports", []) if is_civil_airport(p))
+    badge_points.extend((site["kind"], name, site["source"], *project(*site["point"]))
+                        for name, site in LAND_USE_SITES.items())
     profiles = {}
     citizen_records = {}
     civic = civic_rows("cities")
@@ -198,6 +208,11 @@ def build():
         profile["civic_offices"] = civic_offices_in_footprint(civic_offices, rings)
         profile["advisor_columns"] = civic_office_columns(profile["civic_offices"])
         profile["district_badges"] = district_badges(profile, rings, district_shapes, badge_points)
+        for site in profile["district_badges"]:
+            if observation := site_observation(city_id, site):
+                profile["advisor_columns"]["nirf_rourkela_doctoral"] = {
+                    **observation, "group": "Education", "format": "int", "scope": site["name"],
+                }
         state = city["states"][0]
         if city.get("capital") or CAPITALS.get(state) == city["name"]:
             designation = "Union territory capital" if state in UT_CAPITALS else "State capital"
@@ -220,9 +235,13 @@ def build():
         if city_id in civic:
             profile["citizens"]["census_civic"] = civic[city_id]
             profile["advisor_columns"].update(advisor_columns(civic[city_id], city=True))
+            profile["advisor_columns"].update(commute_analogues(civic[city_id].get("commute", {})))
         if city_id in historical_work:
-            profile["citizens"]["census_work"] = historical_work[city_id]
-            profile.setdefault("advisor_columns", {}).update(explorer_resident_columns(historical_work[city_id]))
+            work = historical_work[city_id]
+            profile["citizens"]["census_work"] = {
+                key: {k: v for k, v in record.items() if k != "details"} for key, record in work.items()
+            }
+            profile["advisor_columns"].update(explorer_resident_columns(work))
         if record := cultivation_mix([row["id"] for row in profile["districts"]], cultivation):
             profile["citizens"]["cultivation"] = record
         if mix := citizen_mix(profile["citizens"], ages, city):
@@ -252,8 +271,8 @@ def build():
                         "source": CITY_POPULATION_GRID}
         profiles[city_id] = profile
     write_web("city_view.json", {"grid_fingerprint": fingerprint, "profiles": profiles,
-                                "osm_license": osm_notice("Civic office names, rail proximity and some campus "
-                                                          "badge matches derived from OpenStreetMap")})
+                                "osm_license": osm_notice("Civic office names, rail proximity and land-use site "
+                                                          "observations derived from OpenStreetMap")})
     benchmarks = [row["workforce"].pop("benchmark") for row in citizen_records.values()
                   if "benchmark" in row.get("workforce", {})]
     if benchmarks and any(row != benchmarks[0] for row in benchmarks):
@@ -284,6 +303,9 @@ def valid_census_work(records):
         allowed = {"values", "source", "vintage", "period", "scope"}
         if series == "occupations":
             allowed |= {"benchmark", "specialist"}
+        else:
+            from ..india.census_work import DETAIL_LABELS
+            allowed.add("details")
         if (not isinstance(record, dict) or not record.keys() <= allowed
                 or record.get("vintage") != "older" or record.get("period") != PERIOD
                 or record.get("source") != f"orgi_work_{series}"
@@ -292,6 +314,10 @@ def valid_census_work(records):
             return False
         if series == "occupations" and not valid_shares(record.get("benchmark"), expected[series]):
             return False
+        if series == "industries" and (details := record.get("details")) is not None:
+            if (not isinstance(details, dict) or not details.keys() <= DETAIL_LABELS.keys()
+                    or any(type(value) not in (int, float) or not 0 <= value <= 1 for value in details.values())):
+                return False
         if "specialist" in record:
             specialist = record["specialist"]
             if (not isinstance(specialist, dict) or specialist.keys() != {"family", "ratio"}
@@ -374,7 +400,9 @@ def check(web_dir):
         badges = profile.get("district_badges", [])
         valid &= len({(row["district"], row["kind"]) for row in badges}) == len(badges)
         valid &= all(row["district"] in members and row["source"] in BADGE_SOURCES.get(row["kind"], ())
-                     and row["period"] == BADGE_PERIOD and not MILITARY_FACILITY.search(row["name"])
+                     and row["period"] == (LAND_USE_PERIOD if row["kind"] in {"industrial_land_use", "commercial_hub"}
+                                           else BADGE_PERIOD)
+                     and not MILITARY_FACILITY.search(row["name"])
                      for row in badges)
         if any(row["kind"] == "government_plaza" for row in badges):
             facility = GOVERNMENT_SITES.get(cities[city_id]["states"][0])
@@ -392,6 +420,8 @@ def check(web_dir):
     if failures:
         return failures
     result = check_display_contract(web_dir, profiles)
+    if (web_dir / "advisor_tables.json").exists():
+        result += check_housing_output(web_dir, cities, profiles)
     return result + [("PASS", f"{len(profiles)} profiles ({spatial} GHSL, {len(profiles) - spatial} point), conserved population and valid spatial shares"),
             ("PASS", f"Historical resident workforce shares: {historical_coverage} City View profiles"),
             ("PASS", f"City View coverage: {age_coverage} age, {labour_coverage} workforce, {plaque_coverage} industry plaques")]
@@ -411,7 +441,7 @@ def check_display_contract(web_dir, profiles):
         or any(not record.get("source") or not record.get("period")
                or sum(record["figures"].values()) != FIGURES[key]
                or abs(sum(record["shares"].values()) - 1) > 1e-4
-               for key, record in row.items() if key != "specialists")
+               for key, record in row.items() if key in FIGURES)
         for row in citizen_rows.values()
     ):
         return [("FAIL", "City View citizen mixes need a dated source and conserved civilian figure shares")]

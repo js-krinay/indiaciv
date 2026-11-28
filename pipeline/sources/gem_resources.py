@@ -17,9 +17,22 @@ CDN = "https://publicgemdata.nyc3.cdn.digitaloceanspaces.com/"
 NO_PUMPING = {"L100000601895", "L100000602025"}
 
 
+def reported_products(row):
+    products = []
+    for product in ("oil", "gas"):
+        try:
+            volume = float(row.get(f"prod-{product}") or 0)
+        except (ValueError, TypeError):
+            continue
+        if math.isfinite(volume) and volume > 0:
+            products.append(product)
+    return products
+
+
 def parse_sites(rows, kind):
     """Sum rated operating power units by project and fuel. Mines and fields are already site rows."""
     sites = defaultdict(list)
+    fields = {}
     seen = set()
     for row in rows:
         if row["country-area1"] != "India" or row["status"] != "operating":
@@ -29,7 +42,7 @@ def parse_sites(rows, kind):
         project, name = row["project-id"], row["name"]
         if any(MILITARY_FACILITY.search(row.get(key) or "") for key in ("name", "owner", "operator")):
             continue
-        unit = row.get("unit-id") or project
+        unit = project if kind == "oil" else row.get("unit-id") or project
         if not project or not name or unit in seen:
             continue
         resource = row["asset-type"] if kind == "power" else kind
@@ -42,6 +55,9 @@ def parse_sites(rows, kind):
                 resource = "oil"
             elif label.endswith(" gas field") and not label.endswith("oil and gas field"):
                 resource = "gas"
+            products = reported_products(row)
+            if products == ["oil", "gas"] or (resource == "gas" and "oil" in products):
+                resource = "oil_gas"
         if resource == "oil/gas":
             fuel = row["fuel"]
             if "fossil gas:" in fuel:
@@ -60,12 +76,14 @@ def parse_sites(rows, kind):
         if kind == "iron":
             value /= 1000  # thousand tonnes per year → million tonnes per year
         seen.add(unit)
+        if kind == "oil":
+            fields[project] = {"id": project, "reported_products": products}
         sites[project, resource].append((value, name.removesuffix(" (India)"), lat, lon,
                                          row.get("location-accuracy") or ""))
     return [
         {"type": resource, "name": name, "lat": lat, "lon": lon, "location_accuracy": accuracy or None,
-         "value": round(sum(u[0] for u in units), 6)}
-        for (_, resource), units in sites.items()
+         "value": round(sum(u[0] for u in units), 6), **fields.get(project, {})}
+        for (project, resource), units in sites.items()
         for _, name, lat, lon, accuracy in [max(units)]
     ]
 
@@ -84,7 +102,7 @@ class GemExport(Source):
                 feature["properties"] for feature in json.load(f)["features"]
             )
             sites = parse_sites(rows, self.kind)
-        return {"sites": sites, "vintage": self.vintage, "technology_version": 2, "_files": [filename]}
+        return {"sites": sites, "vintage": self.vintage, "technology_version": 3, "_files": [filename]}
 
 
 class GemPower(GemExport):

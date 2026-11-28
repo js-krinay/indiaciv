@@ -20,6 +20,7 @@ from .civic_sources import SOURCES as CIVIC_SOURCES
 from .yield_sources import SOURCES as YIELD_SOURCES
 from .protected_land_catalog import SOURCES as PROTECTED_SOURCES
 from .terrain_assets import ARCHIVES, ELEVATION, REEFS
+from .transport_analogue_sources import SOURCES as TRANSPORT_ANALOGUE_SOURCES
 
 IFI_SOURCE = "ifi_flood_impacts"
 IFI_CHECKSUM = "ef9ab2cd0db7bf917dcc22c7cb094ec599f5013ef1b96ba525d816f26ff1b108"
@@ -423,6 +424,8 @@ LOCAL_SOURCES.extend(CENSUS_WORK_SOURCES)
 LOCAL_SOURCES.append(PCA_SOURCE)
 LOCAL_SOURCES.extend(HOUSEHOLD_COST_SOURCES)
 LOCAL_SOURCES.append(VILLAGE_LAND_INFO)
+
+LOCAL_SOURCES.extend(TRANSPORT_ANALOGUE_SOURCES)
 
 
 SOI_POLITICAL_MAP = SourceInfo(

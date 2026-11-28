@@ -1,6 +1,15 @@
 """Transcriptions of the MoPSW March cargo and PIB annual railway tables."""
 
 AAI_JHARSUGUDA = "aai_vejh_20260806"
+PREVIOUS_FY = "FY 2024-25 (1 Apr 2024 – 31 Mar 2025)"
+AIRPORT_LABELS = {
+    "passengers": "Airport share of reported AAI terminal passenger traffic",
+    "freight": "Airport share of reported AAI freight handled",
+    "change": "Airport terminal passenger traffic growth",
+    "size": "OurAirports facility size class",
+}
+PORT_DIRECTION_LABELS = {"loaded": "Share of this port’s overseas cargo loaded",
+                         "unloaded": "Share of this port’s overseas cargo unloaded"}
 OPERATOR_LOCALITIES = "adani_port_addresses_fy25"
 VERIFIED_PORT_LOCALITIES = {
     "n3732668135": "Muthukur",
@@ -63,7 +72,9 @@ FEATURED_PORTS = [
     ("karaikal", "Karaikal Port", 79.853114, 10.848394, "featured_port_locations"),
 ]
 
-FREIGHT = dict(estimated=False, **PERIOD, unit="million metric tonnes", source_id="pib_rail_freight", total=1669.93, rows=[
+FREIGHT = dict(estimated=False, **PERIOD, unit="million metric tonnes", source_id="pib_rail_freight",
+               title="Indian Railways originating freight loading",
+               zone_title="Rail originating freight loading by railway zone", total=1669.93, rows=[
     ["CR", "Central", 79.34],
     ["EC", "East Central", 203.42],
     ["ECO", "East Coast", 286.26],

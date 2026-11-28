@@ -9,6 +9,8 @@ from .historical_sources import PORT_PERIOD as PERIOD, PORT_SHA256 as SHA256, PO
 
 from ..core.store import save_interim
 
+JOIN_VERSION = 2
+
 MAJOR = {
     "SMPA Kolkata Dock": "kolkata", "SMPA Haldia Dock": "kolkata",
     "Paradip Port": "paradip", "Visakhapatnam Port": "visakhapatnam",
@@ -73,9 +75,9 @@ def non_major_port_directions(report):
             continue
         for line in page.splitlines():
             columns = re.split(r"\s{2,}", line.strip())
-            port = NON_MAJOR.get(columns[0])
+            port = NON_MAJOR_SPLIT.get(columns[0])
             if port and len(columns) == 19:
-                records[port] = tuple(map(int, columns[13:15]))
+                records[port] = tuple(map(float, columns[13:15]))
     return records
 
 
@@ -140,12 +142,12 @@ def main():
     report = subprocess.check_output(["pdftotext", "-layout", str(pdf), "-"], text=True)
     ports = major_port_directions(report) | non_major_port_directions(report)
     states = state_directions(report)
-    if set(ports) != set(MAJOR.values()) | set(NON_MAJOR.values()) or set(states) != set(STATES.values()):
+    if set(ports) != set(MAJOR.values()) | set(NON_MAJOR_SPLIT.values()) or set(states) != set(STATES.values()):
         parser.error("The report does not contain all expected overseas cargo rows")
     splits = non_major_cargo_shares(report)
     if splits != {key: non_major_cargo_record(*totals) for key, totals in NON_MAJOR_TOTALS.items()}:
         parser.error("The PDF port cargo splits differ from the build transcription")
-    save_interim(SOURCE, {"ports": shares(ports), "states": shares(states)}, vintage=PERIOD)
+    save_interim(SOURCE, {"ports": shares(ports), "states": shares(states), "join_version": JOIN_VERSION}, vintage=PERIOD)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 """Public civic boards, headquarters cities and national strength."""
 
 import json
+from math import isclose
 from collections import defaultdict
 
 from ..core.geo import MapProjection, Shape
@@ -47,6 +48,31 @@ PUBLIC_INDICATORS = (
     "cantonment_boards", "legacy_sainik_schools", "sainik_schools",
     "rashtriya_military_schools", "defence_psu_turnover",
 )
+
+FISCAL_HEADS = {
+    "Capital": "Defence Services capital outlay share of MoD allocation",
+    "Revenue": "Defence Services revenue head share of MoD allocation",
+    "Civil organisations": "Civil organisations share of MoD allocation",
+    "Pensions": "Defence pensions share of MoD allocation",
+}
+
+
+def budget_heads(budget):
+    """Use one complete budget estimate and its common national denominator."""
+    heads, total = budget.get("heads", {}), budget.get("total")
+    if (heads.keys() != FISCAL_HEADS.keys() or not total or any(value < 0 for value in heads.values())
+            or not isclose(sum(heads.values()), total, rel_tol=0, abs_tol=0.005)):
+        return []
+    return [
+        {"label": label, "value": round(100 * heads[head] / total, 2), "unit": "%",
+         "period": budget["period"], "source": budget["source"], "scope": "Union budget estimate"}
+        for head, label in FISCAL_HEADS.items()
+    ]
+
+
+def public_designation(source):
+    return ("Joint-services command (public designation)" if source == "command_hq_2133190"
+            else "Named in public government directory or release")
 
 
 def town_record(name, state, town, component, tier, period, source, places, cell_at):

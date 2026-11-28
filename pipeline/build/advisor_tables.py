@@ -28,7 +28,8 @@ def column_table(places, id_key):
         for key, observation in observations.items():
             base = field(key, key, "text") if observation.get("hidden") else {"key": key}
             definitions.setdefault(key, {**base, "estimated": False,
-                                         **{k: v for k, v in observation.items() if k != "value"}})
+                                         **{k: v for k, v in observation.items()
+                                            if k != "value" and not (key == "pasture" and k in ("coverage", "sparse"))}})
             vintage = observation.get("vintage")
             if (vintage == "older" and key in ("median_age", "unemployment", "state_urban_unemployment_15_plus",
                                                "registered_veterans", "veterans", "veteran_share", "veterans_pct")
@@ -172,6 +173,13 @@ def advisor_tables(world, lenses, workplace, cities, city_view, states, nation, 
                 for name, record in local.items():
                     if name not in columns or record.get("value") is not None:
                         columns[name] = {**record, **row.get("provenance", {}).get(name, {})}
+            if level == "metros":
+                for name, label in (
+                    ("cultivation_share", "Cultivators and agricultural labourers among urban member-district workers"),
+                    ("cz_car", "Car, jeep or van commuters among Census Other workers"),
+                ):
+                    if name in columns:
+                        columns[name].update(label=label, hide_rank=True, higher_is="neutral")
             if level == "states":
                 population = row.get("population")
                 output = path_value(row, ("yields", "gold"))
@@ -235,6 +243,9 @@ def advisor_tables(world, lenses, workplace, cities, city_view, states, nation, 
                         columns[name].update(value=native[upstream], **meta.get(upstream, {}))
                 columns["cell"] = {"hidden": True, "value": native.get("cell")}
                 columns["center"] = {"hidden": True, "value": row.get("center")}
+            for name in ("consumption_index", "consumption_index_rural"):
+                if name in columns:
+                    columns[name]["format"] = "decimal2"
             aliases = {"land_km2": "area_km2", **{
                 f"y_{name.removeprefix('yield_')}": name
                 for name in columns if name.startswith("yield_") and not name.endswith("_rank")

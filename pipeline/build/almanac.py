@@ -9,10 +9,11 @@ from ..core.paths import WEB_DATA
 from ..core.store import write_web
 from .almanac_text import NOTES, WONDER_NOTES
 from .projection import NORTH_EAST
+from .transport_statistics import PORT_DIRECTION_LABELS
 
 REQUIRES = ["world.json", "states.json", "cities.json", "nation.json", "lens_catalog.json",
             "resources.json", "wonders.json", "infrastructure.json", "protected_land.json",
-            "protected_ramsar.json", "sources.json", "military.json"]
+            "protected_ramsar.json", "sources.json", "military.json", "disasters.json"]
 PRODUCES = ["almanac.json"]
 RUN_LAST = True
 
@@ -33,7 +34,7 @@ def number(value, digits=2):
 
 
 def make_entries(*, world, states=(), cities=(), wonders=None, lenses=None, nation=None,
-                 resources=None, infrastructure=None, protected=(), sources=(), military=None):
+                 resources=None, infrastructure=None, protected=(), sources=(), military=None, disasters=None):
     pages = {}
     source_names = {row["id"]: row["title"] for row in sources}
     lens_names = {row["id"]: row for row in (lenses or {}).get("lenses", [])}
@@ -247,8 +248,12 @@ def make_entries(*, world, states=(), cities=(), wonders=None, lenses=None, nati
         for key, value in gva["values"].items():
             add("Yields", "National gross value added", gva["labels"][key],
                 figure("Provisional GVA at basic prices", value, "INR", meta),
-                f"{number(100 * value / total)}% of nominal GVA · {gva['period']}",
+                figure("Share of India’s nominal GVA by economic activity", round(100 * value / total, 2), "%", meta),
                 sources=(gva["source"],))
+        if estimate := next((city["advisor_columns"]["gva_agriculture_city_share"] for city in cities
+                          if "gva_agriculture_city_share" in city.get("advisor_columns", {})), None):
+            add("Yields", "National gross value added", "City View · GVA comparisons",
+                estimate["description"], estimate["period"], sources=estimate["source"])
 
     if military:
         national = military["national"]
@@ -284,12 +289,13 @@ def make_entries(*, world, states=(), cities=(), wonders=None, lenses=None, nati
 
     freight = infrastructure.get("freight")
     if freight:
-        add("About this map", "Railways", "Originating freight by railway", *NOTES["Railways"],
+        add("About this map", "Railways", freight.get("zone_title", "Originating freight by railway"),
+            freight["label"], *NOTES["Railways"],
             infrastructure.get("vintage", {}).get("network"),
             infrastructure.get("vintage", {}).get("airports"), sources=infrastructure.get("sources", []))
         for code, name, amount in [*freight["rows"], ("india", "India", freight["total"])]:
-            add("About this map", "Railways", name,
-                f"{number(amount)} {freight['unit']} · {freight['label']}")
+            add("About this map", "Railways", name, freight.get("title", "") if code == "india" else "",
+                f"{number(amount)} {freight['unit']} · {freight['label']}", sources=(freight["source_id"],))
     for name, cells in infrastructure.get("rail_corridors", {}).items():
         add("About this map", "Railways", name,
             f"{number(len(set(cells)), 0)} mapped corridor hexes · {infrastructure['vintage']['network']}",
@@ -310,12 +316,14 @@ def make_entries(*, world, states=(), cities=(), wonders=None, lenses=None, nati
                 ("tons", "Cargo handled", "metric tonnes"), ("rank", "Major-port cargo rank", ""),
                 ("domestic", "Domestic cargo", "metric tonnes"), ("foreign", "Overseas cargo", "metric tonnes"))),
             figure(" · ".join(filter(None, ("Coastal cargo", coastal.get("status")))), coastal.get("tons"), "metric tonnes",
-                   {"period": coastal.get("period"), "source": coastal.get("source_id")}),
-            *(figure(label, direction[key] * 100, "%", {
-                "period": direction["period"], "vintage": direction["vintage"], "source": direction.get("source_id"),
-              })
-              for key, label in (("unloaded", "Overseas cargo unloaded"), ("loaded", "Overseas cargo loaded"))
-              if direction.get(key) is not None))
+                   {"period": coastal.get("period"), "source": coastal.get("source_id")}))
+        if direction:
+            labels = direction.get("labels", PORT_DIRECTION_LABELS)
+            add("About this map", "Ports · overseas cargo direction", port.get("city") or "Port shares", port["name"],
+                *(figure(labels[key], direction[key] * 100, direction.get("unit", "%"), {
+                    "period": direction["period"], "vintage": direction["vintage"], "source": direction.get("source_id"),
+                  })
+                  for key in ("unloaded", "loaded") if direction.get(key) is not None))
     for airport in infrastructure.get("airports", []):
         locality = airport.get("city_provenance") or {}
         add("About this map", "Airports", airport["name"],
@@ -323,6 +331,46 @@ def make_entries(*, world, states=(), cities=(), wonders=None, lenses=None, nati
                                      airport.get("period") or infrastructure.get("vintage", {}).get("airports")))),
             " · ".join(filter(None, ("Locality · Airports Authority of India", locality.get("period")))) if locality else "",
             sources=("ourairports", locality.get("source_id") or locality.get("source")))
+
+    if observed := (infrastructure.get("trade") or {}).get("observed_coastal"):
+        group = observed["title"]
+        add("About this map", group, "Coverage and method", observed["period"], observed["rule"],
+            "Relative cargo ranges use 25-percentage-point categories. "
+            "The largest published entry is the 100% reference.",
+            sources=(observed["source"],))
+        zones = {zone["id"]: zone for zone in observed["zones"]}
+        labels = observed["labels"]
+        modes = {mode["id"]: mode["name"] for mode in observed["modes"]}
+        for route in observed["routes"]:
+            loading, unloading = (zones[route[key]] for key in ("a", "b"))
+            endpoints = []
+            for key, endpoint in (("a", loading), ("b", unloading)):
+                parts = [labels[key], endpoint["name"], endpoint["kind"],
+                         f"{labels['state']} · {', '.join(endpoint['states'])}"]
+                if anchor := endpoint.get("anchor"):
+                    parts.append(f"{labels['anchor']} · {anchor['name']}")
+                endpoints.append(" · ".join(parts))
+            add("About this map", group, f"Entry {route['report_order']}",
+                f"{loading['name']} → {unloading['name']}", route["period"], *endpoints,
+                f"{labels['order']} · {route['report_order']}",
+                f"{labels['band']} · {route['band']}",
+                f"{labels['distance']} · {number(route['dist_km'], 0)} {observed['units']['distance']}"
+                if "dist_km" in route else "",
+                f"{labels['mode']} · {modes[route['top_mode']]}",
+                f"{labels['commodities']} · " + ", ".join(observed["commodities"][tag] for tag in route["commodities"]),
+                sources=(route["source"],))
+        for endpoint in zones.values():
+            partners = dict.fromkeys(f"{partner['direction']} · {zones[partner['id']]['name']}"
+                                     for partner in endpoint["partners"])
+            add("About this map", group, "Counterparts", endpoint["name"], labels["partners"],
+                endpoint["period"], *partners, sources=(endpoint["source"],))
+    for airport in infrastructure.get("airports", []):
+        if traffic := airport.get("traffic"):
+            add("About this map", "Airports · AAI traffic", airport["id"], airport["name"],
+                *(dict(label=metric["label"], formatted=metric["formatted"], period=metric["period"],
+                       vintage=metric.get("vintage"), source=metric["source_id"],
+                       scope=f"Versus {metric['comparison']['period']}" if "comparison" in metric else "")
+                  for metric in traffic.values()))
 
     sites = {row["id"]: row for file in protected if file for row in file.get("sites", []) if not row.get("ramsar_id")}
     if sites:
@@ -340,6 +388,43 @@ def make_entries(*, world, states=(), cities=(), wonders=None, lenses=None, nati
             f"Official area · {number(area / 100, 4)} km² · {row['period']}"
             if area is not None and row.get("period") else "",
             sources=(row.get("authority_source"), geometry_source))
+    from .military import budget_heads, public_designation
+
+    if military:
+        budget = nation.get("advisor_statistics", {}).get("defence_budget", {})
+        if heads := budget_heads(budget):
+            add("Yields", "Public defence statistics", "MoD allocation shares by fiscal head",
+                *(figure(row["label"], row["value"], row["unit"],
+                         {key: row[key] for key in ("period", "source")}, scope=row["scope"]) for row in heads),
+                sources=(budget["source"],))
+        for row in military.get("installations", []):
+            add("Yields", "Public defence statistics", row["name"],
+                f"{public_designation(row['source'])} · {row['town']} · {row['period']}", sources=(row["source"],))
+
+    if disasters:
+        for row in disasters.get("observations", []):
+            period_source = {key: row[key] for key in ("period", "source", "vintage") if key in row}
+            add("Terrain", "Hazards", row["location"], figure(row["label"], row["value"], row["unit"], period_source),
+                ", ".join(row.get("dates", [])), sources=(row["source"],))
+        for incident in disasters["fema"]["recent"]:
+            if impact := incident.get("housing_impact"):
+                formatted = f"{impact['comparator']}{number(impact['value'], 0)} {impact['unit']}"
+                add("Terrain", "Hazards", incident["title"],
+                    figure(impact["label"], impact["value"], impact["unit"],
+                           {"period": impact["period"], "source": impact["source"], "formatted": formatted}),
+                    sources=(impact["source"],))
+
+    if research := wonders.get("research_observation"):
+        add("About this map", "Science", research["name"],
+            figure(research["label"], research["value"], research["unit"],
+                   {key: research[key] for key in ("period", "source", "vintage")}),
+            sources=(research["source"], "research_nits", "research_points"))
+
+    if affiliation := wonders.get("national", {}).get("faith_distribution"):
+        provenance = {key: affiliation[key] for key in ("period", "source", "vintage")}
+        add("About this map", "Culture", affiliation["label"],
+            *(figure(part["label"], part["value"], affiliation["unit"], provenance) for part in affiliation["parts"]),
+            sources=(affiliation["source"],))
     return pages
 
 
@@ -378,7 +463,7 @@ def read_entries(web_dir):
         wonders=read("wonders"), lenses=read("lens_catalog"), nation=read("nation"),
         resources=read("resources"), infrastructure=read("infrastructure"),
         protected=(read("protected_land"), read("protected_ramsar")),
-        sources=read("sources", []), military=read("military"),
+        sources=read("sources", []), military=read("military"), disasters=read("disasters"),
     )
     tables, labels = terrain_captions(world)
     return {"sections": sections, "terrain_relief": tables.get("relief"), "cell_features": labels}

@@ -1,5 +1,6 @@
 """Build the air, hazard and housing fields of each City View profile."""
 
+import json
 from fractions import Fraction
 from math import fsum
 
@@ -64,10 +65,26 @@ def housing_market(city_name, markets):
         return None
     row = markets[label]
     return {
-        "market": label, "index": row.get("index"), "yoy_pct": row.get("yoy_pct"),
+        "market": label,
+        "index_difference": round(float(row["index"]) - 100, 2) if row.get("index") is not None else None,
         "period": HPI_PERIOD, "provisional": True,
         "source": HPI_SOURCE, "url": HPI_TABLE_URL,
     }
+
+
+def check_housing_output(web_dir, cities, profiles):
+    table = json.loads((web_dir / "advisor_tables.json").read_text())["metros"]
+    columns = table["columns"]
+    if {"city_housing_index", "house_price_index_difference"} & set(columns):
+        return [("FAIL", "Explorer still contains a legacy RBI index column")]
+    rows = {row[columns.index("id")]: dict(zip(columns, row)) for row in table["rows"]}
+    for city_id, city in cities.items():
+        expected = housing_market(city["name"], MARKETS)
+        if (profiles[city_id].get("housing") != expected or "house_price_index_difference" in city
+                or rows.get(city_id, {}).get("city_housing_index_difference")
+                != (expected or {}).get("index_difference")):
+            return [("FAIL", f"{city_id}: public RBI housing must use the dated difference from 100")]
+    return [("PASS", "RBI housing publishes only the matched index-point differences")]
 
 
 def load_air(world):
@@ -129,17 +146,15 @@ def explorer_condition_columns(profile):
                             "group": "Air & weather", "value": record.get(metric), "description": description,
                             "estimated": record.get("estimated", estimated)}
     if housing := profile.get("housing"):
-        common = {**metadata(housing), "group": "Housing", "description": "RBI registration-market index (base = 100).",
+        common = {**metadata(housing), "group": "Housing", "hide_rank": True,
+                  "description": "RBI registration-market index minus its 2022-23 base of 100.",
                   "status": "Provisional" if housing.get("provisional") else housing.get("status")}
-        for key, label, unit, fmt, item, divisor in (
-            ("market", "RBI housing market", "registration market", "text", "market", None),
-            ("index", "House Price Index", "index points", "decimal2", "index", 1),
-            ("yoy", "Annual house price change", "% change from a year earlier", "signed", "yoy_pct", 100),
+        for key, label, unit, fmt in (
+            ("market", "RBI housing market", "registration market", "text"),
+            ("index_difference", "City house price index relative to its 2022-23 base", "index points", "decimal2"),
         ):
-            value = housing.get(item)
-            if divisor is not None and value is not None:
-                value = float(value) / divisor
-            columns[f"city_housing_{key}"] = {**common, "label": label, "format": fmt, "unit": unit, "value": value}
+            columns[f"city_housing_{key}"] = {**common, "label": label, "format": fmt, "unit": unit,
+                                             "value": housing.get(key)}
     return columns
 
 

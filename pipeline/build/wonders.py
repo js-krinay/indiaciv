@@ -18,6 +18,10 @@ PARK_LIMIT = 5
 PARK_RULE = "national_park"
 RESEARCH_RULE = "research_inventory"
 RESEARCH_PERIOD = "27 November 2026"
+PARK_VISIT_SOURCE = "akashvani_kaziranga_october_2026"
+PARK_VISIT_PERIOD = "October 2026"
+NIRF_SOURCE = "nirf_2025_nit_rourkela"
+FAITH_SOURCE = "orgi_c01_india"
 RESEARCH_CLASSES = {"IISc", "IIT", "IISER"}
 FEATURED_CAMPUSES = {"IISc", "IIT Delhi"}
 PARK_ART = {
@@ -220,22 +224,77 @@ def add_rule_wonders(wonders, protected, points, world, grid, project):
         wonders[-1]["references"] = {"location": {"url": point["url"]}}
 
 
+def sponsored_research_observation(points):
+    matches = [point for point in points if (point["name"], point["kind"], point["district"])
+               == ("NIT Rourkela", "NIT", "21-374")]
+    if len(matches) != 1:
+        return None
+    return {
+        "name": matches[0]["name"], "district": matches[0]["district"],
+        "label": "Institution-reported sponsored research receipts per sponsored project",
+        "value": round(141_807_224 / 158), "unit": "₹ per project", "source": NIRF_SOURCE,
+        "period": "FY 2023-24 (1 Apr 2023 – 31 Mar 2024)", "vintage": "older",
+    }
+
+
+def attach_park_visits(wonders):
+    for row in wonders:
+        if row["id"] != "whc-337":
+            continue
+        visit = {
+            "label": "Reported Kaziranga visits (lower bound)", "short_label": "Kaziranga visits",
+            "value": 22_000, "comparator": ">",
+            "unit": "visits", "period": PARK_VISIT_PERIOD, "source": PARK_VISIT_SOURCE,
+        }
+        row["metrics"] = {**(row["metrics"] or {}), "park_visits": visit}
+        row.setdefault("sources", []).append(PARK_VISIT_SOURCE)
+        return visit
+
+
+def national_faith_distribution():
+    from ..india.census_civic import FAITHS
+
+    # C-01 (PC11_C01-00), INDIA / Total / Persons row.
+    counts = (966_257_353, 172_245_158, 27_819_588, 20_833_116, 8_442_972, 4_451_753, 7_937_734, 2_867_303)
+    population = 1_210_854_977
+    if sum(counts) != population:
+        raise ValueError("India C-01 counts disagree with the published national denominator")
+    return {
+        "label": "Residents reporting each religious affiliation", "period": "Census 2011",
+        "vintage": "older", "unit": "%", "source": FAITH_SOURCE,
+        "parts": [{"label": label, "value": round(100 * count / population, 2)}
+                  for label, count in zip(FAITHS, counts, strict=True)],
+    }
+
+
 def wonder_document(world, data, protected=(), wetlands=(), points=()):
     grid = HexGrid(**world["grid"])
     project = MapProjection(**world["projection"])
     wonders = place_wonders(data["wonders"], grid, world["owner"], project,
                             dict(zip(world["state_names"], world["states"])))
     attach_protection(wonders, [*protected, *wetlands])
+    points = list(points)
     add_rule_wonders(wonders, protected, points, world, grid, project)
+    park_visits = attach_park_visits(wonders)
+    if park_visits:
+        from .almanac import number
+        park = next(row for row in wonders if row["id"] == "whc-337")
+        visit_caption = f">{number(park_visits['value'], 0)}"
+        park["description"] += (f" {park_visits['label']} · {visit_caption} "
+                                f"{park_visits['unit']} · {park_visits['period']}.")
     return {
         "version": 1, "vintage": data["as_of"], "license": LICENSE, "license_url": LICENSE_URL,
-        "sources": [info.id for info in CREDITS],
+        "sources": [info.id for info in CREDITS] + [FAITH_SOURCE] + ([PARK_VISIT_SOURCE] if park_visits else []),
         "osm_license": osm_notice("OpenStreetMap-derived landmark anchors and protected area extents"),
         "rules": [{"id": key, "kinds": (["university"] if key == RESEARCH_RULE else
                   ["natural"] if key == PARK_RULE else ["natural", "landmark"]),
                    "label": RULE_LABELS.get(key, key.replace("_", " ").capitalize()),
                    "ranked": False, "text": phrase} for key, phrase in RULES.items()],
-        "national": {}, "wonders": wonders,
+        "national": {"faith_distribution": national_faith_distribution(),
+                     **({"park_visits": visit_caption, "park_visits_year": park_visits["period"],
+                         "park_visits_label": park_visits["short_label"]} if park_visits else {})},
+        "research_observation": sponsored_research_observation(points),
+        "wonders": wonders,
     }
 
 
@@ -266,14 +325,25 @@ def protected_inventory(osm, wetlands):
         if area is not None:
             from .almanac import number
             area_text = f"Official area · {number(area / 100, 4)} km²"
+        park = mapped_park_designation(site)
         result.append({**site, "hover": [
             site.get("status") or site.get("designation"),
+            f"{park['label']} · {park['period']}" if park else "",
             area_text,
             " · ".join(filter(None, (site.get("authority"), site.get("period")))),
             "Location · Wikidata" if source.startswith("wikidata:") else
             "Mapped geography · © OpenStreetMap contributors" if source.startswith(("node/", "way/", "relation/")) else "",
-        ]})
+        ], **({"park_unit": park} if park else {})})
     return result
+
+
+def mapped_park_designation(site):
+    if (site.get("designation") == "National park" and site.get("authority_source") == "wii_protected"
+            and site.get("cells") and (site.get("source") or "").startswith(("relation/", "way/"))):
+        return {"label": "Mapped designated national park", "value": site["designation"],
+                "period": "26 Nov 2026", "unit": "protected area type",
+                "source": ["wii_protected", "osm_protected"]}
+    return None
 
 
 def build():

@@ -31,7 +31,7 @@ export async function mount(ctx) {
   const drawTiles = (dis) => {
     tileEl.innerHTML = tiles([
       { label: "Wonders", value: int(wonders.length), sub: won?.vintage },
-      ...(fin(won?.national?.park_visits) ? [{ label: "Park visits", value: count3(won.national.park_visits), sub: won.national.park_visits_year }] : []),
+      ...(typeof won?.national?.park_visits === "string" || fin(won?.national?.park_visits) ? [{ label: won.national.park_visits_label || "Park visits", value: fin(won.national.park_visits) ? count3(won.national.park_visits) : won.national.park_visits, sub: won.national.park_visits_year }] : []),
       ...(fin(dis?.fema?.total) ? [{ label: "Documented hazards", value: int(dis.fema.total), sub: dis.period }] : []),
     ]);
   };
@@ -267,8 +267,8 @@ export async function mount(ctx) {
         rows: recent,
         columns: [
           { key: "date", label: "Date", align: "l", width: "78px", value: (r) => r.date, text: (r) => r.date_caption || r.date },
-          { key: "state", label: "State", align: "l", width: "38px", value: (r) => r.state, text: (r) => r.state },
-          { key: "type", label: "What", align: "l", width: "minmax(0,1.6fr)", value: (r) => r.title, html: (r) => `<i class="dot" style="background:${DIS_COLOR[r.type] || "#999"}"></i>${esc(r.title)}`, tip: (r) => [r.incident_type, r.title, data.source(r.source)?.title, fin(r.impact?.deaths) && `${int(r.impact.deaths)} reported deaths`, fin(r.impact?.houses_destroyed) && `${int(r.impact.houses_destroyed)} houses destroyed`].filter(Boolean).join(" · ") },
+          { key: "state", label: "State", align: "l", width: "38px", value: (r) => r.state, text: (r) => r.state, tip: (r) => [r.state_caption, r.state].filter(Boolean).join(" · ") },
+          { key: "type", label: "What", align: "l", width: "minmax(0,1.6fr)", value: (r) => r.title, html: (r) => `<i class="dot" style="background:${DIS_COLOR[r.type] || "#999"}"></i>${esc(r.title)}`, tip: (r) => [r.incident_type, r.title, data.source(r.source)?.title, fin(r.impact?.deaths) && `${int(r.impact.deaths)} reported deaths`, r.housing_impact?.caption || fin(r.impact?.houses_destroyed) && `${int(r.impact.houses_destroyed)} houses destroyed`].filter(Boolean).join(" · ") },
           { key: "areas", label: "Areas", value: (r) => r.areas, text: (r) => r.areas || "–", title: "Area named in the source report", tip: (r) => [r.areas, ...r.counties.map((id) => counties?.byKey.get(id)?.name)].filter(Boolean).join(" · ") },
         ],
         sort: { key: "date", dir: "desc" },

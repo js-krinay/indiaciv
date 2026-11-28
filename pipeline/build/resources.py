@@ -17,7 +17,7 @@ REQUIRES = ["_world", "world.json", *GEM_SOURCES, "cities.json"]
 OPTIONAL_REQUIRES = [GHSL_UCDB]
 PRODUCES = ["resources.json", "_crop_production"]
 GEM_PERIODS = {"gem_power": "Sep 2026", "gem_coal": "Aug 2026", "gem_iron": "Sep 2026",
-               "gem_oil_gas": "Mar 2026"}
+               "gem_oil_gas": "March 2026"}
 
 
 ADVISOR_GROUPS = [
@@ -34,8 +34,8 @@ ADVISOR_GROUPS = [
 def advisor_fields(types):
     silver = next((row for row in types if row["id"] == "lead_zinc"), None)
     if silver:
-        types = [*types, {**silver, "id": "silver", "name": "Silver by-product", "unit": None,
-                          "description": "Verified silver by-product at mapped lead-zinc mines."}]
+        types = [*types, {**silver, "id": "silver", "name": "Silver coproduct at a mapped lead-zinc operation",
+                          "unit": None, "description": "Commodity tag for verified silver coproduct hosts."}]
     periods = {"gem_power": "September 2026", "gem_coal": "August 2026",
                "gem_iron": "September 2026", "gem_oil_gas": "March 2026"}
     for row in types:
@@ -238,11 +238,22 @@ def mapped_gem_sites(world, grid, project):
                 x, y = (round(v, 1) for v in grid.center(*grid.col_row(cell)))
             period = GEM_PERIODS[source]
             detail = f"Operating in the {period} snapshot"
+            metadata = {}
+            if source == "gem_oil_gas" and "id" in site:
+                metadata["id"] = site["id"]
+                products = site["reported_products"]
+                if "oil" in products:
+                    label = "Mapped operating oil-producing field"
+                    if "gas" in products:
+                        label += " (oil and gas both reported)"
+                    detail += f" · {label}"
+                    metadata["oil"] = {"label": label, "unit": "field type", "value": kind,
+                                       "period": period, "source": source}
             if snapped:
                 detail += " · shown on the nearest land tile"
             items.append(dict(type=kind, name=site["name"], x=x, y=y, cell=cell,
                               value=site["value"], detail=detail, state=world["states"][world["owner"][cell]],
-                              cbsa=None, source=source, period=period, **site_point))
+                              cbsa=None, source=source, period=period, **site_point, **metadata))
     return items
 
 
@@ -285,6 +296,12 @@ def build():
     elevation = world_elevation(world, rendered)
     items.extend(crop_items(world, grid, project, {city["cell"] for city in cities},
                             {item["cell"] for item in items}, elevation))
+    for item in items:
+        if "silver" in item.get("byproducts", []):
+            item["silver"] = {"label": "Silver coproduct at a mapped lead-zinc operation",
+                              "unit": "commodity tag", "value": "silver",
+                              "period": item["period"], "source": item["source"]}
+            item["detail"] = item["detail"].replace("silver by-product", item["silver"]["label"])
     try:
         profiles = load_interim(GHSL_UCDB)["profiles"]
     except FileNotFoundError:

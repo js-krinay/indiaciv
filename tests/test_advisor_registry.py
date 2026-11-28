@@ -59,7 +59,7 @@ class AdvisorRegistryTests(unittest.TestCase):
                 "pm25": {"value": 121.2, "footprint_coverage": 0.8, "period": "Jan–Oct 2026",
                          "source": "test_pm25", "estimated": True},
             },
-            "housing": {"market": "Delhi", "index": "114.00", "yoy_pct": None, "period": "Apr–Jun 2026",
+            "housing": {"market": "Delhi", "index_difference": 14.00, "period": "Apr–Jun 2026",
                         "source": "test_hpi", "provisional": True},
         })
         fixture = {

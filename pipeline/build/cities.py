@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from collections import deque
+from collections import Counter, deque
 from typing import Callable
 
 from ..core.geo import MapProjection, Shape, ShapeIndex
@@ -12,7 +12,7 @@ from ..core.store import load_interim, load_interim_payload, write_web
 from ..india import DISPLAY_NAMES, GHSL_UCDB, WUP_SOURCE
 from ..india.annual_labour import SOURCE as ANNUAL_LABOUR_SOURCE, annual_rates, fallback_records
 from ..india.household_cost_sources import PILOT_INTERIM
-from ..india.city_economy_sources import NATIONAL_SOURCE, NOMINAL_SERIES
+from ..india.city_economy_sources import NATIONAL_SOURCE, NOMINAL_SERIES, SECTOR_MIX
 from ..india.city_sources import LABOUR_PERIOD, LABOUR_SOURCE
 from .advisor_statistics import civic_office_points, industry_shares, national_statistics
 from ..core.source import osm_notice
@@ -23,7 +23,7 @@ from .city_view_contract import SECTOR_LABELS, city_record, explorer_output_colu
 from .projection import CITY_GROWTH_PERIOD, state_profile, state_vitals
 from .state_metrics import FY
 from .world import STATE_ABBR
-from .yields import YIELDS, advisor_definitions, apply_city_yields, rank_yields, regional_economy
+from .yields import YIELDS, advisor_definitions, allocate, apply_city_yields, rank_yields, regional_economy
 
 REQUIRES = ["_world", WUP_SOURCE, "tg_projections", "datameet", "_yields", GHSL_UCDB, LABOUR_SOURCE, PILOT_INTERIM]
 OPTIONAL_REQUIRES = [ANNUAL_LABOUR_SOURCE]
@@ -37,6 +37,64 @@ NO_ECONOMY = {
     "employed": None, "yields": {}, "jobs": None, "median_income": None, "median_rent": None, "home_value": None,
     "unemployment": None, "rent_burden": None, "gdp": None, "gdp_year": None, "growth": None, "growth_years": None,
 }
+
+# Nominal basic-price totals and broad sector shares from the same state edition.
+# Delhi Table 2.1 is in lakh rupees, Maharashtra Statement 2 and Andhra Pradesh
+# Form F-1 in crore rupees. The third group is services in all three tables.
+STATE_BASIC_PRICE_GVA = {
+    "DL": (119_763_796 * 100_000, "delhi_gsva_fy26"),
+    "MH": (4_437_480 * 10_000_000, "maharashtra_gsva_fy26"),
+    "AP": (1_624_642 * 10_000_000, "andhra_pradesh_gsva_fy26"),
+}
+
+
+def city_gva(residents, mapped, rows, mixes, national):
+    if not residents or not residents.keys() <= STATE_BASIC_PRICE_GVA.keys():
+        return None
+    values = dict.fromkeys(SECTORS, 0)
+    sources = {NATIONAL_SOURCE, WUP_SOURCE, GHSL_UCDB, "tg_projections", "tg_urban"}
+    for state, population in residents.items():
+        gva, source = STATE_BASIC_PRICE_GVA[state]
+        mix = mixes.get(state)
+        urban = rows[state]["urban_population"]
+        if not (mix and urban and population > 0 and mix["source"] == source
+                and set(mix["shares"]) == set(SECTORS)
+                and math.isclose(sum(mix["shares"].values()), 1)):
+            return None
+        sources.add(source)
+        part = allocate(gva, population, max(urban, mapped[state]))
+        for key in values:
+            values[key] += part * mix["shares"][key]
+    total = sum(values.values())
+    if not total or national.keys() != values.keys() or not all(v > 0 for v in national.values()):
+        return None
+    shares = {key: value / total for key, value in values.items()}
+    benchmark = {key: value / sum(national.values()) for key, value in national.items()}
+    return {
+        "period": FY, "source": sorted(sources), "estimated": True,
+        "shares": shares, "national_shares": benchmark,
+        "location_quotients": {key: shares[key] / benchmark[key] for key in values},
+        "label": "Nominal GVA by activity", "scope": "GVA at basic prices",
+        "description": "Allocates each state's basic-price activity GVA using the existing projected urban population weights.",
+    }
+
+
+def gva_columns(record):
+    common = {key: record[key] for key in ("period", "source", "estimated", "scope", "description")}
+    return {
+        f"gva_{activity}_{key}": {
+            **common, "label": f"{SECTOR_LABELS[activity]} · {label} (GVA at basic prices)",
+            "group": "Basic-price GVA", "format": fmt, "unit": unit, "value": round(values[activity], digits),
+            "hide_rank": True,
+        }
+        for activity in SECTORS
+        for key, label, fmt, unit, values, digits in (
+            ("city_share", "Estimated city share of total", "pct", "%", record["shares"], 3 if record["shares"][activity] < .1 else 2),
+            ("india_share", "India share of total", "pct", "%", record["national_shares"], 3 if record["national_shares"][activity] < .1 else 2),
+            ("concentration", "IndiaCiv estimate · city share ÷ India share", "lq", "times the India share",
+             record["location_quotients"], 3),
+        )
+    }
 
 
 def nearest_land(grid: HexGrid, owner: list[int], start: int) -> int:
@@ -72,6 +130,15 @@ def older_city_value(city, key):
     if key == "gdp_per_capita":
         return old("population") or old_gold or old(key)
     return old(key) or (key == "gdp" and old_gold)
+
+
+def projected_population_history(place):
+    series = place.get("population_midyear")
+    if (place.get("growth_period") == CITY_GROWTH_PERIOD and series
+            and series.keys() == {"2025", "2026"} and series["2026"] == place["population"]
+            and all(value > 0 for value in series.values())):
+        return series
+    return None
 
 
 def add_headline_ranks(cities):
@@ -249,11 +316,25 @@ def build() -> None:
     projected = tg["data"]["population"]["INDIA"]
     july_population = national_population + (122 / 1826) * (1000 * projected["2031"][0] - national_population)
     pilot = load_interim(PILOT_INTERIM)["districts"]
+    gva = {key: NOMINAL_SERIES[key][-1] * 10_000_000 for key in SECTORS}
+    mapped_population = Counter()
+    for populations in state_populations.values():
+        mapped_population.update(populations)
     for city in cities:
         gdp = city["gdp"] = city["yields"]["gold"]
         if output := city.get("sector_output"):
             city.update(gdp_industry_fields(output))
         city.update(city_record(city, profiles.get(city["id"]), world["owner"], pilot))
+        if series := projected_population_history(places_by_id[city["id"]]):
+            city["pop_series"] = series
+            city["provenance"]["pop_series"] = {
+                "label": "Projected midyear population history", "period": CITY_GROWTH_PERIOD,
+                "source": WUP_SOURCE, "baseline": {"period": "1 Jul 2025", "vintage": "older"},
+            }
+        if city["id"] in workforce_cohort and city["counties"]:
+            record = city_gva(state_populations[city["id"]], mapped_population, yields["rows"], SECTOR_MIX, gva)
+            if record:
+                city.setdefault("advisor_columns", {}).update(gva_columns(record))
         city["national_shares"] = {
             "gdp": {"value": gdp / national_gdp, "period": FY, "source": ["gdp_fy26", "gsdp_fy26"],
                     "estimated": True} if gdp is not None and national_gdp else None,
@@ -273,7 +354,6 @@ def build() -> None:
     # Retain PLFS published rounding in the advisor ratios.
     advisor_jobs = {key: round(employed * share) for key, share in shares.items()} if employed else None
     # Statement 4 is at basic prices in crore rupees. The sector grouping includes mining in industry.
-    gva = {key: NOMINAL_SERIES[key][-1] * 10_000_000 for key in SECTORS}
     write_web("cities.json", cities)
     write_web(
         "nation.json",
@@ -283,6 +363,7 @@ def build() -> None:
             "gdp_vintage": FY,
             "national_gva": {
                 "values": gva, "labels": {key: SECTOR_LABELS[key] for key in gva},
+                "shares": {key: round(value / sum(gva.values()), 4) for key, value in gva.items()},
                 "period": FY, "source": NATIONAL_SOURCE, "scope": "GVA at basic prices", "status": "Provisional",
             },
             "nation": {**NO_ECONOMY, **regional_economy(yields["rows"]["IN"]),

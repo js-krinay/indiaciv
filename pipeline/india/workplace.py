@@ -28,9 +28,28 @@ INDUSTRIES = {
     "Pharmaceutical manufacturing": {21},
     "Scientific research and development": {74},
 }
-NIC = {19: {191}, 20: {192}, 21: {210}, 25: {241}, 26: {242}, 27: {243}, 33: {351},
-       34: {352, 353}, 35: {360}, 51: {551, 552, 559}, 56: {501}, 57: {502},
-       58: {511, 512}, 74: {721, 722}, 86: {900}}
+DETAILS = {
+    "Electricity, gas, steam and water": {33, 34, 35},
+    "Financial activities and equipment leasing": {65, 66, 67, 68},
+    "Basic metals and casting": {25, 26, 27},
+    "Air transport": {58},
+    "Water transport": {56, 57},
+    "Insurance and reinsurance": {66},
+    "Creative, arts and entertainment activities": {86},
+    "Electric power": {33},
+    "Water collection, treatment and supply": {35},
+    "Coke and refined petroleum": {19, 20},
+    "Pharmaceutical manufacturing": {21},
+    "Transport support activities": {61},
+    "Software publishing, programming and hosting": {73},
+    "Scientific research and development": {74},
+    "Primary, secondary, higher and other education": {80},
+}
+PLAQUE_NIC = {19: {191}, 20: {192}, 21: {210}, 25: {241}, 26: {242}, 27: {243}, 33: {351},
+              34: {352, 353}, 35: {360}, 51: {551, 552, 559}, 56: {501}, 57: {502},
+              58: {511, 512}, 74: {721, 722}, 86: {900}}
+NIC = {**PLAQUE_NIC, 61: {522}, 65: {641}, 66: {651, 652}, 67: {642, 643, 649, 653, 661, 663, 774},
+       68: {662}, 73: {582, 620, 631}, 80: {851, 852, 853, 854}}
 DEFENCE_NIC = {252, 303, 304, 842}
 EXCLUDED = {72}
 # SHRUG's harmonised manufacturing total sums these whole groups. Check
@@ -126,8 +145,10 @@ def observation(values, national):
     national_total = national[1]
     if jobs is None:
         return None
-    industry_values = dict(zip(NIC, local_groups, strict=True))
-    benchmark = dict(zip(NIC, national[4:], strict=True))
+    # Keep the original plaque columns at the front so earlier interims still build.
+    width = len(PLAQUE_NIC)
+    industry_values = dict(zip(PLAQUE_NIC, local_groups[:width], strict=True))
+    benchmark = dict(zip(PLAQUE_NIC, national[4:4 + width], strict=True))
     details = {}
     for label, groups in INDUSTRIES.items():
         counts = [industry_values[group] for group in groups]
@@ -145,6 +166,21 @@ def observation(values, national):
     if establishments is not None:
         result["establishments"] = round(establishments)
     return result
+
+
+def detail_shares(values):
+    _, jobs, manufacturing, _, *groups = values
+    if not jobs:
+        return {}
+    by_group = dict(zip(NIC, groups, strict=True))
+    shares = {}
+    for label, codes in DETAILS.items():
+        counts = [by_group[code] for code in sorted(codes)]
+        if all(count is not None for count in counts) and 0 <= (total := sum(counts)) <= jobs:
+            shares[label] = round(total / jobs, 8)
+    if manufacturing is not None:
+        shares["Civilian-filtered manufacturing"] = round(manufacturing / jobs, 8)
+    return shares
 
 
 def prepare(economic, keys, concordance, workbook):
@@ -186,6 +222,7 @@ def prepare(economic, keys, concordance, workbook):
     for (state, name), members in groups.items():
         values = matched_ua(members, town_keys, owners, locations)
         if values is not None and (record := observation(values, national)) is not None:
+            record["industry_shares"] = detail_shares(values)
             uas[f"{state}:{name}"] = record
     return {"districts": {key: observation(value, national) for key, value in districts.items()},
             "uas": uas,

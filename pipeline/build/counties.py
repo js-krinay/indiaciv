@@ -41,6 +41,8 @@ FIELDS = [
     field("veterans_pct", "Registered ex-servicemen share", "pct", "share of residents"),
     field("qcew_jobs", "Workplace jobs", "int", "civilian non-farm jobs"),
 ]
+HOUSEHOLD_FIELDS = ("consumption_index", "consumption_index_rural", "multidimensional_poverty",
+                    "no_household_health_financing", "pasture", "rural_district_tap_water")
 
 
 def district_table(world, places, workplace, cities=()):
@@ -55,7 +57,14 @@ def district_table(world, places, workplace, cities=()):
         for geoid in city.get("counties", []):
             memberships.setdefault(geoid, []).append(city["id"])
 
-    columns = [f["key"] for f in FIELDS]
+    household_fields = {}
+    for district in places["counties"].values():
+        for key, record in district.get("advisor_columns", {}).items():
+            if key in HOUSEHOLD_FIELDS:
+                base = field(key, record["label"], record["format"], record["unit"])
+                household_fields.setdefault(key, {**base, **{k: v for k, v in record.items() if k not in ("value", "coverage", "sparse")}})
+    fields = [*FIELDS, *[household_fields[key] for key in HOUSEHOLD_FIELDS if key in household_fields]]
+    columns = [f["key"] for f in fields]
     rows = []
     provenance = {}
     for index, ident in enumerate(world["counties"]):
@@ -68,6 +77,10 @@ def district_table(world, places, workplace, cities=()):
         meta = {"name": {"source": "datameet"}, "state": {"source": "datameet"},
                 "land_km2": {"source": "datameet"},
                 **district.get("provenance", {})}
+        for key, record in district.get("advisor_columns", {}).items():
+            if key in household_fields:
+                values[key] = record["value"]
+                meta[key] = {k: record[k] for k in ("source", "period", "vintage", "coverage", "sparse") if k in record}
         for key in LAND:
             item = (district.get("historical_land") or {}).get(key)
             if item:
@@ -95,7 +108,7 @@ def district_table(world, places, workplace, cities=()):
                                  "vintage": local_jobs["vintage"]}
         rows.append([values.get(key) for key in columns])
         provenance[geoid] = meta
-    return {"vintage": None, "period": "1 March 2026", "estimated": True, "columns": columns, "fields": FIELDS,
+    return {"vintage": None, "period": "1 March 2026", "estimated": True, "columns": columns, "fields": fields,
             "rows": rows, "provenance": provenance}
 
 

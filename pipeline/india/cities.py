@@ -44,6 +44,8 @@ def parse_places(rows, project):
             "x": round(x),
             "y": round(y),
         })
+        if isinstance(p25, (int, float)) and p25 > 0:
+            places[-1]["population_midyear"] = {"2025": round(p25 * 1000), "2026": round(p26 * 1000)}
         p27 = row[year27] if year27 is not None else None
         if all(isinstance(p, (int, float)) and p > 0 for p in (p25, p27)):
             places[-1]["population_2026"] = {

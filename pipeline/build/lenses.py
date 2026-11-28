@@ -19,7 +19,7 @@ from ..india.advisor_sources import (HP_REGISTRATIONS, OLDER_REGISTRATION_PERIOD
 from ..india.city_conditions_sources import EVENTS
 from ..india.city_sources import DISTRICT_AGE_SOURCE
 from ..india.census_work_sources import CULTIVATION_INTERIM
-from ..india.household_cost_sources import PILOT_INTERIM
+from ..india.household_cost_sources import DISTRICT_INTERIM, DISTRICT_TAPS, PILOT_INTERIM
 from ..india.historical_sources import VILLAGE_LAND_SOURCE
 from .advisor_statistics import veteran_columns, veteran_population
 from .air_weather import GROUP as WEATHER_GROUP, INPUTS as WEATHER_INPUTS, weather_lenses
@@ -29,6 +29,7 @@ from .cities import older_city_value
 from .disasters import COVERAGE, PERIOD, advisor_definitions, disaster_lenses, event_summary, index_events, inventory
 from .district_values import district_sample_values, small_district_values
 from .historical_land import DENOMINATOR, ESRI_FIELDS, advisor_columns as land_columns
+from .household_analogues import district_columns as household_columns, district_lens as household_lens
 from .hex_geography import AGE_META, DENSITY_META, fill_blanks, prepared_geography
 from ..india.city_sources import HEX_GEOGRAPHY
 from .projection import CITY_GROWTH_PERIOD, STATE_GROWTH_PERIOD, district_growth
@@ -39,7 +40,7 @@ REQUIRES = ["_world", "census_a01", "datameet", "tg_projections", "states.json",
             "wonders.json", "resources.json", *WEATHER_INPUTS, "_state_metrics", VETERAN_POPULATION,
             DISTRICT_AGE_SOURCE, PILOT_INTERIM]
 PRODUCES = ["lenses.json", "lens_catalog.json"]
-OPTIONAL_REQUIRES = [CULTIVATION_INTERIM, HEX_GEOGRAPHY, VILLAGE_LAND_SOURCE]
+OPTIONAL_REQUIRES = [CULTIVATION_INTERIM, HEX_GEOGRAPHY, VILLAGE_LAND_SOURCE, DISTRICT_INTERIM, DISTRICT_TAPS]
 
 SOURCE = "tg_projections"
 DISTRICT_POPULATION_SOURCES = ("census_a01", "datameet", SOURCE)
@@ -190,6 +191,14 @@ def build() -> None:
         district_ages = {}
     pilot = load_interim(PILOT_INTERIM)["districts"]
     try:
+        household_surveys = load_interim(DISTRICT_INTERIM)
+    except FileNotFoundError:
+        household_surveys = {"mpi": {}, "health": {}}
+    try:
+        district_taps = load_interim(DISTRICT_TAPS)
+    except FileNotFoundError:
+        district_taps = {}
+    try:
         cultivation = load_interim(CULTIVATION_INTERIM)["districts"]
     except FileNotFoundError:
         cultivation = {}
@@ -221,6 +230,9 @@ def build() -> None:
         places[geoid]["advisor_columns"] = {
             **advisor_columns(civic.get(geoid, {})),
             **land_columns(places[geoid]["historical_land"], district=True),
+            **household_columns(pilot.get(geoid), places[geoid]["historical_land"],
+                                household_surveys["mpi"].get(geoid), household_surveys["health"].get(geoid),
+                                district_taps.get(geoid)),
         }
         if record := pilot.get(geoid):
             places[geoid]["consumption_index"] = record["urban"]
@@ -362,6 +374,9 @@ def build() -> None:
     if historical := list(civic_lenses(world, places, a01)):
         groups.append({"id": "census_civic", "name": "Census civic measures"})
         lenses.extend(historical)
+    for key in ("consumption_index", "consumption_index_rural"):
+        if lens := household_lens(world, places, key):
+            lenses.append(lens)
     for key, definition in load_interim("_state_metrics")["definitions"].items():
         records = [st["metrics"].get(key) for st in state_rows]
         values = [None if o < 0 or water or records[o] is None else records[o]["value"]
@@ -382,7 +397,14 @@ def build() -> None:
             sources.add(SOURCE)
         if key == "gsdp_pc" and any(r and r.get("estimated") for r in records):
             sources.add("gdp_fy26")
-        lenses.append({**definition, "values": values, "domain": [lo, hi if hi > lo else lo + 1],
+        lens_caption = {}
+        if key in ("internet_per_100", "mpce_index_urban", "rent_index_urban", "no_household_health_financing"):
+            columns = (row["advisor_columns"][key] for row in state_rows if key in row["advisor_columns"])
+            if spec := next(columns, None):
+                lens_caption = {"name": spec["label"], "unit": spec["unit"]}
+                if key == "internet_per_100":
+                    lens_caption.update(estimated=True, source_line=f"IndiaCiv estimate · {definition['source_line']}")
+        lenses.append({**definition, **lens_caption, "values": values, "domain": [lo, hi if hi > lo else lo + 1],
                        "state_details": state_details, "sources": sorted(sources)})
     groups.extend({"id": key, "name": label} for key, label in METRIC_GROUPS.items()
                   if any(lens["group"] == key for lens in lenses))
